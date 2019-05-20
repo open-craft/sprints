@@ -11,7 +11,7 @@ App for tracking sprint commitments, vacations and spillovers.
      :alt: Black code style
 
 
-:License: GPLv3
+:License: AGPL-3.0
 
 
 Settings

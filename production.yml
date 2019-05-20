@@ -10,7 +10,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
-    image: sprint_management_application_production_django
+    image: opencraft/sprints_django
     depends_on:
       - postgres
       - redis
@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: sprint_management_application_production_postgres
+    image: opencraft/sprints_postgres
     volumes:
       - production_postgres_data:/var/lib/postgresql/data
       - production_postgres_data_backups:/backups
@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/traefik/Dockerfile
-    image: sprint_management_application_production_traefik
+    image: opencraft/sprints_traefik
     depends_on:
       - django
     volumes:
@@ -48,17 +48,17 @@ services:
 
   celeryworker:
     <<: *django
-    image: sprint_management_application_production_celeryworker
+    image: opencraft/sprints_celeryworker
     command: /start-celeryworker
 
   celerybeat:
     <<: *django
-    image: sprint_management_application_production_celerybeat
+    image: opencraft/sprints_celerybeat
     command: /start-celerybeat
 
   flower:
     <<: *django
-    image: sprint_management_application_production_flower
+    image: opencraft/sprints_flower
     ports:
       - "5555:5555"
     command: /start-flower
@@ -66,6 +66,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/aws/Dockerfile
+    image: opencraft/sprints_awscli
     env_file:
       - ./.envs/.production/.django
     volumes:

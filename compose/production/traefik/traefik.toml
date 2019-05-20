@@ -16,7 +16,7 @@ defaultEntryPoints = ["http", "https"]
 # Enable ACME (Let's Encrypt): automatic SSL
 [acme]
 # Email address used for registration
-email = "xavier@opencraft.com"
+email = "ops@opencraft.com"
 storage = "/etc/traefik/acme/acme.json"
 entryPoint = "https"
 onDemand = false
@@ -38,4 +38,4 @@ OnHostRule = true
     [frontends.django.headers]
       HostsProxyHeaders = ['X-CSRFToken']
     [frontends.django.routes.dr1]
-      rule = "Host:opencraft.com"
+      rule = "Host:sprints.opencraft.com"

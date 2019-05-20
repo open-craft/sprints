@@ -1,0 +1,7 @@
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=sprint_management_application
+POSTGRES_USER=WmBQECsnGEnJEoysAOQIgHDHpxnNIKYt
+POSTGRES_PASSWORD=RWw3Oc07aYWXou8chyzm61WwVXxrC0Cht0Nkg9VXOjHxtyTHpzDuTw89PxzPR5cv

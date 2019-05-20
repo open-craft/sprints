@@ -1,0 +1,64 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.7
+        environment:
+          DATABASE_URL: postgresql://root@localhost/circle_test?sslmode=disable
+          CELERY_BROKER_URL: redis://redis:6379/0
+      - image: circleci/postgres:10.5
+        environment:
+          POSTGRES_USER: root
+          POSTGRES_DB: circle_test
+      - image: circleci/redis:3.2
+    steps:
+      - checkout
+      - run:
+          name: Calculate checksum of the dependencies
+          command: |
+            shasum requirements/* > /tmp/checksum.tmp
+      - restore_cache:
+          key: dependencies-{{ checksum "/tmp/checksum.tmp" }}
+      - run:
+          name: Setup VirtualEnv
+          command: |
+            virtualenv venv
+            . venv/bin/activate
+            pip install -r requirements/local.txt
+      - save_cache:
+          key: dependencies-{{ checksum "/tmp/checksum.tmp" }}
+          paths:
+            - "venv"
+      - run:
+          name: Run Tests
+          command: |
+            . venv/bin/activate
+            coverage run -m pytest
+            coverage report
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Install Docker Compose
+          filters:
+            branches:
+              only: master
+          command: |
+            curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` > ~/docker-compose
+            chmod +x ~/docker-compose
+            sudo mv ~/docker-compose /usr/local/bin/docker-compose
+      - run:
+          name: Build and push Docker image
+          filters:
+            branches:
+              only: master
+          command: |
+            echo $DOCKER_PASSWORD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker-compose -f production.yml build
+            docker-compose -f production.yml push
+      - run:
+          name: Deploy
+          filters:
+            branches:
+              only: master
+          command: |
+            ssh -o StrictHostKeyChecking=no $HOST_USERNAME@$HOSTNAME "/bin/bash ./deploy.sh"

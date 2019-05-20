@@ -69,6 +69,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "rest_framework",
+    "drf_yasg",
 ]
 LOCAL_APPS = [
     "sprint_management_application.users.apps.UsersConfig",
@@ -214,7 +215,7 @@ EMAIL_BACKEND = env(
 # Django Admin URL.
 ADMIN_URL = "admin/"
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
-ADMINS = [("""OpenCraft""", "xavier@opencraft.com")]
+ADMINS = [("""OpenCraft""", "ops@opencraft.com")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
 

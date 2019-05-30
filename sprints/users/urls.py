@@ -1,6 +1,6 @@
 from django.urls import path
 
-from sprint_management_application.users.views import (
+from sprints.users.views import (
     user_redirect_view,
     user_update_view,
     user_detail_view,

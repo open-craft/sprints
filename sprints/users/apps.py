@@ -3,11 +3,11 @@ from django.utils.translation import gettext_lazy as _
 
 
 class UsersConfig(AppConfig):
-    name = "sprint_management_application.users"
+    name = "sprints.users"
     verbose_name = _("Users")
 
     def ready(self):
         try:
-            import sprint_management_application.users.signals  # noqa F401
+            import sprints.users.signals  # noqa F401
         except ImportError:
             pass

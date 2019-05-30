@@ -6,11 +6,11 @@ jobs:
         environment:
           DATABASE_URL: postgresql://root@localhost/circle_test?sslmode=disable
           CELERY_BROKER_URL: redis://redis:6379/0
-      - image: circleci/postgres:10.5
+      - image: circleci/postgres:10.3
         environment:
           POSTGRES_USER: root
           POSTGRES_DB: circle_test
-      - image: circleci/redis:3.2
+      - image: circleci/redis:5.0
     steps:
       - checkout
       - run:
@@ -33,6 +33,7 @@ jobs:
           name: Run Tests
           command: |
             . venv/bin/activate
+            mypy sprints
             coverage run -m pytest
             coverage report
       - setup_remote_docker:

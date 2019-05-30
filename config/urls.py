@@ -30,7 +30,7 @@ urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
-    path("users/", include("sprint_management_application.users.urls", namespace="users")),
+    path("users/", include("sprints.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

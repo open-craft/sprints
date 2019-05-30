@@ -9,7 +9,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
-    image: sprint_management_application_local_django
+    image: sprints_local_django
     depends_on:
       - postgres
     volumes:
@@ -25,7 +25,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: sprint_management_application_production_postgres
+    image: sprints_production_postgres
     volumes:
       - local_postgres_data:/var/lib/postgresql/data
       - local_postgres_data_backups:/backups
@@ -33,31 +33,31 @@ services:
       - ./.envs/.local/.postgres
 
   redis:
-    image: redis:3.2
+    image: redis:5.0
 
   celeryworker:
     <<: *django
-    image: sprint_management_application_local_celeryworker
+    image: sprints_local_celeryworker
     depends_on:
       - redis
       - postgres
-      
+
     ports: []
     command: /start-celeryworker
 
   celerybeat:
     <<: *django
-    image: sprint_management_application_local_celerybeat
+    image: sprints_local_celerybeat
     depends_on:
       - redis
       - postgres
-      
+
     ports: []
     command: /start-celerybeat
 
   flower:
     <<: *django
-    image: sprint_management_application_local_flower
+    image: sprints_local_flower
     ports:
       - "5555:5555"
     command: /start-flower

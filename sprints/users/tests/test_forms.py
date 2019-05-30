@@ -1,7 +1,7 @@
 import pytest
 
-from sprint_management_application.users.forms import UserCreationForm
-from sprint_management_application.users.tests.factories import UserFactory
+from sprints.users.forms import UserCreationForm
+from sprints.users.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 

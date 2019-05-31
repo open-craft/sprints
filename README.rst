@@ -31,9 +31,19 @@ Open a terminal at the project root and run the following for local development:
 
     $ docker-compose -f local.yml up
 
-For the first time you will also need to run migrations with::
+The web application is accessible at http://localhost:8000.
+
+For the first time you will need to run migrations with::
 
     $ docker-compose -f local.yml run --rm django python manage.py migrate
+
+You can also set the environment variable `COMPOSE_FILE` pointing to `local.yml` like this::
+
+    $ export COMPOSE_FILE=local.yml
+
+And then run::
+
+    $ docker-compose up
 
 Please see cookiecutter-django docs for more information about running locally `with Docker`_ or `without it`_.
 
@@ -95,7 +105,7 @@ To run a celery worker:
 .. code-block:: bash
 
     cd sprints
-    celery -A config.celery_app worker -l info
+    docker-compose -f local.yml run django celery -A config.celery_app worker -l info
 
 Please note: For Celery's import magic to work, it is important *where* the celery commands are run. If you are in the same folder with *manage.py*, you should be right.
 

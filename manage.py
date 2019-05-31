@@ -23,8 +23,8 @@ if __name__ == "__main__":
         raise
 
     # This allows easy placement of apps within the interior
-    # sprint_management_application directory.
+    # sprints directory.
     current_path = os.path.dirname(os.path.abspath(__file__))
-    sys.path.append(os.path.join(current_path, "sprint_management_application"))
+    sys.path.append(os.path.join(current_path, "sprints"))
 
     execute_from_command_line(sys.argv)

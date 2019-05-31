@@ -6,8 +6,8 @@ import environ
 
 ROOT_DIR = (
     environ.Path(__file__) - 3
-)  # (sprint_management_application/config/settings/base.py - 3 = sprint_management_application/)
-APPS_DIR = ROOT_DIR.path("sprint_management_application")
+)  # (sprints/config/settings/base.py - 3 = sprints/)
+APPS_DIR = ROOT_DIR.path("sprints")
 
 env = environ.Env()
 
@@ -72,7 +72,7 @@ THIRD_PARTY_APPS = [
     "drf_yasg",
 ]
 LOCAL_APPS = [
-    "sprint_management_application.users.apps.UsersConfig",
+    "sprints.users.apps.UsersConfig",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -81,7 +81,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # MIGRATIONS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
-MIGRATION_MODULES = {"sites": "sprint_management_application.contrib.sites.migrations"}
+MIGRATION_MODULES = {"sites": "sprints.contrib.sites.migrations"}
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
@@ -274,9 +274,9 @@ ACCOUNT_EMAIL_REQUIRED = True
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
-ACCOUNT_ADAPTER = "sprint_management_application.users.adapters.AccountAdapter"
+ACCOUNT_ADAPTER = "sprints.users.adapters.AccountAdapter"
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
-SOCIALACCOUNT_ADAPTER = "sprint_management_application.users.adapters.SocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "sprints.users.adapters.SocialAccountAdapter"
 
 
 # Your stuff...

@@ -24,6 +24,32 @@ Moved to settings_.
 Basic Commands
 --------------
 
+Running locally with Docker
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Open a terminal at the project root and run the following for local development::
+
+    $ docker-compose -f local.yml up
+
+The web application is accessible at http://localhost:8000.
+
+For the first time you will need to run migrations with::
+
+    $ docker-compose -f local.yml run --rm django python manage.py migrate
+
+You can also set the environment variable `COMPOSE_FILE` pointing to `local.yml` like this::
+
+    $ export COMPOSE_FILE=local.yml
+
+And then run::
+
+    $ docker-compose up
+
+Please see cookiecutter-django docs for more information about running locally `with Docker`_ or `without it`_.
+
+.. _`with Docker`: https://cookiecutter-django.readthedocs.io/en/latest/developing-locally-docker.html
+.. _`without it`: https://cookiecutter-django.readthedocs.io/en/latest/developing-locally.html
+
 Setting Up Your Users
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -31,7 +57,7 @@ Setting Up Your Users
 
 * To create an **superuser account**, use this command::
 
-    $ python manage.py createsuperuser
+    $ docker-compose -f local.yml run --rm django python manage.py createsuperuser
 
 For convenience, you can keep your normal user logged in on Chrome and your superuser logged in on Firefox (or similar), so that you can see how the site behaves for both kinds of users.
 
@@ -42,23 +68,24 @@ Running type checks with mypy:
 
 ::
 
-  $ mypy sprint_management_application
+  $ docker-compose -f local.yml run django mypy sprints
 
 Test coverage
 ^^^^^^^^^^^^^
 
 To run the tests, check your test coverage, and generate an HTML coverage report::
 
-    $ coverage run -m pytest
-    $ coverage html
-    $ open htmlcov/index.html
+    $ docker-compose -f local.yml run django coverage run -m pytest
+    $ docker-compose -f local.yml run django coverage html
+
+The results will be available in the `htmlcov/index.html`. You can open it with your browser.
 
 Running tests with py.test
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
-  $ pytest
+  $ docker-compose -f local.yml run django pytest
 
 Live reloading and Sass CSS compilation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -78,8 +105,8 @@ To run a celery worker:
 
 .. code-block:: bash
 
-    cd sprint_management_application
-    celery -A config.celery_app worker -l info
+    cd sprints
+    docker-compose -f local.yml run django celery -A config.celery_app worker -l info
 
 Please note: For Celery's import magic to work, it is important *where* the celery commands are run. If you are in the same folder with *manage.py*, you should be right.
 

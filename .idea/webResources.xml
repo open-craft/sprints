@@ -5,7 +5,7 @@
       <entry url="file://$PROJECT_DIR$">
         <entryData>
           <resourceRoots>
-            <path value="file://$PROJECT_DIR$/sprint_management_application/static" />
+            <path value="file://$PROJECT_DIR$/sprints/static" />
           </resourceRoots>
         </entryData>
       </entry>

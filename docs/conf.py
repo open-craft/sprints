@@ -163,7 +163,7 @@ html_static_path = ["_static"]
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "sprint_management_applicationdoc"
+htmlhelp_basename = "sprintsdoc"
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -182,7 +182,7 @@ latex_elements = {
 latex_documents = [
     (
         "index",
-        "sprint_management_application.tex",
+        "sprints.tex",
         "Sprint Management Application Documentation",
         """OpenCraft""",
         "manual",
@@ -217,7 +217,7 @@ latex_documents = [
 man_pages = [
     (
         "index",
-        "sprint_management_application",
+        "sprints",
         "Sprint Management Application Documentation",
         ["""OpenCraft"""],
         1,
@@ -236,7 +236,7 @@ man_pages = [
 texinfo_documents = [
     (
         "index",
-        "sprint_management_application",
+        "sprints",
         "Sprint Management Application Documentation",
         """OpenCraft""",
         "Sprint Management Application",

@@ -1,5 +1,5 @@
 [run]
-include = sprint_management_application/*
+include = sprints/*
 omit = *migrations*, *tests*
 plugins =
     django_coverage_plugin

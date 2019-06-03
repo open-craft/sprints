@@ -31,6 +31,24 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
     path("users/", include("sprints.users.urls", namespace="users")),
+]
+
+# Provide an option to disable standard (not social auth) login/registration page.
+if not getattr(settings, "ACCOUNT_ALLOW_LOGIN", True):
+    urlpatterns += [
+        path(
+            "accounts/login/",
+            default_views.page_not_found,
+            kwargs={"exception": Exception("Page not Found")},
+        ),
+        path(
+            "accounts/signup/",
+            default_views.page_not_found,
+            kwargs={"exception": Exception("Page not Found")},
+        ),
+    ]
+
+urlpatterns += [
     path("accounts/", include("allauth.urls")),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

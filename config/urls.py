@@ -31,6 +31,8 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
     path("users/", include("sprints.users.urls", namespace="users")),
+    # Dashboard
+    path("dashboard/", include("sprints.dashboard.urls", namespace="dashboard"))
 ]
 
 # Provide an option to disable standard (not social auth) login/registration page.

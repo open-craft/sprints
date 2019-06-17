@@ -71,6 +71,7 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount.providers.google',
     "rest_framework",
     "drf_yasg",
+    "corsheaders",
 ]
 LOCAL_APPS = [
     "sprints.users.apps.UsersConfig",
@@ -122,6 +123,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -282,6 +284,53 @@ ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
 SOCIALACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_SOCIALACCOUNT_ALLOW_REGISTRATION", True)
 ACCOUNT_ALLOWED_EMAIL_DOMAINS = env.list("DJANGO_ACCOUNT_ALLOWED_EMAIL_DOMAINS", default=["opencraft.com"])
 
+# Jira configs
+JIRA_SERVER = env.str("DJANGO_JIRA_SERVER")
+JIRA_USERNAME = env.str("DJANGO_JIRA_USERNAME")
+JIRA_PASSWORD = env.str("DJANGO_JIRA_PASSWORD")
+JIRA_SPRINT_BOARD_PREFIX = env.str("DJANGO_SPRINT_BOARD_PREFIX", "Sprint - ")
+JIRA_CUSTOM_FIELDS = env.dict("DJANGO_JIRA_CUSTOM_FIELDS", default={
+    "sprint": 'customfield_10005',
+    "story_points": 'customfield_10002',
+    "reviewer_1": 'customfield_10200',
+    "reviewer_2": 'customfield_10201',
+})
+JIRA_BOT_USERNAME = env.str("DJANGO_JIRA_BOT_USERNAME", "crafty")
+JIRA_BOARD_ID = env.int("DJANGO_JIRA_BOARD_ID", 26)  # Does not matter as long as the sprint numbers are synchronized.
+JIRA_REQUIRED_FIELDS = [
+    "assignee", "description", "issuetype", "status", "timespent", "timeestimate",
+] + list(JIRA_CUSTOM_FIELDS.values())
 
-# Your stuff...
-# ------------------------------------------------------------------------------
+# Sprint configs
+SPRINT_DEFAULT_COMMITMENT = env.int("DJANGO_SPRINT_DEFAULT_COMMITMENT", 80)
+SPRINT_HOURS_RESERVED_FOR_MEETINGS = env.int("DJANGO_SPRINT_HOURS_RESERVED_FOR_MEETINGS", 2)
+SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT = env.int("DJANGO_SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT", 2)
+SPRINT_STATUS_BACKLOG = "Backlog"
+SPRINT_STATUS_IN_PROGRESS = "In progress"
+SPRINT_STATUS_REVIEW = "Need Review"
+SPRINT_STATUS_EXTERNAL_REVIEW = "External Review / Blocker"
+SPRINT_STATUS_MERGED = "Merged"
+SPRINT_STATUS_RECURRING = "Recurring"
+SPRINT_STATUS_ACCEPTED = "Accepted"
+SPRINT_STATUS_IN_DEVELOPMENT = "In development"
+
+SPRINT_STATUS_UNFINISHED = {
+    SPRINT_STATUS_BACKLOG,
+    SPRINT_STATUS_IN_PROGRESS,
+    SPRINT_STATUS_REVIEW,
+    SPRINT_STATUS_EXTERNAL_REVIEW,
+    SPRINT_STATUS_MERGED,
+}
+SPRINT_STATUS_EPIC_IN_PROGRESS = {
+    SPRINT_STATUS_RECURRING,
+    SPRINT_STATUS_ACCEPTED,
+    SPRINT_STATUS_IN_DEVELOPMENT,
+}
+SPRINT_EPIC_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours per sprint for epic management"
+SPRINT_RECURRING_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours per sprint for this task"
+SPRINT_REVIEW_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours for reviewing this task"
+
+# React frontend
+CORS_ORIGIN_WHITELIST = (
+    'http://localhost:3000',
+)

@@ -1,11 +1,16 @@
 from rest_framework import serializers
 
-from sprints.dashboard.helpers import Cell, DashboardRow
+from sprints.dashboard.helpers import (
+    Cell,
+    Dashboard,
+    DashboardRow,
+)
 
 
 class CellSerializer(serializers.Serializer):
     """Serializer for cells."""
     name = serializers.CharField(max_length=256)
+    board_id = serializers.IntegerField()
 
     def create(self, validated_data):
         return Cell(**validated_data)
@@ -25,10 +30,15 @@ class DashboardRowSerializer(serializers.Serializer):
     future_epic_management_time = serializers.IntegerField()
     committed_time = serializers.IntegerField()
     goal_time = serializers.IntegerField()
+    current_invalid = serializers.ListField()
+    future_invalid = serializers.ListField()
     remaining_time = serializers.IntegerField()
 
     def get_name(self, obj: DashboardRow):
-        return obj.user.displayName if obj.user else "Unassigned"
+        try:
+            return obj.user.displayName if obj.user else "Unassigned"
+        except AttributeError:
+            return obj.user
 
     def create(self, validated_data):
         raise NotImplementedError("This method is not allowed.")
@@ -40,8 +50,10 @@ class DashboardRowSerializer(serializers.Serializer):
 class DashboardSerializer(serializers.Serializer):
     """Serializer for the dashboard."""
     rows = DashboardRowSerializer(many=True)
-    cell = serializers.CharField(max_length=256, source='project')
-    future_sprint = serializers.CharField(max_length=256, source='future_sprint_name')
+    future_sprint = serializers.SerializerMethodField()
+
+    def get_future_sprint(self, obj: Dashboard):
+        return obj.future_sprint.name
 
     def create(self, validated_data):
         raise NotImplementedError("This method is not allowed.")

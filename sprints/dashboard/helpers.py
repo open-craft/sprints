@@ -1,25 +1,58 @@
 import re
 from contextlib import contextmanager
-from typing import ContextManager, Dict, List
+from datetime import (
+    datetime,
+    timedelta,
+)
+from typing import (
+    ContextManager,
+    Dict,
+    List,
+    Union,
+)
 
-from jira import JIRA
 # noinspection PyProtectedMember
-from jira.resources import Board, GreenHopperResource, Issue, Sprint, User as JiraUser
+from jira.resources import (
+    Board,
+    GreenHopperResource,
+    Issue,
+    Sprint,
+    User as JiraUser,
+)
 
-from config.settings.base import JIRA_CUSTOM_FIELDS, JIRA_PASSWORD, JIRA_REQUIRED_FIELDS, JIRA_SERVER, \
-    JIRA_SPRINT_BOARD_PREFIX, JIRA_USERNAME, SPRINT_DEFAULT_COMMITMENT, SPRINT_EPIC_DIRECTIVE, \
-    SPRINT_HOURS_RESERVED_FOR_MEETINGS, SPRINT_RECURRING_DIRECTIVE, SPRINT_REVIEW_DIRECTIVE, \
-    SPRINT_STATUS_EPIC_IN_PROGRESS, SPRINT_STATUS_EXTERNAL_REVIEW, SPRINT_STATUS_MERGED, SPRINT_STATUS_RECURRING, \
-    SPRINT_STATUS_UNFINISHED
+from config.settings.base import (
+    JIRA_BOARD_QUICKFILTER_PATTERN,
+    JIRA_PASSWORD,
+    JIRA_REQUIRED_FIELDS,
+    JIRA_SERVER,
+    JIRA_SPRINT_BOARD_PREFIX,
+    JIRA_USERNAME,
+    SPRINT_DATE_REGEX,
+    SPRINT_EPIC_DIRECTIVE,
+    SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT,
+    SPRINT_HOURS_RESERVED_FOR_MEETINGS,
+    SPRINT_NUMBER_REGEX,
+    SPRINT_RECURRING_DIRECTIVE,
+    SPRINT_REVIEW_DIRECTIVE,
+    SPRINT_STATUS_EPIC_IN_PROGRESS,
+    SPRINT_STATUS_EXTERNAL_REVIEW,
+    SPRINT_STATUS_MERGED,
+    SPRINT_STATUS_RECURRING,
+    SPRINT_STATUS_UNFINISHED,
+)
+from sprints.dashboard.api import (
+    CustomJira,
+    QuickFilter,
+)
 from sprints.users.models import User
 
 SECONDS_IN_HOUR = 3600
 
 
 @contextmanager
-def connect_to_jira() -> ContextManager[JIRA]:
+def connect_to_jira() -> ContextManager[CustomJira]:
     """Context manager for establishing connection with Jira server."""
-    conn = JIRA(
+    conn = CustomJira(
         server=JIRA_SERVER,
         basic_auth=(JIRA_USERNAME, JIRA_PASSWORD),
         options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH}
@@ -44,20 +77,38 @@ def get_cells() -> List[Cell]:
         return [Cell(board) for board in conn.boards(name=JIRA_SPRINT_BOARD_PREFIX)]
 
 
-def get_active_sprint(board_id: int) -> Sprint:
-    """Get active sprint for the selected board."""
-    with connect_to_jira() as conn:
-        return conn.sprints(board_id, state='active')[0]
+def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
+    """Extracts the cell members' usernames from quickfilters."""
+    members = []
+    for quickfilter in quickfilters:
+        try:
+            username = re.search(JIRA_BOARD_QUICKFILTER_PATTERN, quickfilter.query).group(1)
+            members.append(username)
+        except AttributeError:
+            # We can safely ignore non-matching filters.
+            pass
+
+    return members
 
 
-def prepare_jql_query(project: str, current_sprint: int) -> Dict[str, str]:
+def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:
+    """Find the consecutive sprint by its number."""
+    previous_sprint_number = int(re.search(SPRINT_NUMBER_REGEX, previous_sprint.name).group(1))
+
+    for sprint in sprints:
+        if sprint.name.startswith('Sprint') and sprint.state == 'future':
+            sprint_number = int(re.search(SPRINT_NUMBER_REGEX, sprint.name).group(1))
+            if previous_sprint_number + 1 == sprint_number:
+                return sprint
+
+
+def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]) -> Dict[str, str]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
     unfinished_status = '"' + '","'.join(SPRINT_STATUS_UNFINISHED | {SPRINT_STATUS_RECURRING}) + '"'
     epic_in_progress = '"' + '","'.join(SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
 
-    query = f'project={project} AND ((Sprint IN {(current_sprint, current_sprint + 1)} and ' \
+    query = f'((Sprint IN {(current_sprint, future_sprint)} and ' \
         f'status IN ({unfinished_status})) OR (issuetype = Epic AND Status IN ({epic_in_progress})))'
-    fields = JIRA_REQUIRED_FIELDS
 
     return {
         'jql_str': query,
@@ -72,43 +123,42 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
     return int(result)
 
 
-def extract_sprint_name_from_str(sprint_str: str) -> str:
-    """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
-    pattern = r'name=(.*?),'
-    result = re.search(pattern, sprint_str).group(1)
-    return result
-
-
 class DashboardIssue:
     """Parses Jira Issue for easier access."""
 
-    def __init__(self, issue: Issue, current_sprint_id) -> None:
+    def __init__(self, issue: Issue, current_sprint_id, cell_members, issue_fields) -> None:
         super().__init__()
         self.key = issue.key
         # It should be present, but that's not enforced by the library, so it's better to specify default value.
-        self.assignee = getattr(issue.fields, 'assignee', None)
-        self.description = getattr(issue.fields, 'description', '')
-        self.status = getattr(issue.fields, 'status').name
-        self.time_spent = getattr(issue.fields, 'timespent', 0) or 0
-        self.time_estimate = getattr(issue.fields, 'timeestimate', 0) or 0
-        self.is_epic = getattr(issue.fields, 'issuetype').name == 'Epic'
+        self.assignee = getattr(issue.fields, issue_fields['Assignee'], None)
+        # We don't want to treat commitments from the other cell as "Unassigned".
+        if self.assignee and self.assignee.name not in cell_members:
+            self.assignee = "Other Cell"
+        self.description = getattr(issue.fields, issue_fields['Description'], '')
+        self.status = getattr(issue.fields, issue_fields['Status']).name
+        self.time_spent = getattr(issue.fields, issue_fields['Time Spent'], 0) or 0
+        self.time_estimate = getattr(issue.fields, issue_fields['Remaining Estimate'], 0) or 0
+        self.is_epic = getattr(issue.fields, issue_fields['Issue Type']).name == 'Epic'
 
         try:
-            sprint = getattr(issue.fields, JIRA_CUSTOM_FIELDS['sprint'])
+            sprint = getattr(issue.fields, issue_fields['Sprint'])
             if isinstance(sprint, list):
-                sprint = sprint[0]
+                sprint = sprint[-1]
             self.current_sprint = extract_sprint_id_from_str(sprint) == current_sprint_id
         except (AttributeError, TypeError):
             # Possible for epics
             self.current_sprint = False
         try:
-            self.story_points = int(getattr(issue.fields, JIRA_CUSTOM_FIELDS['story_points'], 0))
+            self.story_points = int(getattr(issue.fields, issue_fields['Story Points'], 0))
         except (AttributeError, TypeError):
             self.story_points = 0
-        self.reviewer_1: JiraUser = getattr(issue.fields, JIRA_CUSTOM_FIELDS['reviewer_1'], None)
-        # self.reviewer_2: JiraUser = getattr(issue.fields, JIRA_CUSTOM_FIELDS['reviewer_2'], None)
+        self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], None)
+        # We don't want to treat commitments from the other cell as "Unassigned".
+        if self.reviewer_1 and self.reviewer_1.name not in cell_members:
+            self.reviewer_1 = "Other Cell"
 
         self.review_time = self.calculate_review_time()
+        self.assignee_time = max(self.time_estimate - self.review_time, 0)  # We don't want negative values here
 
     def get_bot_directive(self, pattern) -> int:
         """Retrieves special directives placed for the Jira bot."""
@@ -138,13 +188,13 @@ class DashboardIssue:
     def get_epic_management_time(self) -> int:
         """Get required assignee time for managing the epic."""
         planned = self.get_bot_directive(SPRINT_EPIC_DIRECTIVE)
-        return planned * SECONDS_IN_HOUR
+        return planned * SECONDS_IN_HOUR or SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 
 
 class DashboardRow:
     """Represents single dashboard row (user)."""
 
-    def __init__(self, user: JiraUser) -> None:
+    def __init__(self, user: Union[JiraUser, str, None]) -> None:
         super().__init__()
         self.user = user
         try:
@@ -157,18 +207,16 @@ class DashboardRow:
         self.future_remaining_assignee_time = 0
         self.future_remaining_review_time = 0
         self.future_epic_management_time = 0
+        self.goal_time = 0
+        self.current_invalid = []
+        self.future_invalid = []
 
-    @property
-    def goal_time(self) -> int:
+    def set_goal_time(self, goal) -> None:
         """
         Calculate goal time for this user.
         Use default if time not specified in user's profile.
         """
-        try:
-            goal = self.local_user.goal
-        except AttributeError:
-            goal = SPRINT_DEFAULT_COMMITMENT
-        return goal - SPRINT_HOURS_RESERVED_FOR_MEETINGS
+        self.goal_time = goal - SPRINT_HOURS_RESERVED_FOR_MEETINGS * SECONDS_IN_HOUR
 
     @property
     def committed_time(self) -> float:
@@ -191,21 +239,31 @@ class DashboardRow:
         return self.user == other.user
 
     def add_invalid_issue(self, issue: DashboardIssue) -> None:
-        """TODO"""
-        # Check if current or future sprint.
-        ...
+        """Add non-estimated issue to the list of invalid issues."""
+        if issue.current_sprint:
+            self.current_invalid.append(issue.key)
+        else:
+            self.future_invalid.append(issue.key)
 
 
 class Dashboard:
     """Aggregates user records into a dashboard."""
 
-    def __init__(self, project: str, sprint: Sprint) -> None:
+    def __init__(self, board_id: int) -> None:
         super().__init__()
-        self.dashboard: Dict[JiraUser, DashboardRow] = {}
-        self.issues = List[DashboardIssue]
-        self.project = project
-        self.sprint = sprint
-        self.future_sprint_name = None
+        self.dashboard: Dict[Union[JiraUser, str, None], DashboardRow] = {}
+        self.issue_fields: Dict[str, str]
+        self.issues: List[DashboardIssue]
+        self.members: List[str]
+        self.commitments: Dict[str, int] = {}
+        self.board_id = board_id
+        self.sprint: Sprint
+        self.future_sprint: Sprint
+        self.future_sprint_start: str
+        self.future_sprint_end: str
+
+        # Retrieve data from Jira.
+        self.get_sprints()
         self.get_issues()
         self.generate_rows()
 
@@ -214,26 +272,53 @@ class Dashboard:
         """Simplification for the serializer."""
         return self.dashboard.values()
 
+    def get_sprints(self) -> None:
+        """Retrieves current and future sprint for the board."""
+        with connect_to_jira() as conn:
+            sprints: List[Sprint] = conn.sprints(self.board_id, state='active, future')
+
+        for sprint in sprints:
+            if sprint.name.startswith('Sprint') and sprint.state == 'active':
+                self.sprint = sprint
+                break
+
+        self.future_sprint = find_next_sprint(sprints, self.sprint)
+        self.future_sprint_start = re.search(SPRINT_DATE_REGEX, self.future_sprint.name).group(1)
+
+        next_future_sprint = find_next_sprint(sprints, self.future_sprint)
+        next_future_sprint_start = re.search(SPRINT_DATE_REGEX, next_future_sprint.name).group(1)
+        end_date = datetime.strptime(next_future_sprint_start, '%Y-%m-%d') - timedelta(days=1)
+        self.future_sprint_end = end_date.strftime('%Y-%m-%d')
+
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
         with connect_to_jira() as conn:
-            issues: List[Issue] = conn.search_issues(**prepare_jql_query(self.project, self.sprint.id), maxResults=0)
+            field_ids = {field['name']: field['id'] for field in conn.fields()}
+            self.issue_fields = {field: field_ids[field] for field in JIRA_REQUIRED_FIELDS}
 
-        self.issues = []
+            issues: List[Issue] = conn.search_issues(
+                **prepare_jql_query(
+                    self.sprint.id,
+                    self.future_sprint.id,
+                    list(self.issue_fields.values())
+                ),
+                maxResults=0,
+            )
+            quickfilters: List[QuickFilter] = conn.quickfilters(self.board_id)
 
-        for issue in issues:
-            self.issues.append(DashboardIssue(issue, self.sprint.id))
+            self.members = get_cell_members(quickfilters)
+            self.issues = []
 
-            # Hack to limit external requests to Jira.
-            if not self.future_sprint_name and not self.issues[-1].current_sprint:
-                try:
-                    sprint = getattr(issue.fields, JIRA_CUSTOM_FIELDS['sprint'])
-                    if isinstance(sprint, list):
-                        sprint = sprint[0]
-                    self.future_sprint_name = extract_sprint_name_from_str(sprint)
-                except (AttributeError, TypeError):
-                    # Possible for epics
-                    pass
+            for issue in issues:
+                self.issues.append(DashboardIssue(issue, self.sprint.id, self.members, self.issue_fields))
+
+            for member in self.members:
+                schedule = conn.user_schedule(
+                    member,
+                    self.future_sprint_start,
+                    self.future_sprint_end,
+                )
+                self.commitments[member] = schedule.requiredSeconds
 
     def generate_rows(self) -> None:
         """Generates rows for all users and calculates their time stats."""
@@ -252,9 +337,8 @@ class Dashboard:
                 continue
 
             # Check if the issue has any time left.
-            if issue.time_estimate == 0:
+            if issue.time_estimate == 0 and isinstance(issue.assignee, JiraUser):
                 assignee.add_invalid_issue(issue)
-                continue
 
             # Calculations for the current sprint.
             if issue.current_sprint:
@@ -268,9 +352,15 @@ class Dashboard:
 
                 else:
                     reviewer_1.current_remaining_review_time += issue.review_time
-                    assignee.current_remaining_assignee_time += max(issue.time_estimate - issue.review_time, 0)
+                    assignee.current_remaining_assignee_time += issue.assignee_time
 
             # Calculations for the upcoming sprint.
             else:
-                assignee.future_remaining_assignee_time += issue.time_estimate
+                assignee.future_remaining_assignee_time += issue.assignee_time
                 reviewer_1.future_remaining_review_time += issue.review_time
+
+        for row in self.rows:
+            if isinstance(row.user, JiraUser):
+                row.set_goal_time(self.commitments[row.user.name])
+
+        del self.dashboard['Other Cell']

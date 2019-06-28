@@ -1,6 +1,9 @@
 from rest_framework.routers import DefaultRouter
 
-from sprints.dashboard.views import CellViewSet, DashboardViewSet
+from sprints.dashboard.views import (
+    CellViewSet,
+    DashboardViewSet,
+)
 
 app_name = "dashboard"
 router = DefaultRouter()

@@ -233,7 +233,7 @@ LOGGING = {
     "formatters": {
         "verbose": {
             "format": "%(levelname)s %(asctime)s %(module)s "
-            "%(process)d %(thread)d %(message)s"
+                      "%(process)d %(thread)d %(message)s"
         }
     },
     "handlers": {
@@ -284,27 +284,58 @@ ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
 SOCIALACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_SOCIALACCOUNT_ALLOW_REGISTRATION", True)
 ACCOUNT_ALLOWED_EMAIL_DOMAINS = env.list("DJANGO_ACCOUNT_ALLOWED_EMAIL_DOMAINS", default=["opencraft.com"])
 
-# Jira configs
-JIRA_SERVER = env.str("DJANGO_JIRA_SERVER")
-JIRA_USERNAME = env.str("DJANGO_JIRA_USERNAME")
-JIRA_PASSWORD = env.str("DJANGO_JIRA_PASSWORD")
-JIRA_SPRINT_BOARD_PREFIX = env.str("DJANGO_SPRINT_BOARD_PREFIX", "Sprint - ")
-JIRA_CUSTOM_FIELDS = env.dict("DJANGO_JIRA_CUSTOM_FIELDS", default={
-    "sprint": 'customfield_10005',
-    "story_points": 'customfield_10002',
-    "reviewer_1": 'customfield_10200',
-    "reviewer_2": 'customfield_10201',
-})
-JIRA_BOT_USERNAME = env.str("DJANGO_JIRA_BOT_USERNAME", "crafty")
-JIRA_BOARD_ID = env.int("DJANGO_JIRA_BOARD_ID", 26)  # Does not matter as long as the sprint numbers are synchronized.
-JIRA_REQUIRED_FIELDS = [
-    "assignee", "description", "issuetype", "status", "timespent", "timeestimate",
-] + list(JIRA_CUSTOM_FIELDS.values())
+# DRF
+# ------------------------------------------------------------------------------
+# TODO: Uncomment this
+# REST_FRAMEWORK = {
+#     'DEFAULT_PERMISSION_CLASSES': (
+#         'rest_framework.permissions.IsAuthenticated',
+#     ),
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+#         'rest_framework.authentication.SessionAuthentication',
+#         'rest_framework.authentication.BasicAuthentication',
+#     ),
+# }
 
-# Sprint configs
-SPRINT_DEFAULT_COMMITMENT = env.int("DJANGO_SPRINT_DEFAULT_COMMITMENT", 80)
-SPRINT_HOURS_RESERVED_FOR_MEETINGS = env.int("DJANGO_SPRINT_HOURS_RESERVED_FOR_MEETINGS", 2)
-SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT = env.int("DJANGO_SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT", 2)
+# REACT FRONTEND
+# ------------------------------------------------------------------------------
+CORS_ORIGIN_WHITELIST = (
+    'http://localhost:3000',
+)
+
+# JIRA CONFIGS
+# ------------------------------------------------------------------------------
+# URL of the Jira server.
+JIRA_SERVER = env.str("JIRA_SERVER")
+# Username of the user used for accessing Jira API.
+JIRA_USERNAME = env.str("JIRA_USERNAME")
+# Password of the user used for accessing Jira API.
+JIRA_PASSWORD = env.str("JIRA_PASSWORD")
+# THe prefix used for distinguishing sprint boards from other ones.
+JIRA_SPRINT_BOARD_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint - ")
+# Username of a helper Jira bot used for indicating custom review time requirements.
+JIRA_BOT_USERNAME = env.str("JIRA_BOT_USERNAME", "crafty")
+JIRA_REQUIRED_FIELDS = (
+    "Assignee",
+    "Description",
+    "Issue Type",
+    "Status",
+    "Time Spent",
+    "Remaining Estimate",
+    "Sprint",
+    "Story Points",
+    "Reviewer 1",
+)
+# A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
+JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = (\w+).* or .*\1.*\1")
+
+# SPRINT CONFIGS
+# ------------------------------------------------------------------------------
+# How many hours per sprint to reserve for meetings.
+SPRINT_HOURS_RESERVED_FOR_MEETINGS = env.int("SPRINT_HOURS_RESERVED_FOR_MEETINGS", 2)
+# How many hours per sprint to reserve for epic management by default.
+SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT = env.int("SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT", 2)
 SPRINT_STATUS_BACKLOG = "Backlog"
 SPRINT_STATUS_IN_PROGRESS = "In progress"
 SPRINT_STATUS_REVIEW = "Need Review"
@@ -313,7 +344,7 @@ SPRINT_STATUS_MERGED = "Merged"
 SPRINT_STATUS_RECURRING = "Recurring"
 SPRINT_STATUS_ACCEPTED = "Accepted"
 SPRINT_STATUS_IN_DEVELOPMENT = "In development"
-
+# Which tickets statuses will be counted as a spillover.
 SPRINT_STATUS_UNFINISHED = {
     SPRINT_STATUS_BACKLOG,
     SPRINT_STATUS_IN_PROGRESS,
@@ -321,16 +352,19 @@ SPRINT_STATUS_UNFINISHED = {
     SPRINT_STATUS_EXTERNAL_REVIEW,
     SPRINT_STATUS_MERGED,
 }
+# Which epic statuses indicate ongoing epic.
 SPRINT_STATUS_EPIC_IN_PROGRESS = {
     SPRINT_STATUS_RECURRING,
     SPRINT_STATUS_ACCEPTED,
     SPRINT_STATUS_IN_DEVELOPMENT,
 }
+# String for overriding how much time will be needed for an epic management per sprint.
 SPRINT_EPIC_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours per sprint for epic management"
+# String for overriding how much time will be needed for a recurring task per sprint.
 SPRINT_RECURRING_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours per sprint for this task"
+# String for overriding how much time will be needed for the task's review.
 SPRINT_REVIEW_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours for reviewing this task"
-
-# React frontend
-CORS_ORIGIN_WHITELIST = (
-    'http://localhost:3000',
-)
+# Regex for extracting sprint number from the name of the sprint.
+SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"Sprint (\d+)")
+# Regex for extracting sprint staring date from the name of the sprint.
+SPRINT_DATE_REGEX = env.str("SPRINT_DATE_REGEX", r"\((.*)\)")

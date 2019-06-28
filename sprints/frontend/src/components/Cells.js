@@ -1,15 +1,11 @@
 import React from 'react';
-import Button from './Button';
+import {Link} from "react-router-dom";
 
-const Cells = ({list, handle_click}) =>
+const Cells = ({list}) =>
     <ul>
         {list.map(item =>
             <li key={item.name}>
-                <Button
-                    onClick={handle_click}
-                    id={item.name}>
-                    {item.name}
-                </Button>
+                <Link to={`board/${item.board_id}`}>{item.name}</Link>
             </li>
         )}
     </ul>;

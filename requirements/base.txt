@@ -23,3 +23,6 @@ drf-yasg~=1.15.0  # https://github.com/axnsan12/drf-yasg
 
 # Jira API
 jira~=2.0.0  # https://github.com/pycontribs/jira
+
+# Google API
+google-api-python-client~=1.7.9  # https://github.com/googleapis/google-api-python-client

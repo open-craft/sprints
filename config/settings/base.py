@@ -383,7 +383,7 @@ GOOGLE_API_CREDENTIALS = {
   "client_email": env.str("GOOGLE_API_CLIENT_EMAIL"),
   "token_uri": env.str("GOOGLE_API_TOKEN_URI", "https://oauth2.googleapis.com/token"),
 }
-# Regex for retrieving users' vacations from Google Calendar.
+# Regex for retrieving users' vacations from Google Calendar. This one is case-insensitive.
 # By default we're using f"{name} off" format, which works fine with `name` being at least user's first name.
 # CAUTION: we're not checking for duplicated names, so in case we'll have two people with the same first name,
 #          both of them will need to provide the full name in the calendar.

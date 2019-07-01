@@ -91,7 +91,7 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, st
 
             for event in events['items']:
                 try:
-                    user = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary']).group(1)
+                    user = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE).group(1)
                     del event['summary']
                     event['user'] = user
                     vacations.append(event)

@@ -1,16 +1,16 @@
 from rest_framework import (
-    viewsets,
     permissions,
+    viewsets,
 )
 from rest_framework.response import Response
 
-from sprints.dashboard.helpers import (
-    Dashboard,
-    get_cells,
-)
+from sprints.dashboard.models import Dashboard
 from sprints.dashboard.serializers import (
     CellSerializer,
     DashboardSerializer,
+)
+from sprints.dashboard.utils import (
+    get_cells,
 )
 
 

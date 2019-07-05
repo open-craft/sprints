@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
-from sprints.dashboard.helpers import (
-    Cell,
+from sprints.dashboard.models import (
     Dashboard,
     DashboardRow,
+)
+from sprints.dashboard.utils import (
+    Cell,
 )
 
 

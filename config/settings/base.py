@@ -70,9 +70,9 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",
     'allauth.socialaccount.providers.google',
     "rest_framework",
-    "social_django",
-    "rest_social_auth",
-    "knox",
+    "rest_framework.authtoken",
+    "rest_auth",
+    "rest_auth.registration",
     "drf_yasg",
     "corsheaders",
 ]
@@ -94,7 +94,6 @@ MIGRATION_MODULES = {"sites": "sprints.contrib.sites.migrations"}
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
-    'social_core.backends.google.GoogleOAuth2',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = "users.User"
@@ -297,24 +296,25 @@ RAISE_EXCEPTIONS = env.bool("SOCIAL_DEBUG", False)
 
 # DRF
 # ------------------------------------------------------------------------------
-# TODO: Uncomment this
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
-    # 'DEFAULT_PERMISSION_CLASSES': (
-    #     'rest_framework.permissions.IsAuthenticated',
-    # ),
-    # 'DEFAULT_AUTHENTICATION_CLASSES': (
-
-        # 'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
-        # 'rest_framework.authentication.SessionAuthentication',
-        # 'rest_framework.authentication.BasicAuthentication',
-    # ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
 }
+REST_USE_JWT = True
+
 
 # REACT FRONTEND
 # ------------------------------------------------------------------------------
+# URL to the react frontend.
+FRONTEND_URL = env.str("FRONTEND_URL", "http://localhost:3000")
 CORS_ORIGIN_WHITELIST = (
-    'http://localhost:3000',
+    FRONTEND_URL,
 )
 
 # JIRA CONFIGS

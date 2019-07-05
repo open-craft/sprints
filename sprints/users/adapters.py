@@ -7,7 +7,10 @@ from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from django.utils.translation import ugettext_lazy as _
 
-from config.settings.base import ACCOUNT_ALLOWED_EMAIL_DOMAINS
+from config.settings.base import (
+    ACCOUNT_ALLOWED_EMAIL_DOMAINS,
+    FRONTEND_URL,
+)
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -20,6 +23,16 @@ class AccountAdapter(DefaultAccountAdapter):
 
     def is_open_for_signup(self, request: HttpRequest):
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
+
+    def get_email_confirmation_url(self, request, emailconfirmation):
+        """Constructs the email confirmation (activation) url.
+
+        Note that if you have architected your system such that email
+        confirmations are sent outside of the request context `request`
+        can be `None` here.
+        """
+        url = f"{FRONTEND_URL}/verify-email/{emailconfirmation.key}"
+        return url
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):

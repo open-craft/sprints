@@ -18,7 +18,7 @@ class Login extends Component {
     };
 
     responseGoogle = response => {
-        this.props.social_login(response.code);
+        this.props.social_login(response.accessToken);
     };
 
     render() {
@@ -29,6 +29,13 @@ class Login extends Component {
             <form onSubmit={this.onSubmit}>
                 <fieldset>
                     <legend>Login</legend>
+                    {this.props.errors.length > 0 && (
+                        <ul>
+                            {this.props.errors.map(error => (
+                                <li key={error.field}>{error.message}</li>
+                            ))}
+                        </ul>
+                    )}
                     <p>
                         <label htmlFor="email">Email</label>
                         <input
@@ -50,13 +57,12 @@ class Login extends Component {
                     </p>
                     <p>
                         <GoogleLogin
-                            clientId="TODO"  // FIXME: Move to env
+                            clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}
                             buttonText="Login"
                             onSuccess={this.responseGoogle}
                             onFailure={this.responseGoogle}
-                            responseType="code"
                             cookiePolicy={'single_host_origin'}
-                          />
+                        />
                     </p>
                 </fieldset>
             </form>

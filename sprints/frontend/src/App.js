@@ -12,9 +12,10 @@ import thunk from "redux-thunk";
 import sprints_reducers from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
+import VerifyEmail from "./components/VerifyEmail";
 
 
-const PATH_BASE = `http://0.0.0.0:8000/dashboard/`;  // TODO: Move this to config.
+const PATH_BASE = `${process.env.REACT_APP_API_BASE}/dashboard/`;
 const PATH_CELLS = `${PATH_BASE}cells/`;
 const PATH_DASHBOARD = `${PATH_BASE}dashboard/`;
 const PARAM_BOARD_ID = 'board_id=';
@@ -61,7 +62,8 @@ class RootContainerComponent extends Component {
                         <PrivateRoute path={routes.board} component={BoardContainer}/>
                         <Route path={routes.login} component={Login}/>
                         <Route path={routes.register} component={Register}/>
-                        {/*<Route component={NotFound} />*/} // TODO: Implement this or default redirection.
+                        <Route path={routes.verify_email} component={VerifyEmail}/>
+                        <Route component={Login}/>
                     </Switch>
                 </BrowserRouter>
             </div>
@@ -126,7 +128,7 @@ class Cell extends Component {
             "Content-Type": "application/json",
         };
         if (token) {
-            headers["Authorization"] = `Token ${token}`;
+            headers["Authorization"] = `JWT ${token}`;
         }
 
         fetch(PATH_CELLS, {headers,})
@@ -136,7 +138,6 @@ class Cell extends Component {
     }
 
     componentDidMount() {
-        console.log(this.props.auth.user.email);
         this.fetchCells();
     }
 
@@ -187,7 +188,7 @@ class Board extends Component {
             "Content-Type": "application/json",
         };
         if (token) {
-            headers["Authorization"] = `Token ${token}`;
+            headers["Authorization"] = `JWT ${token}`;
         }
 
         fetch(create_dashboard_url(board_id), {headers,})

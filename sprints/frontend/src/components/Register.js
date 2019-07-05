@@ -9,13 +9,14 @@ class Login extends Component {
 
     state = {
         email: "",
-        password: "",
-    }
+        password1: "",
+        password2: "",
+    };
 
     onSubmit = e => {
         e.preventDefault();
-        this.props.register(this.state.email, this.state.password);
-    }
+        this.props.register(this.state.email, this.state.password1, this.state.password2);
+    };
 
     render() {
         if (this.props.isAuthenticated) {
@@ -39,10 +40,16 @@ class Login extends Component {
                             onChange={e => this.setState({email: e.target.value})}/>
                     </p>
                     <p>
-                        <label htmlFor="password">Password</label>
+                        <label htmlFor="password1">Password</label>
                         <input
-                            type="password" id="password"
-                            onChange={e => this.setState({password: e.target.value})}/>
+                            type="password" id="password1"
+                            onChange={e => this.setState({password1: e.target.value})}/>
+                    </p>
+                    <p>
+                        <label htmlFor="password2">Repeat Password</label>
+                        <input
+                            type="password" id="password2"
+                            onChange={e => this.setState({password2: e.target.value})}/>
                     </p>
                     <p>
                         <button type="submit">Register</button>
@@ -68,12 +75,12 @@ const mapStateToProps = state => {
         errors,
         isAuthenticated: state.auth.isAuthenticated
     };
-}
+};
 
 const mapDispatchToProps = dispatch => {
     return {
-        register: (email, password) => dispatch(auth.register(email, password)),
+        register: (email, password1, password2) => dispatch(auth.register(email, password1, password2)),
     };
-}
+};
 
 export default connect(mapStateToProps, mapDispatchToProps)(Login);

@@ -1,44 +1,11 @@
-from rest_framework import viewsets, permissions, generics
-from rest_framework.response import Response
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from rest_auth.registration.views import SocialLoginView
 
-from knox.models import AuthToken
-
-from sprints.users.serializers import (
-    CreateUserSerializer,
-    UserSerializer,
-    LoginUserSerializer,
-)
+from config.settings.base import FRONTEND_URL
 
 
-class RegistrationAPI(generics.GenericAPIView):
-    serializer_class = CreateUserSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response({
-            "user": UserSerializer(user, context=self.get_serializer_context()).data,
-            "token": AuthToken.objects.create(user)[1],  # Returns a tuple (instance, token).
-        })
-
-
-class LoginAPI(generics.GenericAPIView):
-    serializer_class = LoginUserSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data
-        return Response({
-            "user": UserSerializer(user, context=self.get_serializer_context()).data,
-            "token": AuthToken.objects.create(user)[1]
-        })
-
-
-class UserAPI(generics.RetrieveAPIView):
-    permission_classes = [permissions.IsAuthenticated, ]
-    serializer_class = UserSerializer
-
-    def get_object(self):
-        return self.request.user
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    callback_url = FRONTEND_URL
+    client_class = OAuth2Client

@@ -7,6 +7,7 @@ from typing import (
 # noinspection PyProtectedMember
 from jira.resources import (
     Sprint,
+    Board,
 )
 
 from config.settings.base import (
@@ -21,9 +22,21 @@ from sprints.dashboard.libs.jira import (
     QuickFilter,
     connect_to_jira,
 )
-from sprints.dashboard.models import Cell
 
 SECONDS_IN_HOUR = 3600
+
+
+class Cell:
+    """
+    Model representing cell - its name and sprint board ID.
+    It is placed in `utils` to avoid circular imports for type checks.
+    """
+    pattern = fr'{JIRA_SPRINT_BOARD_PREFIX}(.*)'
+
+    def __init__(self, board: Board) -> None:
+        super().__init__()
+        self.name = re.search(self.pattern, board.name).group(1)
+        self.board_id = board.id
 
 
 def get_cells() -> List[Cell]:

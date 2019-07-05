@@ -16,13 +16,11 @@ from jira import (
     User as JiraUser,
 )
 from jira.resources import (
-    Board,
     Sprint,
 )
 
 from config.settings.base import (
     JIRA_REQUIRED_FIELDS,
-    JIRA_SPRINT_BOARD_PREFIX,
     SPRINT_DATE_REGEX,
     SPRINT_EPIC_DIRECTIVE,
     SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT,
@@ -45,16 +43,6 @@ from sprints.dashboard.utils import (
     prepare_jql_query,
 )
 from sprints.users.models import User
-
-
-class Cell:
-    """Model representing cell - its name and sprint board ID."""
-    pattern = fr'{JIRA_SPRINT_BOARD_PREFIX}(.*)'
-
-    def __init__(self, board: Board) -> None:
-        super().__init__()
-        self.name = re.search(self.pattern, board.name).group(1)
-        self.board_id = board.id
 
 
 class DashboardIssue:

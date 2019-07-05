@@ -2,8 +2,16 @@ import React, {Component} from 'react';
 import './App.css';
 import Table from "./components/Table";
 import Cells from "./components/Cells";
-import {BrowserRouter as Router, Route} from "react-router-dom";
+import {BrowserRouter, Redirect, Route, Switch} from "react-router-dom";
 import routes from './routes.js'
+import Login from "./components/Login";
+import {connect, Provider} from "react-redux";
+import {auth} from "./actions/";
+import {applyMiddleware, createStore} from "redux";
+import thunk from "redux-thunk";
+import sprints_reducers from "./reducers";
+import Register from "./components/Register";
+import Logout from "./components/Logout";
 
 
 const PATH_BASE = `http://0.0.0.0:8000/dashboard/`;  // TODO: Move this to config.
@@ -14,21 +22,79 @@ const PARAM_BOARD_ID = 'board_id=';
 const create_dashboard_url = (board_id) =>
     `${PATH_DASHBOARD}?${PARAM_BOARD_ID}${board_id}`;
 
-class App extends Component {
+let store = createStore(sprints_reducers, applyMiddleware(thunk));
+
+
+class RootContainerComponent extends Component {
+
+    componentDidMount() {
+        this.props.loadUser();
+    }
+
+    PrivateRoute = ({component: ChildComponent, ...rest}) => {
+        return <Route {...rest} render={props => {
+            if (this.props.auth.isLoading) {
+                return <em>Loading...</em>;
+            } else if (!this.props.auth.isAuthenticated) {
+                return <Redirect to={routes.login}/>;
+            } else {
+                return <ChildComponent {...props} />
+            }
+        }}/>
+    };
+
     render() {
+        let {PrivateRoute} = this;
         return (
             <div className="page interactions">
+                {
+                    this.props.auth.isAuthenticated
+                        ?
+                        <Logout/>
+                        :
+                        <div/>
+                }
                 <Header/>
-                <Router>
-                    <div>
-                        <Route exact path={routes.cells} component={Cell}/>
-                        <Route path={routes.board} component={Board}/>
-                    </div>
-                </Router>
+                <BrowserRouter>
+                    <Switch>
+                        <PrivateRoute exact path={routes.cells} component={CellContainer}/>
+                        <PrivateRoute path={routes.board} component={BoardContainer}/>
+                        <Route path={routes.login} component={Login}/>
+                        <Route path={routes.register} component={Register}/>
+                        {/*<Route component={NotFound} />*/} // TODO: Implement this or default redirection.
+                    </Switch>
+                </BrowserRouter>
             </div>
         );
     }
 }
+
+const mapStateToProps = state => {
+    return {
+        auth: state.auth,
+    }
+};
+
+const mapDispatchToProps = dispatch => {
+    return {
+        loadUser: () => {
+            return dispatch(auth.loadUser());
+        }
+    }
+};
+
+let RootContainer = connect(mapStateToProps, mapDispatchToProps)(RootContainerComponent);
+
+export default class App extends Component {
+    render() {
+        return (
+            <Provider store={store}>
+                <RootContainer/>
+            </Provider>
+        )
+    }
+}
+
 
 class Header extends Component {
     render() {
@@ -55,13 +121,22 @@ class Cell extends Component {
     }
 
     fetchCells() {
-        fetch(PATH_CELLS)
+        let token = this.props.auth.token;
+        let headers = {
+            "Content-Type": "application/json",
+        };
+        if (token) {
+            headers["Authorization"] = `Token ${token}`;
+        }
+
+        fetch(PATH_CELLS, {headers,})
             .then(response => response.json())
             .then(result => this.setCells(result))
             .catch(error => error);
     }
 
     componentDidMount() {
+        console.log(this.props.auth.user.email);
         this.fetchCells();
     }
 
@@ -81,6 +156,8 @@ class Cell extends Component {
         );
     }
 }
+
+let CellContainer = connect(mapStateToProps, mapDispatchToProps)(Cell);
 
 class Board extends Component {
     constructor(props) {
@@ -105,7 +182,15 @@ class Board extends Component {
 
 
     fetchDashboard(board_id) {
-        fetch(create_dashboard_url(board_id))
+        let token = this.props.auth.token;
+        let headers = {
+            "Content-Type": "application/json",
+        };
+        if (token) {
+            headers["Authorization"] = `Token ${token}`;
+        }
+
+        fetch(create_dashboard_url(board_id), {headers,})
             .then(response => response.json())
             .then(result => this.setDashboard(result))
             .catch(error => error);
@@ -136,5 +221,4 @@ class Board extends Component {
     }
 }
 
-
-export default App;
+let BoardContainer = connect(mapStateToProps, mapDispatchToProps)(Board);

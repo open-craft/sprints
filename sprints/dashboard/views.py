@@ -1,4 +1,7 @@
-from rest_framework import viewsets
+from rest_framework import (
+    viewsets,
+    permissions,
+)
 from rest_framework.response import Response
 
 from sprints.dashboard.helpers import (
@@ -18,7 +21,7 @@ class CellViewSet(viewsets.ViewSet):
     GET /dashboard/cells/
     """
 
-    # permission_classes = (permissions.IsAuthenticated,)  # FIXME: uncomment after finishing react auth
+    permission_classes = (permissions.IsAuthenticated,)
 
     def list(self, _request):
         cells = get_cells()
@@ -32,11 +35,10 @@ class DashboardViewSet(viewsets.ViewSet):
     Generates a specified cell's board.
     GET /dashboard/dashboard
     Query params:
-        - project: selected cell
-        - board_od (optional): redundant if sprint numbers are the same for all cells
+        - board_id: cell's board ID.
     """
 
-    # permission_classes = (permissions.IsAuthenticated,)  # FIXME: uncomment after finishing react auth
+    permission_classes = (permissions.IsAuthenticated,)
 
     def list(self, request):
         board_id = int(request.query_params.get('board_id'))

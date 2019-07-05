@@ -17,9 +17,17 @@ django-redis~=4.10.0  # https://github.com/niwinz/django-redis
 django-cors-headers~=3.0.2  # https://github.com/ottoyiu/django-cors-headers
 
 # Django REST Framework
+# ------------------------------------------------------------------------------
 djangorestframework~=3.9.4  # https://github.com/encode/django-rest-framework
+django-rest-knox~=4.1.0  # https://github.com/James1345/django-rest-knox
 coreapi~=2.3.3  # https://github.com/core-api/python-client
 drf-yasg~=1.15.0  # https://github.com/axnsan12/drf-yasg
+
+# Social auth
+# ------------------------------------------------------------------------------
+social-auth-app-django~=3.1.0  # https://github.com/python-social-auth/social-app-django
+rest-social-auth~=2.2.0  # https://github.com/st4lk/django-rest-social-auth
+
 
 # Jira API
 jira~=2.0.0  # https://github.com/pycontribs/jira

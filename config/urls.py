@@ -51,6 +51,8 @@ if not getattr(settings, "ACCOUNT_ALLOW_LOGIN", True):
     ]
 
 urlpatterns += [
+    url(r'^api/login/', include('rest_social_auth.urls_knox')),
+    url(r'^api/auth/', include('knox.urls')),
     path("accounts/", include("allauth.urls")),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

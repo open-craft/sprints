@@ -1,11 +1,11 @@
+"""These are standard Python classes, not Django models. We don't store dashboard in the DB."""
+
 import re
-from contextlib import contextmanager
 from datetime import (
     datetime,
     timedelta,
 )
 from typing import (
-    ContextManager,
     Dict,
     Generator,
     List,
@@ -15,55 +15,42 @@ from typing import (
 # noinspection PyProtectedMember
 from google.oauth2 import service_account
 from googleapiclient import discovery
-from jira.resources import (
-    Board,
-    GreenHopperResource,
+from jira import (
     Issue,
-    Sprint,
     User as JiraUser,
+)
+from jira.resources import (
+    Sprint,
 )
 
 from config.settings.base import (
     GOOGLE_API_CREDENTIALS,
     GOOGLE_CALENDAR_VACATION_REGEX,
-    JIRA_BOARD_QUICKFILTER_PATTERN,
-    JIRA_PASSWORD,
     JIRA_REQUIRED_FIELDS,
-    JIRA_SERVER,
-    JIRA_SPRINT_BOARD_PREFIX,
-    JIRA_USERNAME,
     SPRINT_DATE_REGEX,
     SPRINT_EPIC_DIRECTIVE,
     SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT,
     SPRINT_HOURS_RESERVED_FOR_MEETINGS,
-    SPRINT_NUMBER_REGEX,
     SPRINT_RECURRING_DIRECTIVE,
     SPRINT_REVIEW_DIRECTIVE,
-    SPRINT_STATUS_EPIC_IN_PROGRESS,
     SPRINT_STATUS_EXTERNAL_REVIEW,
     SPRINT_STATUS_MERGED,
     SPRINT_STATUS_RECURRING,
-    SPRINT_STATUS_UNFINISHED,
 )
-from sprints.dashboard.api import (
-    CustomJira,
+from sprints.dashboard.libs.jira import (
     QuickFilter,
+    connect_to_jira,
+)
+from sprints.dashboard.utils import (
+    SECONDS_IN_HOUR,
+    extract_sprint_id_from_str,
+    find_next_sprint,
+    get_cell_members,
+    prepare_jql_query,
 )
 from sprints.users.models import User
 
 SECONDS_IN_HOUR = 3600
-
-
-@contextmanager
-def connect_to_jira() -> ContextManager[CustomJira]:
-    """Context manager for establishing connection with Jira server."""
-    conn = CustomJira(
-        server=JIRA_SERVER,
-        basic_auth=(JIRA_USERNAME, JIRA_PASSWORD),
-        options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH}
-    )
-    yield conn
-    conn.close()
 
 
 @contextmanager
@@ -101,68 +88,6 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, st
 
         vacations.sort(key=lambda x: x['user'])  # Small optimization for searching
         return vacations
-
-
-class Cell:
-    """Model representing cell - its name and sprint board ID."""
-    pattern = fr'{JIRA_SPRINT_BOARD_PREFIX}(.*)'
-
-    def __init__(self, board: Board) -> None:
-        super().__init__()
-        self.name = re.search(self.pattern, board.name).group(1)
-        self.board_id = board.id
-
-
-def get_cells() -> List[Cell]:
-    """Get all existing cells. Uses regexp to distinguish them from projects."""
-    with connect_to_jira() as conn:
-        return [Cell(board) for board in conn.boards(name=JIRA_SPRINT_BOARD_PREFIX)]
-
-
-def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
-    """Extracts the cell members' usernames from quickfilters."""
-    members = []
-    for quickfilter in quickfilters:
-        try:
-            username = re.search(JIRA_BOARD_QUICKFILTER_PATTERN, quickfilter.query).group(1)
-            members.append(username)
-        except AttributeError:
-            # We can safely ignore non-matching filters.
-            pass
-
-    return members
-
-
-def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:
-    """Find the consecutive sprint by its number."""
-    previous_sprint_number = int(re.search(SPRINT_NUMBER_REGEX, previous_sprint.name).group(1))
-
-    for sprint in sprints:
-        if sprint.name.startswith('Sprint') and sprint.state == 'future':
-            sprint_number = int(re.search(SPRINT_NUMBER_REGEX, sprint.name).group(1))
-            if previous_sprint_number + 1 == sprint_number:
-                return sprint
-
-
-def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]) -> Dict[str, str]:
-    """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
-    unfinished_status = '"' + '","'.join(SPRINT_STATUS_UNFINISHED | {SPRINT_STATUS_RECURRING}) + '"'
-    epic_in_progress = '"' + '","'.join(SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
-
-    query = f'((Sprint IN {(current_sprint, future_sprint)} and ' \
-        f'status IN ({unfinished_status})) OR (issuetype = Epic AND Status IN ({epic_in_progress})))'
-
-    return {
-        'jql_str': query,
-        'fields': fields,
-    }
-
-
-def extract_sprint_id_from_str(sprint_str: str) -> int:
-    """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
-    pattern = r'id=(\d+)'
-    result = re.search(pattern, sprint_str).group(1)
-    return int(result)
 
 
 def daterange(start: str, end: str) -> Generator[str, None, None]:
@@ -272,12 +197,12 @@ class DashboardRow:
     @property
     def committed_time(self) -> float:
         """Calculate summary time for the upcoming sprint."""
-        return self.current_remaining_assignee_time \
-               + self.current_remaining_review_time \
-               + self.current_remaining_upstream_time \
-               + self.future_remaining_assignee_time \
-               + self.future_remaining_review_time \
-               + self.future_epic_management_time
+        return (self.current_remaining_assignee_time
+                + self.current_remaining_review_time
+                + self.current_remaining_upstream_time
+                + self.future_remaining_assignee_time
+                + self.future_remaining_review_time
+                + self.future_epic_management_time)
 
     @property
     def remaining_time(self) -> float:

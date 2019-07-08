@@ -1,16 +1,29 @@
+from contextlib import contextmanager
+from typing import ContextManager
+
 from jira import JIRA
 from jira.client import ResultList
-from jira.resources import GreenHopperResource, Resource
+from jira.resources import (
+    GreenHopperResource,
+    Resource,
+)
+from config.settings.base import (
+    JIRA_SERVER,
+    JIRA_USERNAME,
+    JIRA_PASSWORD,
+)
 
 
 class QuickFilter(GreenHopperResource):
     """Class for representing Jira quickfilter resource."""
+
     def __init__(self, options, session, raw=None):
         GreenHopperResource.__init__(self, 'quickfilter/{0}', options, session, raw)
 
 
 class Schedule(Resource):
     """Class for representing Tempo schedule resource."""
+
     def __init__(self, options, session, raw=None):
         Resource.__init__(self, 'schedule/{0}', options, session)
         if raw:
@@ -36,3 +49,15 @@ class CustomJira(JIRA):
         r_json = self._get_json(f'user/schedule?user={user}&from={from_}&to={to}', base=self.TEMPO_BASE_URL)
         schedule = Schedule(self._options, self._session, r_json)
         return schedule
+
+
+@contextmanager
+def connect_to_jira() -> ContextManager[CustomJira]:
+    """Context manager for establishing connection with Jira server."""
+    conn = CustomJira(
+        server=JIRA_SERVER,
+        basic_auth=(JIRA_USERNAME, JIRA_PASSWORD),
+        options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH}
+    )
+    yield conn
+    conn.close()

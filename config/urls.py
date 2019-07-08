@@ -1,13 +1,18 @@
 from django.conf import settings
 from django.conf.urls import url
-from django.urls import include, path
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.views.generic import TemplateView
+from django.urls import (
+    include,
+    path,
+)
 from django.views import defaults as default_views
-from rest_framework import permissions
-from drf_yasg.views import get_schema_view
+from django.views.generic import TemplateView
 from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+from rest_framework import permissions
+
+from sprints.users.api import GoogleLogin
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -52,7 +57,9 @@ if not getattr(settings, "ACCOUNT_ALLOW_LOGIN", True):
 
 urlpatterns += [
     path("accounts/", include("allauth.urls")),
-    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    url(r'^rest-auth/', include('rest_auth.urls')),
+    url(r'^rest-auth/registration/', include('rest_auth.registration.urls')),
+    url(r'^rest-auth/google/$', GoogleLogin.as_view(), name='google_login'),
     url(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     url(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     url(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),

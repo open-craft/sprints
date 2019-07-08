@@ -7,14 +7,11 @@ from datetime import (
 )
 from typing import (
     Dict,
-    Generator,
     List,
     Union,
 )
 
 # noinspection PyProtectedMember
-from google.oauth2 import service_account
-from googleapiclient import discovery
 from jira import (
     Issue,
     User as JiraUser,
@@ -24,8 +21,6 @@ from jira.resources import (
 )
 
 from config.settings.base import (
-    GOOGLE_API_CREDENTIALS,
-    GOOGLE_CALENDAR_VACATION_REGEX,
     JIRA_REQUIRED_FIELDS,
     SPRINT_DATE_REGEX,
     SPRINT_EPIC_DIRECTIVE,
@@ -37,65 +32,22 @@ from config.settings.base import (
     SPRINT_STATUS_MERGED,
     SPRINT_STATUS_RECURRING,
 )
+from sprints.dashboard.libs.google import (
+    get_vacations,
+)
 from sprints.dashboard.libs.jira import (
     QuickFilter,
     connect_to_jira,
 )
 from sprints.dashboard.utils import (
     SECONDS_IN_HOUR,
+    daterange,
     extract_sprint_id_from_str,
     find_next_sprint,
     get_cell_members,
     prepare_jql_query,
 )
 from sprints.users.models import User
-
-SECONDS_IN_HOUR = 3600
-
-
-@contextmanager
-def connect_to_google() -> ContextManager[discovery.Resource]:
-    """Connects to Google API with service account."""
-    scopes = ['https://www.googleapis.com/auth/calendar']
-    credentials = service_account.Credentials.from_service_account_info(GOOGLE_API_CREDENTIALS, scopes=scopes)
-    service = discovery.build('calendar', 'v3', credentials=credentials)
-    yield service
-
-
-def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, str]]]]:
-    """Retrieves user's vacations from Google Calendar."""
-    with connect_to_google() as conn:
-        calendars = [item['id'] for item in conn.calendarList().list(fields='items(id)').execute()['items']]
-        vacations = []
-        for calendar in calendars:
-            events = conn.events().list(
-                calendarId=calendar,
-                timeZone='Europe/London',
-                timeMin=f'{from_}T00:00:00Z',
-                timeMax=f'{to}T00:00:00Z',
-                fields='items(end/date, start/date, summary)'
-            ).execute()
-
-            for event in events['items']:
-                try:
-                    user = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE).group(1)
-                    del event['summary']
-                    event['user'] = user
-                    vacations.append(event)
-                except AttributeError:
-                    # Ignore non-matching events.
-                    pass
-
-        vacations.sort(key=lambda x: x['user'])  # Small optimization for searching
-        return vacations
-
-
-def daterange(start: str, end: str) -> Generator[str, None, None]:
-    """Generates days from `start_date` to `end_date` (both inclusive)."""
-    start_date = datetime.strptime(start, '%Y-%m-%d')
-    end_date = datetime.strptime(end, '%Y-%m-%d')
-    for n in range(int((end_date - start_date).days + 1)):
-        yield (start_date + timedelta(n)).strftime('%Y-%m-%d')
 
 
 class DashboardIssue:

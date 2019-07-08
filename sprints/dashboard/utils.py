@@ -1,13 +1,18 @@
 import re
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import (
     Dict,
+    Generator,
     List,
 )
 
 # noinspection PyProtectedMember
 from jira.resources import (
-    Sprint,
     Board,
+    Sprint,
 )
 
 from config.settings.base import (
@@ -89,3 +94,11 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
     pattern = r'id=(\d+)'
     result = re.search(pattern, sprint_str).group(1)
     return int(result)
+
+
+def daterange(start: str, end: str) -> Generator[str, None, None]:
+    """Generates days from `start_date` to `end_date` (both inclusive)."""
+    start_date = datetime.strptime(start, '%Y-%m-%d')
+    end_date = datetime.strptime(end, '%Y-%m-%d')
+    for n in range(int((end_date - start_date).days + 1)):
+        yield (start_date + timedelta(n)).strftime('%Y-%m-%d')

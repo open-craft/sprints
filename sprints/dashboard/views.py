@@ -11,7 +11,10 @@ from sprints.dashboard.serializers import (
     CellSerializer,
     DashboardSerializer,
 )
-from sprints.dashboard.tasks import upload_spillovers_task
+from sprints.dashboard.tasks import (
+    complete_sprints,
+    upload_spillovers_task,
+)
 from sprints.dashboard.utils import (
     get_cells,
 )
@@ -60,4 +63,17 @@ class SpilloverViewSet(viewsets.ViewSet):
     # noinspection PyMethodMayBeStatic
     def create(self, _request):
         upload_spillovers_task.delay()
+        return Response(data='', status=http.HTTPStatus.OK)
+
+
+class EndSprintViewSet(viewsets.ViewSet):
+    """
+    Invokes task for uploading spillovers and ending the sprints.
+    POST /dashboard/end_sprint
+    """
+    permission_classes = (permissions.IsAdminUser,)
+
+    # noinspection PyMethodMayBeStatic
+    def create(self, _request):
+        complete_sprints.delay()
         return Response(data='', status=http.HTTPStatus.OK)

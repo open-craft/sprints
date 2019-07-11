@@ -4,7 +4,7 @@ from django.test import override_settings
 from sprints.dashboard.utils import (
     extract_sprint_name_from_str,
     get_issue_fields,
-    prepare_spillover_jql_query,
+    prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
 )
 
@@ -43,15 +43,31 @@ class MockJiraConnection:
         ]
 
 
-def test_prepare_spillover_jql_query():
+def test_prepare_jql_query_active_sprint_tickets():
     expected_fields = ['id']
     expected_result = {
         'jql_str': 'Sprint IN openSprints() AND status IN ("Backlog","In progress","Need Review","Merged")',
         'fields': expected_fields,
     }
-    result = prepare_spillover_jql_query(expected_fields)
-    assert result['fields'] == expected_result['fields']
-    assert result['jql_str'].startswith('Sprint IN openSprints() AND status IN ("')
+    result = prepare_jql_query_active_sprint_tickets(
+        expected_fields,
+        ("Backlog", "In progress", "Need Review", "Merged"),
+    )
+    assert result == expected_result
+
+
+def test_prepare_jql_query_active_sprint_tickets_for_project():
+    expected_fields = ['id']
+    expected_result = {
+        'jql_str': 'project = TEST AND Sprint IN openSprints() AND status IN ("Backlog","In progress")',
+        'fields': expected_fields,
+    }
+    result = prepare_jql_query_active_sprint_tickets(
+        expected_fields,
+        ("Backlog", "In progress"),
+        project="TEST",
+    )
+    assert result == expected_result
 
 
 def test_extract_sprint_name_from_str():

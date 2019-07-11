@@ -87,11 +87,12 @@ def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]
     }
 
 
-def prepare_spillover_jql_query(fields: List[str]) -> Dict[str, str]:
+def prepare_jql_query_active_sprint_tickets(fields: List[str], status: Iterable[str], project='') -> Dict[str, str]:
     """Prepare JQL query for retrieving sories that spilled over before ending the sprint."""
-    spillover_status = '"' + '","'.join(settings.SPRINT_STATUS_SPILLOVER) + '"'
+    required_project = f'project = {project} AND ' if project else ''
+    required_status = '"' + '","'.join(status) + '"'
 
-    query = f'Sprint IN openSprints() AND status IN ({spillover_status})'
+    query = f'{required_project}Sprint IN openSprints() AND status IN ({required_status})'
 
     return {
         'jql_str': query,
@@ -129,8 +130,9 @@ def get_issue_fields(conn: CustomJira, required_fields: Iterable[str]) -> Dict[s
 def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str]) -> List[Issue]:
     """Retrieves all stories and epics for the current dashboard."""
     return conn.search_issues(
-        **prepare_spillover_jql_query(
-            list(issue_fields.values())
+        **prepare_jql_query_active_sprint_tickets(
+            list(issue_fields.values()),
+            settings.SPRINT_STATUS_SPILLOVER,
         ),
         maxResults=0,
     )

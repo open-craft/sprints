@@ -1,3 +1,5 @@
+import http
+
 from rest_framework import (
     permissions,
     viewsets,
@@ -9,6 +11,7 @@ from sprints.dashboard.serializers import (
     CellSerializer,
     DashboardSerializer,
 )
+from sprints.dashboard.tasks import upload_spillovers_task
 from sprints.dashboard.utils import (
     get_cells,
 )
@@ -45,3 +48,16 @@ class DashboardViewSet(viewsets.ViewSet):
         dashboard = Dashboard(board_id)
         serializer = DashboardSerializer(dashboard)
         return Response(serializer.data)
+
+
+class SpilloverViewSet(viewsets.ViewSet):
+    """
+    Invokes task for uploading spillovers.
+    POST /dashboard/spillovers
+    """
+    permission_classes = (permissions.IsAdminUser,)
+
+    # noinspection PyMethodMayBeStatic
+    def create(self, _request):
+        upload_spillovers_task.delay()
+        return Response(data='', status=http.HTTPStatus.OK)

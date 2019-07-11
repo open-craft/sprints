@@ -12,6 +12,7 @@ services:
     image: sprints_local_django
     depends_on:
       - postgres
+      - celeryworker
     volumes:
       - .:/app
     env_file:

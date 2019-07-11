@@ -13,6 +13,7 @@ import sprints_reducers from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
 import VerifyEmail from "./components/VerifyEmail";
+import EndSprint from "./components/SpilloverButton";
 
 
 const PATH_BASE = `${process.env.REACT_APP_API_BASE}/dashboard/`;
@@ -50,10 +51,15 @@ class RootContainerComponent extends Component {
             <div className="page interactions">
                 {
                     this.props.auth.isAuthenticated
-                        ?
-                        <Logout/>
-                        :
-                        <div/>
+                        ? <div className="navbar">
+                            {
+                                this.props.auth.user.is_staff
+                                    ? <EndSprint/>
+                                    : <div/>
+                            }
+                            <Logout/>
+                        </div>
+                        : <div/>
                 }
                 <Header/>
                 <BrowserRouter>

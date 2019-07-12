@@ -32,8 +32,8 @@ from config.settings.base import (
     SPRINT_STATUS_RECURRING,
 )
 from sprints.dashboard.libs.jira import (
+    CustomJira,
     QuickFilter,
-    connect_to_jira,
 )
 from sprints.dashboard.utils import (
     SECONDS_IN_HOUR,
@@ -42,7 +42,6 @@ from sprints.dashboard.utils import (
     get_cell_members,
     prepare_jql_query,
 )
-from sprints.users.models import User
 
 
 class DashboardIssue:
@@ -85,8 +84,10 @@ class DashboardIssue:
     def get_bot_directive(self, pattern) -> int:
         """Retrieves special directives placed for the Jira bot."""
         try:
-            return int(re.search(pattern, self.description).group(1))
-        except (IndexError, AttributeError, TypeError):
+            search = re.search(pattern, self.description)
+            return int(search.group(1)) if search else 0
+        except TypeError:
+            # Description is `None`.
             return 0
 
     def calculate_review_time(self) -> int:
@@ -119,10 +120,6 @@ class DashboardRow:
     def __init__(self, user: Union[JiraUser, str, None]) -> None:
         super().__init__()
         self.user = user
-        try:
-            self.local_user = User.objects.get(email=self.user.emailAddress)
-        except (User.DoesNotExist, AttributeError):
-            self.local_user = None
         self.current_remaining_assignee_time = 0
         self.current_remaining_review_time = 0
         self.current_remaining_upstream_time = 0
@@ -130,8 +127,8 @@ class DashboardRow:
         self.future_remaining_review_time = 0
         self.future_epic_management_time = 0
         self.goal_time = 0
-        self.current_invalid = []
-        self.future_invalid = []
+        self.current_unestimated: List[str] = []
+        self.future_unestimated: List[str] = []
 
     def set_goal_time(self, goal) -> None:
         """
@@ -160,19 +157,20 @@ class DashboardRow:
             return self.user == other
         return self.user == other.user
 
-    def add_invalid_issue(self, issue: DashboardIssue) -> None:
-        """Add non-estimated issue to the list of invalid issues."""
+    def add_unestimated_issue(self, issue: DashboardIssue) -> None:
+        """Add non-estimated issue to the list of unestimated issues."""
         if issue.current_sprint:
-            self.current_invalid.append(issue.key)
+            self.current_unestimated.append(issue.key)
         else:
-            self.future_invalid.append(issue.key)
+            self.future_unestimated.append(issue.key)
 
 
 class Dashboard:
     """Aggregates user records into a dashboard."""
 
-    def __init__(self, board_id: int) -> None:
+    def __init__(self, board_id: int, conn: CustomJira) -> None:
         super().__init__()
+        self.jira_connection = conn
         self.dashboard: Dict[Union[JiraUser, str, None], DashboardRow] = {}
         self.issue_fields: Dict[str, str]
         self.issues: List[DashboardIssue]
@@ -196,8 +194,7 @@ class Dashboard:
 
     def get_sprints(self) -> None:
         """Retrieves current and future sprint for the board."""
-        with connect_to_jira() as conn:
-            sprints: List[Sprint] = conn.sprints(self.board_id, state='active, future')
+        sprints: List[Sprint] = self.jira_connection.sprints(self.board_id, state='active, future')
 
         for sprint in sprints:
             if sprint.name.startswith('Sprint') and sprint.state == 'active':
@@ -205,42 +202,43 @@ class Dashboard:
                 break
 
         self.future_sprint = find_next_sprint(sprints, self.sprint)
-        self.future_sprint_start = re.search(SPRINT_DATE_REGEX, self.future_sprint.name).group(1)
+        future_sprint_start_search = re.search(SPRINT_DATE_REGEX, self.future_sprint.name)
+        self.future_sprint_start = future_sprint_start_search.group(1) if future_sprint_start_search else None
 
         next_future_sprint = find_next_sprint(sprints, self.future_sprint)
-        next_future_sprint_start = re.search(SPRINT_DATE_REGEX, next_future_sprint.name).group(1)
+        next_future_sprint_start_search = re.search(SPRINT_DATE_REGEX, next_future_sprint.name)
+        next_future_sprint_start = next_future_sprint_start_search.group(1) if next_future_sprint_start_search else None
         end_date = datetime.strptime(next_future_sprint_start, '%Y-%m-%d') - timedelta(days=1)
         self.future_sprint_end = end_date.strftime('%Y-%m-%d')
 
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
-        with connect_to_jira() as conn:
-            field_ids = {field['name']: field['id'] for field in conn.fields()}
-            self.issue_fields = {field: field_ids[field] for field in JIRA_REQUIRED_FIELDS}
+        field_ids = {field['name']: field['id'] for field in self.jira_connection.fields()}
+        self.issue_fields = {field: field_ids[field] for field in JIRA_REQUIRED_FIELDS}
 
-            issues: List[Issue] = conn.search_issues(
-                **prepare_jql_query(
-                    self.sprint.id,
-                    self.future_sprint.id,
-                    list(self.issue_fields.values())
-                ),
-                maxResults=0,
+        issues: List[Issue] = self.jira_connection.search_issues(
+            **prepare_jql_query(
+                self.sprint.id,
+                self.future_sprint.id,
+                list(self.issue_fields.values())
+            ),
+            maxResults=0,
+        )
+        quickfilters: List[QuickFilter] = self.jira_connection.quickfilters(self.board_id)
+
+        self.members = get_cell_members(quickfilters)
+        self.issues = []
+
+        for issue in issues:
+            self.issues.append(DashboardIssue(issue, self.sprint.id, self.members, self.issue_fields))
+
+        for member in self.members:
+            schedule = self.jira_connection.user_schedule(
+                member,
+                self.future_sprint_start,
+                self.future_sprint_end,
             )
-            quickfilters: List[QuickFilter] = conn.quickfilters(self.board_id)
-
-            self.members = get_cell_members(quickfilters)
-            self.issues = []
-
-            for issue in issues:
-                self.issues.append(DashboardIssue(issue, self.sprint.id, self.members, self.issue_fields))
-
-            for member in self.members:
-                schedule = conn.user_schedule(
-                    member,
-                    self.future_sprint_start,
-                    self.future_sprint_end,
-                )
-                self.commitments[member] = schedule.requiredSeconds
+            self.commitments[member] = schedule.requiredSeconds
 
     def generate_rows(self) -> None:
         """Generates rows for all users and calculates their time stats."""
@@ -260,7 +258,7 @@ class Dashboard:
 
             # Check if the issue has any time left.
             if issue.time_estimate == 0 and isinstance(issue.assignee, JiraUser):
-                assignee.add_invalid_issue(issue)
+                assignee.add_unestimated_issue(issue)
 
             # Calculations for the current sprint.
             if issue.current_sprint:

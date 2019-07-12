@@ -1,26 +1,22 @@
+from jira import (
+    User as JiraUser,
+)
 from rest_framework import serializers
 
 from sprints.dashboard.models import (
     Dashboard,
     DashboardRow,
 )
-from sprints.dashboard.utils import (
-    Cell,
-)
 
 
+# noinspection PyAbstractClass
 class CellSerializer(serializers.Serializer):
     """Serializer for cells."""
     name = serializers.CharField(max_length=256)
     board_id = serializers.IntegerField()
 
-    def create(self, validated_data):
-        return Cell(**validated_data)
 
-    def update(self, instance, validated_data):
-        raise NotImplementedError("This method is not allowed.")
-
-
+# noinspection PyAbstractClass
 class DashboardRowSerializer(serializers.Serializer):
     """Serializer for dashboard rows."""
     name = serializers.SerializerMethodField()
@@ -32,33 +28,25 @@ class DashboardRowSerializer(serializers.Serializer):
     future_epic_management_time = serializers.IntegerField()
     committed_time = serializers.IntegerField()
     goal_time = serializers.IntegerField()
-    current_invalid = serializers.ListField()
-    future_invalid = serializers.ListField()
+    current_unestimated = serializers.ListField()
+    future_unestimated = serializers.ListField()
     remaining_time = serializers.IntegerField()
 
+    # noinspection PyMethodMayBeStatic
     def get_name(self, obj: DashboardRow):
-        try:
-            return obj.user.displayName if obj.user else "Unassigned"
-        except AttributeError:
-            return obj.user
-
-    def create(self, validated_data):
-        raise NotImplementedError("This method is not allowed.")
-
-    def update(self, instance, validated_data):
-        raise NotImplementedError("This method is not allowed.")
+        if isinstance(obj.user, JiraUser):
+            return obj.user.displayName
+        elif obj.user:
+            return "Unassigned"
+        return obj.user
 
 
+# noinspection PyAbstractClass
 class DashboardSerializer(serializers.Serializer):
     """Serializer for the dashboard."""
     rows = DashboardRowSerializer(many=True)
     future_sprint = serializers.SerializerMethodField()
 
+    # noinspection PyMethodMayBeStatic
     def get_future_sprint(self, obj: Dashboard):
         return obj.future_sprint.name
-
-    def create(self, validated_data):
-        raise NotImplementedError("This method is not allowed.")
-
-    def update(self, instance, validated_data):
-        raise NotImplementedError("This method is not allowed.")

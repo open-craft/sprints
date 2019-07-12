@@ -26,9 +26,9 @@ def connect_to_google(service_name: str) -> ContextManager[discovery.Resource]:
     ]
     credentials = service_account.Credentials.from_service_account_info(GOOGLE_API_CREDENTIALS, scopes=scopes)
     if service_name == 'calendar':
-        service = discovery.build(service_name, 'v3', credentials=credentials)
+        service = discovery.build(service_name, 'v3', credentials=credentials, cache_discovery=False)
     elif service_name == 'sheets':
-        service = discovery.build(service_name, 'v4', credentials=credentials)
+        service = discovery.build(service_name, 'v4', credentials=credentials, cache_discovery=False)
     else:
         raise AttributeError("Unknown service name.")
     yield service

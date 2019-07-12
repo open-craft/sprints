@@ -40,42 +40,40 @@ def complete_sprints():
     3. Moves issues from previous sprints to the next ones.
     """
     upload_spillovers_task()
-    cells = get_cells()
+    cell = get_cells()[0]  # The sprint is shared between cells, so we need only one ID.
     with connect_to_jira() as conn:
-        for cell in cells:
-            sprints: List[Sprint] = conn.sprints(cell.board_id, state='active, future')
-            active_sprint = None
+        sprints: List[Sprint] = conn.sprints(cell.board_id, state='active, future')
+        active_sprint = None
+        for sprint in sprints:
+            if sprint.name.startswith('Sprint') and sprint.state == 'active':
+                active_sprint = sprint
+                break
+        if active_sprint:
+            future_sprint = find_next_sprint(sprints, active_sprint)
+        else:
             for sprint in sprints:
-                if sprint.name.startswith('Sprint') and sprint.state == 'active':
-                    active_sprint = sprint
+                if sprint.name.startswith('Sprint'):
+                    future_sprint = sprint
                     break
-            if active_sprint:
-                future_sprint = find_next_sprint(sprints, active_sprint)
-            else:
-                for sprint in sprints:
-                    if sprint.name.startswith('Sprint'):
-                        future_sprint = sprint
-                        break
 
-            issues: List[Issue] = conn.search_issues(
-                **prepare_jql_query_active_sprint_tickets(
-                    list(),  # We don't need any fields here. The `key` will be sufficient.
-                    settings.SPRINT_STATUS_SPILLOVER | {settings.SPRINT_STATUS_EXTERNAL_REVIEW,
-                                                        settings.SPRINT_STATUS_RECURRING},
-                    project=cell.name,
-                ),
-                maxResults=0,
-            )
-            issue_keys = [issue.key for issue in issues]
+        issues: List[Issue] = conn.search_issues(
+            **prepare_jql_query_active_sprint_tickets(
+                list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                settings.SPRINT_STATUS_SPILLOVER | {settings.SPRINT_STATUS_EXTERNAL_REVIEW,
+                                                    settings.SPRINT_STATUS_RECURRING},
+            ),
+            maxResults=0,
+        )
+        issue_keys = [issue.key for issue in issues]
 
-            # Close active sprint and open future one.
-            conn.update_sprint(active_sprint.id, state='closed')
-            conn.update_sprint(future_sprint.id, state='active')
+        # Close active sprint and open future one.
+        conn.update_sprint(active_sprint.id, state='closed')
+        conn.update_sprint(future_sprint.id, state='active')
 
-            # Move issues to the active sprint from the closed one.
-            # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:
-            # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
-            batch_size = 50
-            for i in range(0, len(issue_keys), batch_size):
-                batch = issue_keys[i:i + batch_size]
-                conn.add_issues_to_sprint(future_sprint.id, batch)
+        # Move issues to the active sprint from the closed one.
+        # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:
+        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
+        batch_size = 50
+        for i in range(0, len(issue_keys), batch_size):
+            batch = issue_keys[i:i + batch_size]
+            conn.add_issues_to_sprint(future_sprint.id, batch)

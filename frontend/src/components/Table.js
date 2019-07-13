@@ -5,7 +5,7 @@ const nameColumn = {width: '20%'};  // 1 cell
 const spilloverColumn = {width: '28%'};   // 1 cell
 const newWorkColumn = {width: '52%'};   // 1 cell
 const timeColumn = {width: '6%'};  // 10 cells -> 60% total
-const invalidColumn = {width: '10%'};  // 2 cells -> 20% total
+const unestimatedColumn = {width: '10%'};  // 2 cells -> 20% total
 
 const ISSUE_PATH = 'https://tasks.opencraft.com/browse/';  // TODO: Move this to config.
 
@@ -34,8 +34,8 @@ const Table = ({list}) =>
             <td style={timeColumn}>
                 Upstream
             </td>
-            <td style={invalidColumn}>
-                Invalid
+            <td style={unestimatedColumn}>
+                Unestimated
             </td>
             <td style={timeColumn}>
                 My work
@@ -46,8 +46,8 @@ const Table = ({list}) =>
             <td style={timeColumn}>
                 Epic
             </td>
-            <td style={invalidColumn}>
-                Invalid
+            <td style={unestimatedColumn}>
+                Unestimated
             </td>
             <td style={timeColumn}>
                 Vacation
@@ -78,8 +78,8 @@ const Table = ({list}) =>
                 <td style={timeColumn}>
                     {Math.round(item.current_remaining_upstream_time / 3600)}
                 </td>
-                <td style={invalidColumn}>
-                    {item.current_invalid.map(ticket =>
+                <td style={unestimatedColumn}>
+                    {item.current_unestimated.map(ticket =>
                         <li key={ticket}>
                             <a href={ISSUE_PATH + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
                         </li>
@@ -94,8 +94,8 @@ const Table = ({list}) =>
                 <td style={timeColumn}>
                     {Math.round(item.future_epic_management_time / 3600)}
                 </td>
-                <td style={invalidColumn}>
-                    {item.future_invalid.map(ticket =>
+                <td style={unestimatedColumn}>
+                    {item.future_unestimated.map(ticket =>
                         <li key={ticket}>
                             <a href={ISSUE_PATH + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
                         </li>

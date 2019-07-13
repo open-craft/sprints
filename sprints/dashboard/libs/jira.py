@@ -1,5 +1,7 @@
 from contextlib import contextmanager
-from typing import ContextManager
+from typing import (
+    Iterator,
+)
 
 from jira import JIRA
 from jira.client import ResultList
@@ -7,10 +9,11 @@ from jira.resources import (
     GreenHopperResource,
     Resource,
 )
+
 from config.settings.base import (
+    JIRA_PASSWORD,
     JIRA_SERVER,
     JIRA_USERNAME,
-    JIRA_PASSWORD,
 )
 
 
@@ -52,7 +55,7 @@ class CustomJira(JIRA):
 
 
 @contextmanager
-def connect_to_jira() -> ContextManager[CustomJira]:
+def connect_to_jira() -> Iterator[CustomJira]:
     """Context manager for establishing connection with Jira server."""
     conn = CustomJira(
         server=JIRA_SERVER,

@@ -297,10 +297,10 @@ class Dashboard:
                 for vacation in self.vacations:
                     if row.user.displayName.startswith(vacation['user']):
                         for vacation_date in daterange(
-                            max(vacation['start']['date'], self.future_sprint_start),
-                            min(vacation['end']['date'], self.future_sprint_end),
+                            max(vacation['start']['date'], self.future_sprint_start),  # type: ignore
+                            min(vacation['end']['date'], self.future_sprint_end),  # type: ignore
                         ):
-                            row.vacation_time += self.commitments[row.user.name]['days'][vacation_date]
+                            row.vacation_time += self.commitments[row.user.name]['days'][vacation_date]  # type: ignore
                     elif row.user.displayName < vacation['user']:
                         # Small optimization, as users' vacations are sorted.
                         break

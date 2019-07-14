@@ -14,7 +14,7 @@ def update_site_forward(apps, schema_editor):
         id=settings.SITE_ID,
         defaults={
             "domain": "sprints.opencraft.com",
-            "name": "Sprint Management Application",
+            "name": "Sprints",
         },
     )
 

@@ -40,8 +40,8 @@ def complete_sprints():
     3. Moves issues from previous sprints to the next ones.
     """
     upload_spillovers_task()
-    cell = get_cells()[0]  # The sprint is shared between cells, so we need only one ID.
     with connect_to_jira() as conn:
+        cell = get_cells(conn)[0]  # The sprint is shared between cells, so we need only one ID.
         sprints: List[Sprint] = conn.sprints(cell.board_id, state='active, future')
         active_sprint = None
         for sprint in sprints:

@@ -317,7 +317,7 @@ CORS_ORIGIN_WHITELIST = (
     FRONTEND_URL,
 )
 
-# JIRA CONFIGS
+# JIRA
 # ------------------------------------------------------------------------------
 # URL of the Jira server.
 JIRA_SERVER = env.str("JIRA_SERVER")
@@ -343,7 +343,7 @@ JIRA_REQUIRED_FIELDS = (
 # A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
 JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = (\w+).* or .*\1.*\1")
 
-# SPRINT CONFIGS
+# SPRINT
 # ------------------------------------------------------------------------------
 # How many hours per sprint to reserve for meetings.
 SPRINT_HOURS_RESERVED_FOR_MEETINGS = env.int("SPRINT_HOURS_RESERVED_FOR_MEETINGS", 2)
@@ -381,3 +381,23 @@ SPRINT_REVIEW_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours for revie
 SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"Sprint (\d+)")
 # Regex for extracting sprint staring date from the name of the sprint.
 SPRINT_DATE_REGEX = env.str("SPRINT_DATE_REGEX", r"\((.*)\)")
+
+
+# GOOGLE CALENDAR
+# ------------------------------------------------------------------------------
+# Google API credentials for retrieving data from Calendar API.
+# To get these credentials, you need to:
+# 1. Go to https://console.developers.google.com/projectselector2/iam-admin/serviceaccounts.
+# 2. Create service account for the selected project.
+# 3. Create key for the user and download JSON file.
+# 4. Extract `private_key` and `token_uri` from the downloaded key and set these values in envs.
+GOOGLE_API_CREDENTIALS = {
+  "private_key": env.str("GOOGLE_API_PRIVATE_KEY", multiline=True),
+  "client_email": env.str("GOOGLE_API_CLIENT_EMAIL"),
+  "token_uri": env.str("GOOGLE_API_TOKEN_URI", "https://oauth2.googleapis.com/token"),
+}
+# Regex for retrieving users' vacations from Google Calendar. This one is case-insensitive.
+# By default we're using f"{name} off" format, which works fine with `name` being at least user's first name.
+# CAUTION: we're not checking for duplicated names, so in case we'll have two people with the same first name,
+#          both of them will need to provide the full name in the calendar.
+GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"(\w+) off")

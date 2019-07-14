@@ -1,6 +1,11 @@
 import re
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import (
     Dict,
+    Generator,
     List,
     Union,
 )
@@ -91,3 +96,11 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
     if search:
         return int(search.group(1))
     raise AttributeError(f"Invalid `sprint_str`, {pattern} not found.")
+
+
+def daterange(start: str, end: str) -> Generator[str, None, None]:
+    """Generates days from `start_date` to `end_date` (both inclusive)."""
+    start_date = datetime.strptime(start, '%Y-%m-%d')
+    end_date = datetime.strptime(end, '%Y-%m-%d')
+    for n in range(int((end_date - start_date).days + 1)):
+        yield (start_date + timedelta(n)).strftime('%Y-%m-%d')

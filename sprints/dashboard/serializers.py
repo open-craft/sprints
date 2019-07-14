@@ -31,6 +31,7 @@ class DashboardRowSerializer(serializers.Serializer):
     current_unestimated = serializers.ListField()
     future_unestimated = serializers.ListField()
     remaining_time = serializers.IntegerField()
+    vacation_time = serializers.IntegerField()
 
     # noinspection PyMethodMayBeStatic
     def get_name(self, obj: DashboardRow):

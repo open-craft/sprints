@@ -31,12 +31,16 @@ from config.settings.base import (
     SPRINT_STATUS_MERGED,
     SPRINT_STATUS_RECURRING,
 )
+from sprints.dashboard.libs.google import (
+    get_vacations,
+)
 from sprints.dashboard.libs.jira import (
     CustomJira,
     QuickFilter,
 )
 from sprints.dashboard.utils import (
     SECONDS_IN_HOUR,
+    daterange,
     extract_sprint_id_from_str,
     find_next_sprint,
     get_cell_members,
@@ -129,6 +133,7 @@ class DashboardRow:
         self.goal_time = 0
         self.current_unestimated: List[str] = []
         self.future_unestimated: List[str] = []
+        self.vacation_time = 0
 
     def set_goal_time(self, goal) -> None:
         """
@@ -175,7 +180,7 @@ class Dashboard:
         self.issue_fields: Dict[str, str]
         self.issues: List[DashboardIssue]
         self.members: List[str]
-        self.commitments: Dict[str, int] = {}
+        self.commitments: Dict[str, Dict[str, Union[int, Dict[str, str]]]] = {}
         self.board_id = board_id
         self.sprint: Sprint
         self.future_sprint: Sprint
@@ -184,6 +189,7 @@ class Dashboard:
 
         # Retrieve data from Jira.
         self.get_sprints()
+        self.vacations = get_vacations(self.future_sprint_start, self.future_sprint_end)
         self.get_issues()
         self.generate_rows()
 
@@ -238,7 +244,10 @@ class Dashboard:
                 self.future_sprint_start,
                 self.future_sprint_end,
             )
-            self.commitments[member] = schedule.requiredSeconds
+            self.commitments[member] = {
+                'total': schedule.requiredSeconds,
+                'days': {day.date: day.requiredSeconds for day in schedule.days}
+            }
 
     def generate_rows(self) -> None:
         """Generates rows for all users and calculates their time stats."""
@@ -279,8 +288,21 @@ class Dashboard:
                 assignee.future_remaining_assignee_time += issue.assignee_time
                 reviewer_1.future_remaining_review_time += issue.review_time
 
+        del self.dashboard['Other Cell']
+
+        # Calculate commitments for each user.
         for row in self.rows:
             if isinstance(row.user, JiraUser):
-                row.set_goal_time(self.commitments[row.user.name])
+                # Calculate vacations
+                for vacation in self.vacations:
+                    if row.user.displayName.startswith(vacation['user']):
+                        for vacation_date in daterange(
+                            max(vacation['start']['date'], self.future_sprint_start),  # type: ignore
+                            min(vacation['end']['date'], self.future_sprint_end),  # type: ignore
+                        ):
+                            row.vacation_time += self.commitments[row.user.name]['days'][vacation_date]  # type: ignore
+                    elif row.user.displayName < vacation['user']:
+                        # Small optimization, as users' vacations are sorted.
+                        break
 
-        del self.dashboard['Other Cell']
+                row.set_goal_time(self.commitments[row.user.name]['total'] - row.vacation_time)

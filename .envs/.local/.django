@@ -13,3 +13,7 @@ REDIS_URL=redis://redis:6379/0
 CELERY_FLOWER_USER=kJtrEYByunMyFNPJeALMRoyxcRTInfFw
 CELERY_FLOWER_PASSWORD=v7SFcfYcMLeAp6xDnFmxom9rNClFeTgmZz1wNn0HGSMPN1tbjSkxbeIKklPe2H8a
 
+# Jira
+# JIRA_SERVER=https://jira.server
+# JIRA_USERNAME=username
+# JIRA_PASSWORD=password

@@ -1,8 +1,8 @@
 import re
 from contextlib import contextmanager
 from typing import (
-    ContextManager,
     Dict,
+    Iterator,
     List,
     Union,
 )
@@ -18,7 +18,7 @@ from config.settings.base import (
 
 
 @contextmanager
-def connect_to_google(service_name: str) -> ContextManager[discovery.Resource]:
+def connect_to_google(service_name: str) -> Iterator[discovery.Resource]:
     """Connects to Google API with service account."""
     scopes = [
         'https://www.googleapis.com/auth/calendar',
@@ -49,14 +49,12 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, st
             ).execute()
 
             for event in events['items']:
-                try:
-                    user = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE).group(1)
+                user_search = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE)
+                if user_search:
+                    user = user_search.group(1)
                     del event['summary']
                     event['user'] = user
                     vacations.append(event)
-                except AttributeError:
-                    # Ignore non-matching events.
-                    pass
 
         vacations.sort(key=lambda x: x['user'])  # Small optimization for searching
         return vacations

@@ -6,6 +6,7 @@ from rest_framework import (
 )
 from rest_framework.response import Response
 
+from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.dashboard.models import Dashboard
 from sprints.dashboard.serializers import (
     CellSerializer,
@@ -30,7 +31,8 @@ class CellViewSet(viewsets.ViewSet):
     permission_classes = (permissions.IsAuthenticated,)
 
     def list(self, _request):
-        cells = get_cells()
+        with connect_to_jira() as conn:
+            cells = get_cells(conn)
         serializer = CellSerializer(cells, many=True)
         return Response(serializer.data)
 
@@ -48,7 +50,8 @@ class DashboardViewSet(viewsets.ViewSet):
 
     def list(self, request):
         board_id = int(request.query_params.get('board_id'))
-        dashboard = Dashboard(board_id)
+        with connect_to_jira() as conn:
+            dashboard = Dashboard(board_id, conn)
         serializer = DashboardSerializer(dashboard)
         return Response(serializer.data)
 

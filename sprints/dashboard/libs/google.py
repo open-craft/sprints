@@ -18,18 +18,20 @@ from config.settings.base import (
 
 
 @contextmanager
-def connect_to_google(service_name: str) -> Iterator[discovery.Resource]:
+def connect_to_google(service: str) -> Iterator[discovery.Resource]:
     """Connects to Google API with service account."""
     scopes = [
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/spreadsheets',
     ]
     credentials = service_account.Credentials.from_service_account_info(GOOGLE_API_CREDENTIALS, scopes=scopes)
-    if service_name == 'calendar':
-        service = discovery.build(service_name, 'v3', credentials=credentials, cache_discovery=False)
-    elif service_name == 'sheets':
-        service = discovery.build(service_name, 'v4', credentials=credentials, cache_discovery=False)
-    else:
+    api_version = {
+        'calendar': 'v3,',
+        'sheets': 'v4,',
+    }
+    try:
+        service = discovery.build(service, api_version[service], credentials=credentials, cache_discovery=False)
+    except KeyError:
         raise AttributeError("Unknown service name.")
     yield service
 
@@ -65,11 +67,9 @@ def upload_spillovers(spillovers: List[List[str]]) -> None:
     with connect_to_google('sheets') as conn:
         sheet = conn.spreadsheets()
         body = {'values': spillovers}
-        result = sheet.values().append(
+        sheet.values().append(
             spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
             range='Spillovers',
             body=body,
             valueInputOption='USER_ENTERED',
         ).execute()
-        values = result.get('values', [])
-        print(values)

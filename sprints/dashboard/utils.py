@@ -91,7 +91,11 @@ def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]
     }
 
 
-def prepare_jql_query_active_sprint_tickets(fields: List[str], status: Iterable[str], project='') -> Dict[str, str]:
+def prepare_jql_query_active_sprint_tickets(
+    fields: List[str],
+    status: Iterable[str],
+    project='',
+) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving sories that spilled over before ending the sprint."""
     required_project = f'project = {project} AND ' if project else ''
     required_status = '"' + '","'.join(status) + '"'
@@ -116,7 +120,10 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
 def extract_sprint_name_from_str(sprint_str: str) -> str:
     """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
     pattern = r'name=(.*?),'
-    return re.search(pattern, sprint_str).group(1)
+    search = re.search(pattern, sprint_str)
+    if search:
+        return search.group(1)
+    raise AttributeError(f"Invalid `sprint_str`, {pattern} not found.")
 
 
 def daterange(start: str, end: str) -> Generator[str, None, None]:
@@ -145,14 +152,23 @@ def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str]) -> List
 
 
 def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) -> List[List[str]]:
-    """Prepares the Google spreadsheet row in the specified format."""
+    """
+    Prepares the Google spreadsheet row in the specified format.
+    Assumptions:
+        - the first column contains the ID of the issue with the hyperlink to the issue,
+        - the next fields are defined in `settings.SPILLOVER_REQUIRED_FIELDS`
+            (the order of these fields reflects the order of the columns in the spreadsheet),
+        - fields defined in `settings.JIRA_INTEGER_FIELDS` will be casted to `int`,
+        - fields defined in `settings.JIRA_TIME_FIELDS` are represented in seconds (in Jira) and their final
+            representation (in the spreadsheet) will be in hours rounded to 2 decimal points (if necessary).
+    """
     rows = []
     for issue in issues:
         issue_url = f'=HYPERLINK("{settings.JIRA_SERVER}/browse/{issue.key}","{issue.key}")'
         row = [issue_url]
         for field in settings.SPILLOVER_REQUIRED_FIELDS:
             cell_value = getattr(issue.fields, issue_fields[field])
-            if field in settings.JIRA_NUMERIC_FIELDS:
+            if field in settings.JIRA_INTEGER_FIELDS:
                 try:
                     cell_value = int(cell_value)
                 except TypeError:

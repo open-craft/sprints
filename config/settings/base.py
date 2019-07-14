@@ -365,7 +365,7 @@ JIRA_TIME_FIELDS = {
     "Remaining Estimate",
 }
 # Issue fields with numeric values.
-JIRA_NUMERIC_FIELDS = {
+JIRA_INTEGER_FIELDS = {
     "Story Points",
 } | JIRA_TIME_FIELDS
 # A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
@@ -385,6 +385,8 @@ SPRINT_STATUS_MERGED = "Merged"
 SPRINT_STATUS_RECURRING = "Recurring"
 SPRINT_STATUS_ACCEPTED = "Accepted"
 SPRINT_STATUS_IN_DEVELOPMENT = "In development"
+SPRINT_STATUS_DEPLOYED_AND_DELIVERED = "Deployed & Delivered"
+SPRINT_STATUS_DONE = "Done"
 # Which tickets statuses will be counted as a spillover.
 SPRINT_STATUS_SPILLOVER = {
     SPRINT_STATUS_BACKLOG,

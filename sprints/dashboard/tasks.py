@@ -60,7 +60,8 @@ def complete_sprints():
             **prepare_jql_query_active_sprint_tickets(
                 list(),  # We don't need any fields here. The `key` attribute will be sufficient.
                 settings.SPRINT_STATUS_SPILLOVER | {settings.SPRINT_STATUS_EXTERNAL_REVIEW,
-                                                    settings.SPRINT_STATUS_RECURRING},
+                                                    settings.SPRINT_STATUS_RECURRING,
+                                                    settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
             ),
             maxResults=0,
         )

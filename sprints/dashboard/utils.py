@@ -79,7 +79,7 @@ def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:
 
 def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
-    unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_UNFINISHED | {settings.SPRINT_STATUS_RECURRING}) + '"'
+    unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
     epic_in_progress = '"' + '","'.join(settings.SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
 
     query = f'(Sprint IN {(current_sprint, future_sprint)} AND ' \

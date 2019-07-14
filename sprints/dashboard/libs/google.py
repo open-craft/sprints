@@ -26,8 +26,8 @@ def connect_to_google(service: str) -> Iterator[discovery.Resource]:
     ]
     credentials = service_account.Credentials.from_service_account_info(GOOGLE_API_CREDENTIALS, scopes=scopes)
     api_version = {
-        'calendar': 'v3,',
-        'sheets': 'v4,',
+        'calendar': 'v3',
+        'sheets': 'v4',
     }
     try:
         service = discovery.build(service, api_version[service], credentials=credentials, cache_discovery=False)

@@ -287,13 +287,6 @@ ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
 SOCIALACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_SOCIALACCOUNT_ALLOW_REGISTRATION", True)
 ACCOUNT_ALLOWED_EMAIL_DOMAINS = env.list("DJANGO_ACCOUNT_ALLOWED_EMAIL_DOMAINS", default=["opencraft.com"])
 
-# Social
-# https://python-social-auth.readthedocs.io/en/latest/configuration/django.html
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env.str("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env.str("SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET")
-SOCIAL_AUTH_RAISE_EXCEPTIONS = env.bool("SOCIAL_DEBUG", False)
-RAISE_EXCEPTIONS = env.bool("SOCIAL_DEBUG", False)
-
 # DRF
 # ------------------------------------------------------------------------------
 REST_FRAMEWORK = {

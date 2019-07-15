@@ -69,7 +69,7 @@ class SpilloverViewSet(viewsets.ViewSet):
         return Response(data='', status=http.HTTPStatus.OK)
 
 
-class EndSprintViewSet(viewsets.ViewSet):
+class CompleteSprintViewSet(viewsets.ViewSet):
     """
     Invokes task for uploading spillovers and ending the sprints.
     POST /dashboard/end_sprint

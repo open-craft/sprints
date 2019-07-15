@@ -13,7 +13,7 @@ import sprints_reducers from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
 import VerifyEmail from "./components/VerifyEmail";
-import EndSprint from "./components/SpilloverButton";
+import CompleteSprints from "./components/CompleteSprintsButton";
 
 
 const PATH_BASE = `${process.env.REACT_APP_API_BASE}/dashboard/`;
@@ -54,7 +54,7 @@ class RootContainerComponent extends Component {
                         ? <div className="navbar">
                             {
                                 this.props.auth.user.is_staff
-                                    ? <EndSprint/>
+                                    ? <CompleteSprints/>
                                     : <div/>
                             }
                             <Logout/>

@@ -1,11 +1,11 @@
 import {connect} from "react-redux";
 import React, {Component} from 'react';
 
-const PATH_END_SPRINT = `${process.env.REACT_APP_API_BASE}/dashboard/spillovers/`;
+const PATH_COMPLETE_SPRINTS = `${process.env.REACT_APP_API_BASE}/dashboard/complete_sprints/`;
 
 
-class SpilloverButton extends Component {
-    uploadSpillovers = () => {
+class CompleteSprintsButton extends Component {
+    completeSprints = () => {
         this.btn.setAttribute("disabled", "disabled");
         let token = this.props.auth.token;
         let headers = {
@@ -15,20 +15,20 @@ class SpilloverButton extends Component {
             headers["Authorization"] = `JWT ${token}`;
         }
 
-        fetch(PATH_END_SPRINT, {headers, body: "", method: "POST"})
+        fetch(PATH_COMPLETE_SPRINTS, {headers, body: "", method: "POST"})
             .then(response => response.json())
     };
 
     render() {
         return (
-            <div className="spillovers">
+            <div className="complete_sprints">
                 <button
                     className="btn-danger"
-                    onClick={this.uploadSpillovers}
+                    onClick={this.completeSprints}
                     ref={btn => {
                         this.btn = btn;
                     }}
-                >Upload spillovers
+                >Complete Sprints
                 </button>
             </div>
         );
@@ -41,4 +41,4 @@ const mapStateToProps = state => {
     }
 };
 
-export default connect(mapStateToProps)(SpilloverButton);
+export default connect(mapStateToProps)(CompleteSprintsButton);

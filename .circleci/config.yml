@@ -1,4 +1,7 @@
-version: 2
+version: 2.1
+orbs:
+  aws-s3: circleci/aws-s3@1.0.11
+
 jobs:
   test:
     docker:
@@ -37,7 +40,7 @@ jobs:
             coverage run -m pytest
             coverage report
 
-  deploy:
+  build_backend:
     docker:
       - image: circleci/python:3.7
     steps:
@@ -56,8 +59,52 @@ jobs:
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_LOGIN --password-stdin
             docker-compose -f production.yml build
             docker-compose -f production.yml push
+
+  build_frontend:
+    docker:
+      - image: node:11.15-alpine
+    steps:
+      - checkout
       - run:
-          name: Deploy
+          name: update-npm
+          command: "sudo npm install -g npm@latest"
+      - run:
+          name: Change directory
+          command: "cd frontend"
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: Install dependencies
+          command: npm install
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+      - run:
+          name: Build React frontend
+          command: "npm run build && cd .."
+      - persist_to_workspace:
+          root: build
+          paths:
+            - .
+
+  deploy_frontend:
+    docker:
+      - image: aws
+    steps:
+      - attach_workspace:
+          at: build
+      - aws-s3/sync:
+          from: build/
+          to: "s3://$AWS_S3_BUCKET/frontend"
+          overwrite: true
+
+  deploy_backend:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - run:
+          name: Deploy backend
           command: |
             ssh -o StrictHostKeyChecking=no $HOST_USERNAME@$HOSTNAME "/bin/bash ./deploy.sh"
 
@@ -66,9 +113,25 @@ workflows:
   main:
     jobs:
       - test
-      - deploy:
+
+      - build_backend:
           requires:
             - test
           filters:
             branches:
-              only: master
+              only: agrendalath/bb-1247-production
+      - build_frontend:
+          requires:
+            - test
+          filters:
+            branches:
+              only: agrendalath/bb-1247-production
+
+      - deploy_backend:
+          requires:
+            - build_backend
+            - build_frontend
+      - deploy_frontend:
+          requires:
+            - build_backend
+            - build_frontend

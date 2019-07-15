@@ -97,6 +97,10 @@ jobs:
           from: build/
           to: "s3://$AWS_S3_BUCKET/frontend"
           overwrite: true
+      - run:
+          name: Invalidate CloudFront cache
+          command: |
+            aws cloudfront create-invalidation --distribution-id $AWS_CLOUDFRONT_DISTRIBUTION_ID --paths '/*'
 
   deploy_backend:
     docker:

@@ -62,29 +62,27 @@ jobs:
 
   build_frontend:
     docker:
-      - image: node:11.15-alpine
+      - image: circleci/node:11.15
     steps:
       - checkout
       - run:
-          name: update-npm
-          command: "sudo npm install -g npm@latest"
-      - run:
-          name: Change directory
-          command: "cd frontend"
+          name: Create .env file
+          command: |
+            echo -e "REACT_APP_API_BASE=$REACT_APP_API_BASE\nREACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID" > frontend/.env.production
       - restore_cache:
-          key: dependency-cache-{{ checksum "package.json" }}
+          key: dependency-cache-{{ checksum "frontend/package.json" }}
       - run:
           name: Install dependencies
-          command: npm install
+          command: "cd frontend && npm install"
       - save_cache:
-          key: dependency-cache-{{ checksum "package.json" }}
+          key: dependency-cache-{{ checksum "frontend/package.json" }}
           paths:
-            - ./node_modules
+            - ./frontend/node_modules
       - run:
           name: Build React frontend
-          command: "npm run build && cd .."
+          command: "cd frontend && npm run build"
       - persist_to_workspace:
-          root: build
+          root: frontend/build
           paths:
             - .
 

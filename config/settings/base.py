@@ -307,6 +307,12 @@ REST_FRAMEWORK = {
     ),
 }
 REST_USE_JWT = True
+REST_AUTH_SERIALIZERS = {
+    'USER_DETAILS_SERIALIZER': 'sprints.users.serializers.UserDetailsSerializer',
+}
+JWT_AUTH = {
+    'JWT_PAYLOAD_HANDLER': 'sprints.users.jwt.jwt_payload_handler_custom',
+}
 
 
 # REACT FRONTEND
@@ -340,6 +346,28 @@ JIRA_REQUIRED_FIELDS = (
     "Story Points",
     "Reviewer 1",
 )
+# Fields required for documenting spillovers.
+SPILLOVER_REQUIRED_FIELDS = (
+    "Status",
+    "Sprint",
+    "Assignee",
+    "Reviewer 1",
+    "Reviewer 2",
+    "Reporter",
+    "Story Points",
+    "Original Estimate",
+    "Remaining Estimate",
+)
+# Issue fields that contain time in seconds.
+JIRA_TIME_FIELDS = {
+    "Time Spent",
+    "Original Estimate",
+    "Remaining Estimate",
+}
+# Issue fields with numeric values.
+JIRA_INTEGER_FIELDS = {
+    "Story Points",
+} | JIRA_TIME_FIELDS
 # A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
 JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = (\w+).* or .*\1.*\1")
 
@@ -357,14 +385,20 @@ SPRINT_STATUS_MERGED = "Merged"
 SPRINT_STATUS_RECURRING = "Recurring"
 SPRINT_STATUS_ACCEPTED = "Accepted"
 SPRINT_STATUS_IN_DEVELOPMENT = "In development"
+SPRINT_STATUS_DEPLOYED_AND_DELIVERED = "Deployed & Delivered"
+SPRINT_STATUS_DONE = "Done"
 # Which tickets statuses will be counted as a spillover.
-SPRINT_STATUS_UNFINISHED = {
+SPRINT_STATUS_SPILLOVER = {
     SPRINT_STATUS_BACKLOG,
     SPRINT_STATUS_IN_PROGRESS,
     SPRINT_STATUS_REVIEW,
-    SPRINT_STATUS_EXTERNAL_REVIEW,
     SPRINT_STATUS_MERGED,
 }
+# Which tickets will be moved the the next sprint.
+SPRINT_STATUS_ACTIVE = {
+    SPRINT_STATUS_EXTERNAL_REVIEW,
+    SPRINT_STATUS_RECURRING,
+} | SPRINT_STATUS_SPILLOVER
 # Which epic statuses indicate ongoing epic.
 SPRINT_STATUS_EPIC_IN_PROGRESS = {
     SPRINT_STATUS_RECURRING,
@@ -401,3 +435,4 @@ GOOGLE_API_CREDENTIALS = {
 # CAUTION: we're not checking for duplicated names, so in case we'll have two people with the same first name,
 #          both of them will need to provide the full name in the calendar.
 GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"(\w+) off")
+GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")

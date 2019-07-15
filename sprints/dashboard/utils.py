@@ -6,6 +6,7 @@ from datetime import (
 from typing import (
     Dict,
     Generator,
+    Iterable,
     List,
     Union,
 )
@@ -14,6 +15,7 @@ from django.conf import settings
 # noinspection PyProtectedMember
 from jira.resources import (
     Board,
+    Issue,
     Sprint,
 )
 
@@ -77,11 +79,28 @@ def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:
 
 def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
-    unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_UNFINISHED | {settings.SPRINT_STATUS_RECURRING}) + '"'
+    unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
     epic_in_progress = '"' + '","'.join(settings.SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
 
     query = f'(Sprint IN {(current_sprint, future_sprint)} AND ' \
         f'status IN ({unfinished_status})) OR (issuetype = Epic AND Status IN ({epic_in_progress}))'
+
+    return {
+        'jql_str': query,
+        'fields': fields,
+    }
+
+
+def prepare_jql_query_active_sprint_tickets(
+    fields: List[str],
+    status: Iterable[str],
+    project='',
+) -> Dict[str, Union[str, List[str]]]:
+    """Prepare JQL query for retrieving sories that spilled over before ending the sprint."""
+    required_project = f'project = {project} AND ' if project else ''
+    required_status = '"' + '","'.join(status) + '"'
+
+    query = f'{required_project}Sprint IN openSprints() AND status IN ({required_status})'
 
     return {
         'jql_str': query,
@@ -98,9 +117,74 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
     raise AttributeError(f"Invalid `sprint_str`, {pattern} not found.")
 
 
+def extract_sprint_name_from_str(sprint_str: str) -> str:
+    """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
+    pattern = r'name=(.*?),'
+    search = re.search(pattern, sprint_str)
+    if search:
+        return search.group(1)
+    raise AttributeError(f"Invalid `sprint_str`, {pattern} not found.")
+
+
 def daterange(start: str, end: str) -> Generator[str, None, None]:
     """Generates days from `start_date` to `end_date` (both inclusive)."""
     start_date = datetime.strptime(start, '%Y-%m-%d')
     end_date = datetime.strptime(end, '%Y-%m-%d')
     for n in range(int((end_date - start_date).days + 1)):
         yield (start_date + timedelta(n)).strftime('%Y-%m-%d')
+
+
+def get_issue_fields(conn: CustomJira, required_fields: Iterable[str]) -> Dict[str, str]:
+    """Filter Jira issue fields by their names."""
+    field_ids = {field['name']: field['id'] for field in conn.fields()}
+    return {field: field_ids[field] for field in required_fields}
+
+
+def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str]) -> List[Issue]:
+    """Retrieves all stories and epics for the current dashboard."""
+    return conn.search_issues(
+        **prepare_jql_query_active_sprint_tickets(
+            list(issue_fields.values()),
+            settings.SPRINT_STATUS_SPILLOVER,
+        ),
+        maxResults=0,
+    )
+
+
+def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) -> List[List[str]]:
+    """
+    Prepares the Google spreadsheet row in the specified format.
+    Assumptions:
+        - the first column contains the ID of the issue with the hyperlink to the issue,
+        - the next fields are defined in `settings.SPILLOVER_REQUIRED_FIELDS`
+            (the order of these fields reflects the order of the columns in the spreadsheet),
+        - fields defined in `settings.JIRA_INTEGER_FIELDS` will be casted to `int`,
+        - fields defined in `settings.JIRA_TIME_FIELDS` are represented in seconds (in Jira) and their final
+            representation (in the spreadsheet) will be in hours rounded to 2 decimal points (if necessary).
+    """
+    rows = []
+    for issue in issues:
+        issue_url = f'=HYPERLINK("{settings.JIRA_SERVER}/browse/{issue.key}","{issue.key}")'
+        row = [issue_url]
+        for field in settings.SPILLOVER_REQUIRED_FIELDS:
+            cell_value = getattr(issue.fields, issue_fields[field])
+            if field in settings.JIRA_INTEGER_FIELDS:
+                try:
+                    cell_value = int(cell_value)
+                except TypeError:
+                    # Ignore `None` values.
+                    pass
+            if field in settings.JIRA_TIME_FIELDS:
+                try:
+                    cell_value = round(cell_value / 3600, 2)
+                except TypeError:
+                    # Ignore `None` values.
+                    pass
+            if field == 'Sprint':
+                cell_value = map(extract_sprint_name_from_str, cell_value)
+                cell_value = '\n'.join(cell_value)
+
+            row.append(str(cell_value))
+
+        rows.append(row)
+    return rows

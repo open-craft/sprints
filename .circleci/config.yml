@@ -57,6 +57,7 @@ jobs:
           name: Build and push Docker image
           command: |
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker-compose -f production.yml pull
             docker-compose -f production.yml build
             docker-compose -f production.yml push
 
@@ -88,7 +89,7 @@ jobs:
 
   deploy_frontend:
     docker:
-      - image: aws
+      - image: circleci/python:3.7
     steps:
       - attach_workspace:
           at: build
@@ -104,7 +105,7 @@ jobs:
       - run:
           name: Deploy backend
           command: |
-            ssh -o StrictHostKeyChecking=no $HOST_USERNAME@$HOSTNAME "/bin/bash ./deploy.sh"
+            ssh -o StrictHostKeyChecking=no $HOST_USERNAME@$HOSTNAME "/bin/bash /sprints/deploy.sh"
 
 workflows:
   version: 2

@@ -122,13 +122,13 @@ workflows:
             - test
           filters:
             branches:
-              only: agrendalath/bb-1247-production
+              only: master
       - build_frontend:
           requires:
             - test
           filters:
             branches:
-              only: agrendalath/bb-1247-production
+              only: master
 
       - deploy_backend:
           requires:

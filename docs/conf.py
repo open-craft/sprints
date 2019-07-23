@@ -1,4 +1,4 @@
-# Sprint Management Application documentation build configuration file, created by
+# Sprints documentation build configuration file, created by
 # sphinx-quickstart.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -39,7 +39,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "Sprint Management Application"
+project = "Sprints"
 copyright = """2019, OpenCraft"""
 
 # The version info for the project you're documenting, acts as replacement for
@@ -183,7 +183,7 @@ latex_documents = [
     (
         "index",
         "sprints.tex",
-        "Sprint Management Application Documentation",
+        "Sprints Documentation",
         """OpenCraft""",
         "manual",
     )
@@ -218,7 +218,7 @@ man_pages = [
     (
         "index",
         "sprints",
-        "Sprint Management Application Documentation",
+        "Sprints Documentation",
         ["""OpenCraft"""],
         1,
     )
@@ -237,9 +237,9 @@ texinfo_documents = [
     (
         "index",
         "sprints",
-        "Sprint Management Application Documentation",
+        "Sprints Documentation",
         """OpenCraft""",
-        "Sprint Management Application",
+        "Sprints",
         """App for tracking sprint commitments, vacations and spillovers.""",
         "Miscellaneous",
     )

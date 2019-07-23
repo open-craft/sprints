@@ -1,4 +1,7 @@
-version: 2
+version: 2.1
+orbs:
+  aws-s3: circleci/aws-s3@1.0.11
+
 jobs:
   test:
     docker:
@@ -37,7 +40,7 @@ jobs:
             coverage run -m pytest
             coverage report
 
-  deploy:
+  build_backend:
     docker:
       - image: circleci/python:3.7
     steps:
@@ -54,21 +57,84 @@ jobs:
           name: Build and push Docker image
           command: |
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker-compose -f production.yml pull
             docker-compose -f production.yml build
             docker-compose -f production.yml push
+
+  build_frontend:
+    docker:
+      - image: circleci/node:11.15
+    steps:
+      - checkout
       - run:
-          name: Deploy
+          name: Create .env file
           command: |
-            ssh -o StrictHostKeyChecking=no $HOST_USERNAME@$HOSTNAME "/bin/bash ./deploy.sh"
+            echo -e "REACT_APP_API_BASE=$REACT_APP_API_BASE\nREACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID" > frontend/.env.production
+      - restore_cache:
+          key: dependency-cache-{{ checksum "frontend/package.json" }}
+      - run:
+          name: Install dependencies
+          command: "cd frontend && npm install"
+      - save_cache:
+          key: dependency-cache-{{ checksum "frontend/package.json" }}
+          paths:
+            - ./frontend/node_modules
+      - run:
+          name: Build React frontend
+          command: "cd frontend && npm run build"
+      - persist_to_workspace:
+          root: frontend/build
+          paths:
+            - .
+
+  deploy_frontend:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - attach_workspace:
+          at: build
+      - aws-s3/sync:
+          from: build/
+          to: "s3://$AWS_S3_BUCKET/frontend"
+          overwrite: true
+      - run:
+          name: Invalidate CloudFront cache
+          command: |
+            aws cloudfront create-invalidation --distribution-id $AWS_CLOUDFRONT_DISTRIBUTION_ID --paths '/*'
+
+  deploy_backend:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - run:
+          name: Deploy backend
+          command: |
+            ssh -o StrictHostKeyChecking=no $HOST_USERNAME@$HOSTNAME "/bin/bash /sprints/deploy.sh"
 
 workflows:
   version: 2
   main:
     jobs:
       - test
-      - deploy:
+
+      - build_backend:
           requires:
             - test
           filters:
             branches:
               only: master
+      - build_frontend:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+
+      - deploy_backend:
+          requires:
+            - build_backend
+            - build_frontend
+      - deploy_frontend:
+          requires:
+            - build_backend
+            - build_frontend

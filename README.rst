@@ -1,4 +1,4 @@
-Sprint Management Application
+Sprints
 =============================
 
 App for tracking sprint commitments, vacations and spillovers.

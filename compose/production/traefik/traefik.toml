@@ -16,7 +16,7 @@ defaultEntryPoints = ["http", "https"]
 # Enable ACME (Let's Encrypt): automatic SSL
 [acme]
 # Email address used for registration
-email = "ops@opencraft.com"
+email = "ops+letsencrypt@opencraft.com"
 storage = "/etc/traefik/acme/acme.json"
 entryPoint = "https"
 onDemand = false

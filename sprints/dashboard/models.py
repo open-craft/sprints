@@ -85,37 +85,44 @@ class DashboardIssue:
         self.review_time = self.calculate_review_time()
         self.assignee_time = max(self.time_estimate - self.review_time, 0)  # We don't want negative values here
 
-    def get_bot_directive(self, pattern) -> int:
-        """Retrieves special directives placed for the Jira bot."""
+    def get_bot_directive(self, pattern) -> Union[int, None]:
+        """
+        Retrieves special directives placed for the Jira bot.
+        :returns `None` if directive was not found. Otherwise returns `int` with duration defined in the directive.
+        """
         try:
             search = re.search(pattern, self.description)
-            return int(search.group(1)) if search else 0
-        except TypeError:
-            # Description is `None`.
-            return 0
+            return int(search.group(1))  # type: ignore
+        except (AttributeError, TypeError):
+            # Directive not found or description is `None`.
+            return None
 
     def calculate_review_time(self) -> int:
         """
         Calculate time needed for the review.
         Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
         """
-        planned = self.get_bot_directive(SPRINT_REVIEW_DIRECTIVE)
-        if planned:
-            return planned * SECONDS_IN_HOUR
+        try:
+            planned = self.get_bot_directive(SPRINT_REVIEW_DIRECTIVE)
+            return planned * SECONDS_IN_HOUR  # type: ignore
 
-        if self.story_points <= 3:
-            return SECONDS_IN_HOUR
-        return 2 * SECONDS_IN_HOUR
+        except TypeError:
+            if self.story_points <= 3:
+                return SECONDS_IN_HOUR
+            return 2 * SECONDS_IN_HOUR
 
     def get_recurring_time(self) -> int:
         """Get required assignee time for the recurring story."""
-        planned = self.get_bot_directive(SPRINT_RECURRING_DIRECTIVE)
+        planned = self.get_bot_directive(SPRINT_RECURRING_DIRECTIVE) or 0
         return planned * SECONDS_IN_HOUR
 
     def get_epic_management_time(self) -> int:
         """Get required assignee time for managing the epic."""
-        planned = self.get_bot_directive(SPRINT_EPIC_DIRECTIVE)
-        return planned * SECONDS_IN_HOUR or SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
+        try:
+            planned = self.get_bot_directive(SPRINT_EPIC_DIRECTIVE)
+            return planned * SECONDS_IN_HOUR  # type: ignore
+        except TypeError:
+            return SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 
 
 class DashboardRow:

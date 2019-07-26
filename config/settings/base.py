@@ -399,11 +399,11 @@ SPRINT_STATUS_EPIC_IN_PROGRESS = {
     SPRINT_STATUS_IN_DEVELOPMENT,
 }
 # String for overriding how much time will be needed for an epic management per sprint.
-SPRINT_EPIC_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours per sprint for epic management"
+SPRINT_EPIC_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for epic management"
 # String for overriding how much time will be needed for a recurring task per sprint.
-SPRINT_RECURRING_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours per sprint for this task"
+SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for this task"
 # String for overriding how much time will be needed for the task's review.
-SPRINT_REVIEW_DIRECTIVE = fr"[~${JIRA_BOT_USERNAME}]: plan (\d+) hours for reviewing this task"
+SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
 # Regex for extracting sprint number from the name of the sprint.
 SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"Sprint (\d+)")
 # Regex for extracting sprint staring date from the name of the sprint.

@@ -44,6 +44,7 @@ from sprints.dashboard.utils import (
     extract_sprint_id_from_str,
     find_next_sprint,
     get_cell_members,
+    get_sprints,
     prepare_jql_query,
 )
 
@@ -207,18 +208,18 @@ class Dashboard:
 
     def get_sprints(self) -> None:
         """Retrieves current and future sprint for the board."""
-        sprints: List[Sprint] = self.jira_connection.sprints(self.board_id, state='active, future')
+        sprints: List[Sprint] = get_sprints(self.jira_connection, self.board_id)
 
         for sprint in sprints:
-            if sprint.name.startswith('Sprint') and sprint.state == 'active':
+            if sprint.state == 'active':
                 self.sprint = sprint
                 break
 
-        self.future_sprint = find_next_sprint(sprints, self.sprint)
+        self.future_sprint = find_next_sprint(sprints, self.sprint, self.jira_connection)
         future_sprint_start_search = re.search(SPRINT_DATE_REGEX, self.future_sprint.name)
         self.future_sprint_start = future_sprint_start_search.group(1) if future_sprint_start_search else None
 
-        next_future_sprint = find_next_sprint(sprints, self.future_sprint)
+        next_future_sprint = find_next_sprint(sprints, self.future_sprint, self.jira_connection)
         next_future_sprint_start_search = re.search(SPRINT_DATE_REGEX, next_future_sprint.name)
         next_future_sprint_start = next_future_sprint_start_search.group(1) if next_future_sprint_start_search else None
         end_date = datetime.strptime(next_future_sprint_start, '%Y-%m-%d') - timedelta(days=1)

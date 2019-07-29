@@ -64,15 +64,6 @@ def complete_sprints():
         )
         archived_issue_keys = [issue.key for issue in archived_issues]
 
-        # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint properly.
-        # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:
-        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
-        batch_size = 50
-        if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            for i in range(0, len(archived_issue_keys), batch_size):
-                batch = archived_issue_keys[i:i + batch_size]
-                conn.move_to_backlog(batch)
-
         issues: List[Issue] = conn.search_issues(
             **prepare_jql_query_active_sprint_tickets(
                 list(),  # We don't need any fields here. The `key` attribute will be sufficient.
@@ -82,8 +73,16 @@ def complete_sprints():
         )
         issue_keys = [issue.key for issue in issues]
 
-        # Close active sprint and open future one.
+        # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint properly.
+        # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:
+        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
+        batch_size = 50
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+            for i in range(0, len(archived_issue_keys), batch_size):
+                batch = archived_issue_keys[i:i + batch_size]
+                conn.move_to_backlog(batch)
+
+            # Close active sprint.
             conn.update_sprint(
                 active_sprint.id,
                 name=active_sprint.name,
@@ -99,6 +98,7 @@ def complete_sprints():
                 batch = issue_keys[i:i + batch_size]
                 conn.add_issues_to_sprint(future_sprint.id, batch)
 
+            # Open the future sprint.
             start_date = datetime.now()
             end_date = datetime.now() + timedelta(days=settings.SPRINT_DURATION_DAYS)
             conn.update_sprint(

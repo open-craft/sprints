@@ -1,6 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
+import datetime
 
 import environ
 
@@ -305,6 +306,9 @@ REST_AUTH_SERIALIZERS = {
 }
 JWT_AUTH = {
     'JWT_PAYLOAD_HANDLER': 'sprints.users.jwt.jwt_payload_handler_custom',
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(minutes=env.int("DJANGO_JWT_EXPIRATION_MINUTES", 10)),
+    'JWT_ALLOW_REFRESH': env.bool("DJANGO_JWT_ALLOW_REFRESH", True),
+    'JWT_REFRESH_EXPIRATION_DELTA': datetime.timedelta(days=env.int("DJANGO_JWT_REFRESH_EXPIRATION_DAYS", 7)),
 }
 
 

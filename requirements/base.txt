@@ -29,7 +29,7 @@ django-rest-auth~=0.9.5  # https://github.com/Tivix/django-rest-auth
 
 
 # Jira API
-jira~=2.0.0  # https://github.com/pycontribs/jira
+jira~=2.0.1.0rc1  # https://github.com/pycontribs/jira
 
 # Google API
 google-api-python-client~=1.7.9  # https://github.com/googleapis/google-api-python-client

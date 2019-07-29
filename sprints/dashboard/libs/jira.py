@@ -55,12 +55,12 @@ class CustomJira(JIRA):
 
 
 @contextmanager
-def connect_to_jira(api: str = GreenHopperResource.AGILE_BASE_REST_PATH) -> Iterator[CustomJira]:
+def connect_to_jira() -> Iterator[CustomJira]:
     """Context manager for establishing connection with Jira server."""
     conn = CustomJira(
         server=JIRA_SERVER,
         basic_auth=(JIRA_USERNAME, JIRA_PASSWORD),
-        options={'agile_rest_path': api}
+        options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH}
     )
     yield conn
     conn.close()

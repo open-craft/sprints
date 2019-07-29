@@ -5,6 +5,7 @@ from django.conf import settings
 from jira.resources import (
     Issue,
     Sprint,
+    GreenHopperResource,
 )
 
 from config import celery_app
@@ -80,8 +81,9 @@ def complete_sprints():
 
         # Close active sprint and open future one.
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            conn.update_sprint(active_sprint.id, state='closed')
-            conn.update_sprint(future_sprint.id, state='active')
+            with connect_to_jira(api=GreenHopperResource.GREENHOPPER_REST_PATH) as conn2:
+                conn2.update_sprint(active_sprint.id, state='closed')
+                conn2.update_sprint(future_sprint.id, state='active')
 
         # Move issues to the active sprint from the closed one.
         # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:

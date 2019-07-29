@@ -206,7 +206,7 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
                     pass
             if field == 'Sprint':
                 cell_value = map(extract_sprint_name_from_str, cell_value)
-                cell_value = '\n'.join(cell_value)
+                cell_value = tuple(cell_value)[-1]  # We need only the last sprint (when the spillover happened).
 
             row.append(str(cell_value))
 

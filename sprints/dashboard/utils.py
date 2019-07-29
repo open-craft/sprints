@@ -60,21 +60,45 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
     return members
 
 
-def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:
-    """Find the consecutive sprint by its number."""
+def get_sprints(conn: CustomJira, board_id: int) -> List[Sprint]:
+    """Return the filtered list of the active and future sprints for the chosen board."""
+    sprints = conn.sprints(board_id, state='active, future')
+    return [sprint for sprint in sprints if sprint.name.startswith(settings.JIRA_SPRINT_PREFIX)]
+
+
+def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint, conn: CustomJira) -> Sprint:
+    """
+    Find the consecutive sprint by its number.
+    As the sprints are synchronized and Jira shows only the ones with issues, this function tries to get another cell's
+    sprints if the next one was not found in the current board.
+    """
     previous_sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, previous_sprint.name)
     if previous_sprint_number_search:
         previous_sprint_number = int(previous_sprint_number_search.group(1))
     else:
         raise AttributeError("Invalid `previous_sprint`.")
 
+    next_sprint = _find_next_sprint(sprints, previous_sprint_number)
+
+    if not next_sprint:
+        cells = get_cells(conn)
+        for cell in cells:
+            cell_sprints = get_sprints(conn, cell.board_id)
+            next_sprint = _find_next_sprint(cell_sprints, previous_sprint_number)
+            if next_sprint:
+                break
+
+    return next_sprint
+
+
+def _find_next_sprint(sprints: List[Sprint], previous_sprint_number: int) -> Sprint:
+    """Find the consecutive sprint by its number."""
     for sprint in sprints:
-        if sprint.name.startswith('Sprint') and sprint.state == 'future':
-            sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)
-            if sprint_number_search:
-                sprint_number = int(sprint_number_search.group(1))
-                if previous_sprint_number + 1 == sprint_number:
-                    return sprint
+        sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)
+        if sprint_number_search:
+            sprint_number = int(sprint_number_search.group(1))
+            if previous_sprint_number + 1 == sprint_number:
+                return sprint
 
 
 def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]) -> Dict[str, Union[str, List[str]]]:
@@ -182,7 +206,7 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
                     pass
             if field == 'Sprint':
                 cell_value = map(extract_sprint_name_from_str, cell_value)
-                cell_value = '\n'.join(cell_value)
+                cell_value = tuple(cell_value)[-1]  # We need only the last sprint (when the spillover happened).
 
             row.append(str(cell_value))
 

@@ -52,7 +52,8 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, st
 
             for event in events['items']:
                 user_search = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE)
-                if user_search:
+                # Only `All day` events are taken into account.
+                if user_search and {'start', 'end'} <= event.keys():
                     user = user_search.group(1)
                     del event['summary']
                     event['user'] = user

@@ -93,7 +93,7 @@ def test_find_next_sprint():
         MockItem(name='Sprint 124', state='future'),
     ]
     # noinspection PyTypeChecker
-    assert find_next_sprint(sprints, sprints[1]) == sprints[2]
+    assert find_next_sprint(sprints, sprints[1], MockJiraConnection()) == sprints[2]
 
 
 def test_prepare_jql_query():

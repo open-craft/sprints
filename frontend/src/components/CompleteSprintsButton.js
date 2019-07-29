@@ -6,6 +6,10 @@ const PATH_COMPLETE_SPRINTS = `${process.env.REACT_APP_API_BASE}/dashboard/compl
 
 class CompleteSprintsButton extends Component {
     completeSprints = () => {
+        if (window.confirm("Are you sure you want to end the current sprint?") !== true) {
+            return;
+        }
+
         this.btn.setAttribute("disabled", "disabled");
         let token = this.props.auth.token;
         let headers = {

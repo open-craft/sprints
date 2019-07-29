@@ -326,6 +326,8 @@ JIRA_USERNAME = env.str("JIRA_USERNAME")
 JIRA_PASSWORD = env.str("JIRA_PASSWORD")
 # THe prefix used for distinguishing sprint boards from other ones.
 JIRA_SPRINT_BOARD_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint - ")
+# THe prefix used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
+JIRA_SPRINT_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint ")
 # Username of a helper Jira bot used for indicating custom review time requirements.
 JIRA_BOT_USERNAME = env.str("JIRA_BOT_USERNAME", "crafty")
 JIRA_REQUIRED_FIELDS = (
@@ -380,6 +382,7 @@ SPRINT_STATUS_ACCEPTED = "Accepted"
 SPRINT_STATUS_IN_DEVELOPMENT = "In development"
 SPRINT_STATUS_DEPLOYED_AND_DELIVERED = "Deployed & Delivered"
 SPRINT_STATUS_DONE = "Done"
+SPRINT_STATUS_ARCHIVED = "Archived"
 # Which tickets statuses will be counted as a spillover.
 SPRINT_STATUS_SPILLOVER = {
     SPRINT_STATUS_BACKLOG,

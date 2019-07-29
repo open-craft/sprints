@@ -130,7 +130,7 @@ def daterange(start: str, end: str) -> Generator[str, None, None]:
     """Generates days from `start_date` to `end_date` (both inclusive)."""
     start_date = datetime.strptime(start, '%Y-%m-%d')
     end_date = datetime.strptime(end, '%Y-%m-%d')
-    for n in range(int((end_date - start_date).days + 1)):
+    for n in range(int((end_date - start_date).days)):
         yield (start_date + timedelta(n)).strftime('%Y-%m-%d')
 
 

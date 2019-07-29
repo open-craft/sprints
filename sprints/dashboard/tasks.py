@@ -1,3 +1,7 @@
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import List
 
 from django.conf import settings
@@ -16,9 +20,9 @@ from sprints.dashboard.utils import (
     get_cells,
     get_issue_fields,
     get_spillover_issues,
+    get_sprints,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
-    get_sprints,
 )
 
 
@@ -80,13 +84,27 @@ def complete_sprints():
 
         # Close active sprint and open future one.
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            conn.update_sprint(active_sprint.id, state='closed')
-            conn.update_sprint(future_sprint.id, state='active')
+            conn.update_sprint(
+                active_sprint.id,
+                name=active_sprint.name,
+                startDate=active_sprint.startDate,
+                endDate=active_sprint.endDate,
+                state='closed',
+            )
 
-        # Move issues to the active sprint from the closed one.
-        # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:
-        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
-        if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+            # Move issues to the future sprint from the closed one.
+            # It is not mentioned in Python lib docs, but the limit for the next query is 50 issues. Source:
+            # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
             for i in range(0, len(issue_keys), batch_size):
                 batch = issue_keys[i:i + batch_size]
                 conn.add_issues_to_sprint(future_sprint.id, batch)
+
+            start_date = datetime.now()
+            end_date = datetime.now() + timedelta(days=settings.SPRINT_DURATION_DAYS)
+            conn.update_sprint(
+                future_sprint.id,
+                name=future_sprint.name,
+                startDate=start_date.isoformat(),
+                endDate=end_date.isoformat(),
+                state='active',
+            )

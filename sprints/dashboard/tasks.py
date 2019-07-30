@@ -42,9 +42,9 @@ def complete_sprints():
     """
     1. Uploads spillovers.
     2. Moves archived issues out of the active sprint.
-    2. Close the shared sprint.
-    3. Moves issues from the closed sprint to the next one.
-    4. Opens the next shared sprint.
+    3. Close the shared sprint.
+    4. Moves issues from the closed sprint to the next one.
+    5. Opens the next shared sprint.
     """
     upload_spillovers_task()
     with connect_to_jira() as conn:

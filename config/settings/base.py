@@ -415,6 +415,8 @@ SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for revi
 SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"Sprint (\d+)")
 # Regex for extracting sprint staring date from the name of the sprint.
 SPRINT_DATE_REGEX = env.str("SPRINT_DATE_REGEX", r"\((.*)\)")
+# Number of days that a sprint lasts
+SPRINT_DURATION_DAYS = env.int("SPRINT_DURATION_DAYS", 14)
 
 
 # GOOGLE CALENDAR

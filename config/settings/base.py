@@ -330,8 +330,6 @@ JIRA_USERNAME = env.str("JIRA_USERNAME")
 JIRA_PASSWORD = env.str("JIRA_PASSWORD")
 # THe prefix used for distinguishing sprint boards from other ones.
 JIRA_SPRINT_BOARD_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint - ")
-# THe prefix used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
-JIRA_SPRINT_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint ")
 # Username of a helper Jira bot used for indicating custom review time requirements.
 JIRA_BOT_USERNAME = env.str("JIRA_BOT_USERNAME", "crafty")
 JIRA_REQUIRED_FIELDS = (
@@ -412,7 +410,10 @@ SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per s
 # String for overriding how much time will be needed for the task's review.
 SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
 # Regex for extracting sprint number from the name of the sprint.
-SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"Sprint (\d+)")
+# It is also used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
+# TODO: Uncomment this after ending the current sprint.
+# SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"\w+\.(\d+)")
+SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"\w+.*?(\d+)")
 # Regex for extracting sprint staring date from the name of the sprint.
 SPRINT_DATE_REGEX = env.str("SPRINT_DATE_REGEX", r"\((.*)\)")
 # Number of days that a sprint lasts

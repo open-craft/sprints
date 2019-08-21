@@ -63,7 +63,9 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
 def get_sprints(conn: CustomJira, board_id: int) -> List[Sprint]:
     """Return the filtered list of the active and future sprints for the chosen board."""
     sprints = conn.sprints(board_id, state='active, future')
-    return [sprint for sprint in sprints if sprint.name.startswith(settings.JIRA_SPRINT_PREFIX)]
+    # TODO: Uncomment this after ending the current sprint.
+    # return [sprint for sprint in sprints if re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)]
+    return sprints
 
 
 def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint, conn: CustomJira) -> Sprint:

@@ -16,6 +16,7 @@ from django.conf import settings
 from jira.resources import (
     Board,
     Issue,
+    Project,
     Sprint,
 )
 
@@ -34,7 +35,7 @@ class Cell:
     """
     pattern = fr'{settings.JIRA_SPRINT_BOARD_PREFIX}(.*)'
 
-    def __init__(self, board: Board) -> None:
+    def __init__(self, board: Board, projects: Dict[str, Project]) -> None:
         super().__init__()
         name_search = re.search(self.pattern, board.name)
         if name_search:
@@ -42,11 +43,19 @@ class Cell:
         else:
             raise AttributeError("Invalid cell name.")
         self.board_id = board.id
+        self.key = projects[self.name].key
 
 
 def get_cells(conn: CustomJira) -> List[Cell]:
     """Get all existing cells. Uses regexp to distinguish them from projects."""
-    return [Cell(board) for board in conn.boards(name=settings.JIRA_SPRINT_BOARD_PREFIX)]
+    projects = get_projects_dict(conn)
+    return [Cell(board, projects) for board in conn.boards(name=settings.JIRA_SPRINT_BOARD_PREFIX)]
+
+
+def get_projects_dict(conn: CustomJira) -> Dict[str, Project]:
+    """Get `Dict` of projects with their names as keys."""
+    projects = conn.projects()
+    return {p.name: p for p in projects}
 
 
 def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
@@ -60,6 +69,26 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
     return members
 
 
+def get_all_sprints(conn: CustomJira) -> Dict[str, List[Sprint]]:
+    """We need to retrieve all sprints to handle cross-cell tickets."""
+    cells = get_cells(conn)
+    sprints = {}
+    for cell in cells:
+        sprints[cell.board_id] = get_sprints(conn, cell.board_id)
+    result: Dict[str, List[Sprint]] = {
+        'active': [],
+        'future': [],
+    }
+
+    for cell_sprints in sprints.values():
+        for sprint in cell_sprints:
+            if sprint.state == 'active':
+                result['active'].append(sprint)
+
+    result['future'] = get_next_sprints(sprints, result['active'][0])
+    return result
+
+
 def get_sprints(conn: CustomJira, board_id: int) -> List[Sprint]:
     """Return the filtered list of the active and future sprints for the chosen board."""
     sprints = conn.sprints(board_id, state='active, future')
@@ -68,32 +97,56 @@ def get_sprints(conn: CustomJira, board_id: int) -> List[Sprint]:
     return sprints
 
 
-def find_next_sprint(sprints: List[Sprint], previous_sprint: Sprint, conn: CustomJira) -> Sprint:
+def get_sprint_number(previous_sprint: Sprint) -> int:
     """
-    Find the consecutive sprint by its number.
-    As the sprints are synchronized and Jira shows only the ones with issues, this function tries to get another cell's
-    sprints if the next one was not found in the current board.
+    Retrieves sprint number with regex and returns it as `int`.
+    :raises AttributeError if the format is invalid
     """
     previous_sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, previous_sprint.name)
     if previous_sprint_number_search:
-        previous_sprint_number = int(previous_sprint_number_search.group(1))
+        return int(previous_sprint_number_search.group(1))
     else:
         raise AttributeError("Invalid `previous_sprint`.")
 
-    next_sprint = _find_next_sprint(sprints, previous_sprint_number)
 
-    if not next_sprint:
-        cells = get_cells(conn)
-        for cell in cells:
-            cell_sprints = get_sprints(conn, cell.board_id)
-            next_sprint = _find_next_sprint(cell_sprints, previous_sprint_number)
-            if next_sprint:
-                break
+def get_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:
+    """
+    Find the consecutive sprint by its number.
+    :param sprints: a list of sprints
+    :param previous_sprint: previous `Sprint`
+    :returns next `Sprint` or `None` if the sprint does not exist
+    """
+    previous_sprint_number = get_sprint_number(previous_sprint)
+    return _get_next_sprint(sprints, previous_sprint_number)
 
-    return next_sprint
+
+def get_next_sprints(sprints: Dict[str, List[Sprint]], previous_sprint: Sprint) -> List[Sprint]:
+    """
+    Find all cells' consecutive sprints by the previous sprint's number.
+    :param sprints: a `Dict` of cells as keys with lists of sprints as their values
+    :param previous_sprint: previous `Sprint `
+    :returns list of next sprints or empty list if no next sprint exists
+    """
+    previous_sprint_number = get_sprint_number(previous_sprint)
+    next_sprints = []
+    for cell_sprints in sprints.values():
+        next_sprint = _get_next_sprint(cell_sprints, previous_sprint_number)
+        if next_sprint:
+            next_sprints.append(next_sprint)
+    return next_sprints
 
 
-def _find_next_sprint(sprints: List[Sprint], previous_sprint_number: int) -> Sprint:
+def get_next_cell_sprint(conn: CustomJira, board_id: int, previous_sprint: Sprint) -> Sprint:
+    """
+    Find the consecutive sprint in the cell by its number. It differs from `get_next_sprint`, because it retrieves the
+    sprints via the API, so the list of the sprints does not need to be cached.
+    """
+    previous_sprint_number = get_sprint_number(previous_sprint)
+    sprints = get_sprints(conn, board_id)
+    return _get_next_sprint(sprints, previous_sprint_number)
+
+
+def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int) -> Sprint:
     """Find the consecutive sprint by its number."""
     for sprint in sprints:
         sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)
@@ -103,13 +156,14 @@ def _find_next_sprint(sprints: List[Sprint], previous_sprint_number: int) -> Spr
                 return sprint
 
 
-def prepare_jql_query(current_sprint: int, future_sprint: int, fields: List[str]) -> Dict[str, Union[str, List[str]]]:
+def prepare_jql_query(sprints: List[str], fields: List[str]) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
     unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
     epic_in_progress = '"' + '","'.join(settings.SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
+    sprints_str = ','.join(sprints)
 
-    query = f'(Sprint IN {(current_sprint, future_sprint)} AND ' \
-        f'status IN ({unfinished_status})) OR (issuetype = Epic AND Status IN ({epic_in_progress}))'
+    query = f'(Sprint IN ({sprints_str}) AND ' \
+            f'status IN ({unfinished_status})) OR (issuetype = Epic AND Status IN ({epic_in_progress}))'
 
     return {
         'jql_str': query,

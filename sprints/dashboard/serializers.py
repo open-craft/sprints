@@ -50,4 +50,4 @@ class DashboardSerializer(serializers.Serializer):
 
     # noinspection PyMethodMayBeStatic
     def get_future_sprint(self, obj: Dashboard):
-        return obj.future_sprint.name
+        return obj.cell_future_sprint.name

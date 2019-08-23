@@ -91,10 +91,7 @@ def get_all_sprints(conn: CustomJira) -> Dict[str, List[Sprint]]:
 
 def get_sprints(conn: CustomJira, board_id: int) -> List[Sprint]:
     """Return the filtered list of the active and future sprints for the chosen board."""
-    sprints = conn.sprints(board_id, state='active, future')
-    # TODO: Uncomment this after ending the current sprint.
-    # return [sprint for sprint in sprints if re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)]
-    return sprints
+    return conn.sprints(board_id, state='active, future')
 
 
 def get_sprint_number(previous_sprint: Sprint) -> int:

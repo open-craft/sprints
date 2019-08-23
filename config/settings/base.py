@@ -411,8 +411,6 @@ SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per s
 SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
 # Regex for extracting sprint number from the name of the sprint.
 # It is also used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
-# TODO: Uncomment this after ending the current sprint.
-# SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"\w+\.(\d+)")
 SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"\w+.*?(\d+)")
 # Regex for extracting sprint staring date from the name of the sprint.
 SPRINT_DATE_REGEX = env.str("SPRINT_DATE_REGEX", r"\((.*)\)")

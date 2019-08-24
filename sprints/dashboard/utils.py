@@ -157,8 +157,8 @@ def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=Fa
                 if not many:
                     return sprint
                 result.append(sprint)
-    if many:
-        return result
+
+    return result if many else None
 
 
 def prepare_jql_query(sprints: List[str], fields: List[str]) -> Dict[str, Union[str, List[str]]]:

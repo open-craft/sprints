@@ -78,6 +78,7 @@ class MockJiraConnection:
             ]
         return [
             MockItem(name='T2.124', state='future'),
+            MockItem(name='T1.124', state='future'),
         ]
 
     @staticmethod
@@ -155,6 +156,7 @@ def test_get_all_sprints():
         ],
         'future': [
             MockItem(name='T2.124', state='future'),
+            MockItem(name='T1.124', state='future'),
         ]
     }
     assert sprints == expected

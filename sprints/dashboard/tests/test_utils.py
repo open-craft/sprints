@@ -7,10 +7,13 @@ from django.test import override_settings
 from sprints.dashboard.utils import (
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
-    find_next_sprint,
+    get_all_sprints,
     get_cell_members,
     get_cells,
     get_issue_fields,
+    get_next_sprint,
+    get_projects_dict,
+    get_sprint_number,
     prepare_jql_query,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
@@ -24,13 +27,16 @@ class MockItem:
         super().__init__()
         for k, v in kwargs.items():
             setattr(self, k, v)
+        self._attrs = kwargs.keys()
 
+    def __eq__(self, other):
+        for attr in self._attrs:
+            if getattr(self, attr) != getattr(other, attr):
+                return False
+        return True
 
-class MockIssue:
-    def __init__(self, key, **kwargs) -> None:
-        super().__init__()
-        self.key = key
-        self.fields = MockItem(**kwargs)
+    def __repr__(self):
+        return ', '.join([getattr(self, attr) for attr in self._attrs])
 
 
 class MockJiraConnection:
@@ -63,6 +69,36 @@ class MockJiraConnection:
             },
         ]
 
+    @staticmethod
+    def sprints(board_id, **_kwargs):
+        if board_id == 1:
+            return [
+                MockItem(name='T1.125', state='future'),
+                MockItem(name='T1.123', state='active'),
+            ]
+        return [
+            MockItem(name='T2.124', state='future'),
+        ]
+
+    @staticmethod
+    def projects():
+        return [
+            MockItem(name='Test1', key='T1'),
+            MockItem(name='Test2', key='T2'),
+            MockItem(name='Test3', key='T3'),
+        ]
+
+
+def test_get_projects_dict():
+    # noinspection PyTypeChecker
+    projects = get_projects_dict(MockJiraConnection())
+    expected = {
+        'Test1': MockItem(name='Test1', key='T1'),
+        'Test2': MockItem(name='Test2', key='T2'),
+        'Test3': MockItem(name='Test3', key='T3'),
+    }
+    assert projects == expected
+
 
 def test_get_cells():
     # noinspection PyTypeChecker
@@ -70,8 +106,10 @@ def test_get_cells():
     assert len(cells) == 2
     assert cells[0].name == 'Test1'
     assert cells[0].board_id == 1
+    assert cells[0].key == 'T1'
     assert cells[1].name == 'Test2'
     assert cells[1].board_id == 2
+    assert cells[1].key == 'T2'
 
 
 def test_get_cell_members():
@@ -86,25 +124,50 @@ def test_get_cell_members():
     assert members[0] == 'Test1'
 
 
-def test_find_next_sprint():
+def test_get_sprint_number():
+    sprint = MockItem(name='T1.123', state='active')
+    # noinspection PyTypeChecker
+    assert get_sprint_number(sprint) == 123
+
+
+def test_get_next_sprint():
     sprints = [
-        MockItem(name='Sprint 125', state='future'),
-        MockItem(name='Sprint 123', state='active'),
-        MockItem(name='Sprint 124', state='future'),
+        MockItem(name='T1.125', state='future'),
+        MockItem(name='T1.123', state='active'),
+        MockItem(name='T1.124', state='future'),
     ]
     # noinspection PyTypeChecker
-    assert find_next_sprint(sprints, sprints[1], MockJiraConnection()) == sprints[2]
+    assert get_next_sprint(sprints, sprints[1]) == sprints[2]
+
+    # noinspection PyTypeChecker
+    assert get_next_sprint(sprints, sprints[2]) == sprints[0]
+
+    # noinspection PyTypeChecker
+    assert get_next_sprint(sprints, sprints[0]) is None  # Next sprint not found
+
+
+def test_get_all_sprints():
+    # noinspection PyTypeChecker
+    sprints = get_all_sprints(MockJiraConnection())
+    expected = {
+        'active': [
+            MockItem(name='T1.123', state='active'),
+        ],
+        'future': [
+            MockItem(name='T2.124', state='future'),
+        ]
+    }
+    assert sprints == expected
 
 
 def test_prepare_jql_query():
     expected_fields = ['id', 'sprint']
     expected_result = {
-        'jql_str': r'^\(Sprint IN \(245, 246\) AND status IN \(.*?\) OR \(issuetype = Epic AND Status IN \(.*?\)\)$',
+        'jql_str': r'^\(Sprint IN \(245,246\) AND status IN \(.*?\) OR \(issuetype = Epic AND Status IN \(.*?\)\)$',
         'fields': expected_fields,
     }
     result = prepare_jql_query(
-        current_sprint=245,
-        future_sprint=246,
+        sprints=['245', '246'],
         fields=expected_fields,
     )
     assert result['fields'] == expected_result['fields']
@@ -164,8 +227,14 @@ def test_get_issue_fields():
 @override_settings(JIRA_SERVER='https://example.com', SPILLOVER_REQUIRED_FIELDS=('Story Points', 'Original Estimate'))
 def test_prepare_spillover_rows():
     test_issues = [
-        MockIssue('TEST-1', story_points=1., original_estimate=7200),
-        MockIssue('TEST-2', story_points=3.14, original_estimate=9849),  # estimated time should be rounded up here
+        MockItem(
+            key='TEST-1',
+            fields=MockItem(story_points=1., original_estimate=7200)
+        ),
+        MockItem(
+            key='TEST-2',
+            fields=MockItem(story_points=3.14, original_estimate=9849)  # estimated time should be rounded up here
+        ),
     ]
     issue_fields = {
         'Story Points': 'story_points',

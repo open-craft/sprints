@@ -16,10 +16,11 @@ from config.settings.base import SPILLOVER_REQUIRED_FIELDS
 from sprints.dashboard.libs.google import upload_spillovers
 from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.dashboard.utils import (
-    find_next_sprint,
     get_cells,
     get_issue_fields,
+    get_next_sprint,
     get_spillover_issues,
+    get_sprint_number,
     get_sprints,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
@@ -48,64 +49,79 @@ def complete_sprints():
     """
     upload_spillovers_task()
     with connect_to_jira() as conn:
-        cell = get_cells(conn)[0]  # The sprint is shared between cells, so we need only one ID.
-        sprints: List[Sprint] = get_sprints(conn, cell.board_id)
-        for sprint in sprints:
-            if sprint.state == 'active':
-                active_sprint = sprint
-                break
+        cells = get_cells(conn)
+        for counter, cell in enumerate(cells):  # TODO: Remove enumeration after ending the current sprint.
+            sprints: List[Sprint] = get_sprints(conn, cell.board_id)
+            for sprint in sprints:
+                if sprint.state == 'active':
+                    active_sprint = sprint
+                    break
 
-        next_sprint = find_next_sprint(sprints, active_sprint, conn)
+            next_sprint = get_next_sprint(sprints, active_sprint)
 
-        archived_issues: List[Issue] = conn.search_issues(
-            **prepare_jql_query_active_sprint_tickets(
-                list(),  # We don't need any fields here. The `key` attribute will be sufficient.
-                {settings.SPRINT_STATUS_ARCHIVED},
-            ),
-            maxResults=0,
-        )
-        archived_issue_keys = [issue.key for issue in archived_issues]
-
-        issues: List[Issue] = conn.search_issues(
-            **prepare_jql_query_active_sprint_tickets(
-                list(),  # We don't need any fields here. The `key` attribute will be sufficient.
-                settings.SPRINT_STATUS_ACTIVE | {settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
-            ),
-            maxResults=0,
-        )
-        issue_keys = [issue.key for issue in issues]
-
-        # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
-        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
-        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
-        batch_size = 50
-        if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint properly.
-            for i in range(0, len(archived_issue_keys), batch_size):
-                batch = archived_issue_keys[i:i + batch_size]
-                conn.move_to_backlog(batch)
-
-            # Close the active sprint.
-            conn.update_sprint(
-                active_sprint.id,
-                name=active_sprint.name,
-                startDate=active_sprint.startDate,
-                endDate=active_sprint.endDate,
-                state='closed',
+            archived_issues: List[Issue] = conn.search_issues(
+                **prepare_jql_query_active_sprint_tickets(
+                    list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                    {settings.SPRINT_STATUS_ARCHIVED},
+                    project=cell.name,
+                ),
+                maxResults=0,
             )
+            archived_issue_keys = [issue.key for issue in archived_issues]
 
-            # Move issues to the next sprint from the closed one.
-            for i in range(0, len(issue_keys), batch_size):
-                batch = issue_keys[i:i + batch_size]
-                conn.add_issues_to_sprint(next_sprint.id, batch)
-
-            # Open the next sprint.
-            start_date = datetime.now()
-            end_date = datetime.now() + timedelta(days=settings.SPRINT_DURATION_DAYS)
-            conn.update_sprint(
-                next_sprint.id,
-                name=next_sprint.name,
-                startDate=start_date.isoformat(),
-                endDate=end_date.isoformat(),
-                state='active',
+            issues: List[Issue] = conn.search_issues(
+                **prepare_jql_query_active_sprint_tickets(
+                    list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                    settings.SPRINT_STATUS_ACTIVE | {settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
+                    project=cell.name,
+                ),
+                maxResults=0,
             )
+            issue_keys = [issue.key for issue in issues]
+
+            # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
+            # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
+            # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
+            batch_size = 50
+            if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
+                for i in range(0, len(archived_issue_keys), batch_size):
+                    batch = archived_issue_keys[i:i + batch_size]
+                    conn.move_to_backlog(batch)
+
+                # Close the active sprint.
+                if counter == len(cells) - 1:  # TODO: Remove this after ending the current sprint.
+                    conn.update_sprint(
+                        active_sprint.id,
+                        name=active_sprint.name,
+                        startDate=active_sprint.startDate,
+                        endDate=active_sprint.endDate,
+                        state='closed',
+                    )
+
+                # Move issues to the next sprint from the closed one.
+                for i in range(0, len(issue_keys), batch_size):
+                    batch = issue_keys[i:i + batch_size]
+                    conn.add_issues_to_sprint(next_sprint.id, batch)
+
+                # Open the next sprint.
+                start_date = datetime.now()
+                end_date = datetime.now() + timedelta(days=settings.SPRINT_DURATION_DAYS)
+                conn.update_sprint(
+                    next_sprint.id,
+                    name=next_sprint.name,
+                    startDate=start_date.isoformat(),
+                    endDate=end_date.isoformat(),
+                    state='active',
+                )
+
+                # Ensure that the next sprint exists. If it doesn't exist, create it.
+                future_next_sprint_number = get_sprint_number(next_sprint) + 1
+                future_name_date = (end_date + timedelta(days=1)).strftime('%Y-%m-%d')
+                future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
+                conn.create_sprint(
+                    name=f'{cell.key}.{future_next_sprint_number} ({future_name_date})',
+                    board_id=cell.board_id,
+                    startDate=end_date.isoformat(),
+                    endDate=future_end_date.isoformat(),
+                )

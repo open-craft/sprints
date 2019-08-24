@@ -8,9 +8,11 @@ from datetime import (
 from typing import (
     Dict,
     List,
+    Set,
     Union,
 )
 
+from django.conf import settings
 from jira import (
     Issue,
     User as JiraUser,
@@ -19,18 +21,6 @@ from jira.resources import (
     Sprint,
 )
 
-from config.settings.base import (
-    JIRA_REQUIRED_FIELDS,
-    SPRINT_DATE_REGEX,
-    SPRINT_EPIC_DIRECTIVE,
-    SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT,
-    SPRINT_HOURS_RESERVED_FOR_MEETINGS,
-    SPRINT_RECURRING_DIRECTIVE,
-    SPRINT_REVIEW_DIRECTIVE,
-    SPRINT_STATUS_EXTERNAL_REVIEW,
-    SPRINT_STATUS_MERGED,
-    SPRINT_STATUS_RECURRING,
-)
 from sprints.dashboard.libs.google import (
     get_vacations,
 )
@@ -42,9 +32,9 @@ from sprints.dashboard.utils import (
     SECONDS_IN_HOUR,
     daterange,
     extract_sprint_id_from_str,
-    find_next_sprint,
+    get_all_sprints,
     get_cell_members,
-    get_sprints,
+    get_next_cell_sprint,
     prepare_jql_query,
 )
 
@@ -52,7 +42,7 @@ from sprints.dashboard.utils import (
 class DashboardIssue:
     """Parses Jira Issue for easier access."""
 
-    def __init__(self, issue: Issue, current_sprint_id, cell_members, issue_fields) -> None:
+    def __init__(self, issue: Issue, current_sprint_ids: Set[int], cell_members, issue_fields) -> None:
         super().__init__()
         self.key = issue.key
         # It should be present, but that's not enforced by the library, so it's better to specify default value.
@@ -70,7 +60,7 @@ class DashboardIssue:
             sprint = getattr(issue.fields, issue_fields['Sprint'])
             if isinstance(sprint, list):
                 sprint = sprint[-1]
-            self.current_sprint = extract_sprint_id_from_str(sprint) == current_sprint_id
+            self.current_sprint = extract_sprint_id_from_str(sprint) in current_sprint_ids
         except (AttributeError, TypeError):
             # Possible for epics
             self.current_sprint = False
@@ -104,7 +94,7 @@ class DashboardIssue:
         Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
         """
         try:
-            planned = self.get_bot_directive(SPRINT_REVIEW_DIRECTIVE)
+            planned = self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
             return planned * SECONDS_IN_HOUR  # type: ignore
 
         except TypeError:
@@ -114,16 +104,16 @@ class DashboardIssue:
 
     def get_recurring_time(self) -> int:
         """Get required assignee time for the recurring story."""
-        planned = self.get_bot_directive(SPRINT_RECURRING_DIRECTIVE) or 0
+        planned = self.get_bot_directive(settings.SPRINT_RECURRING_DIRECTIVE) or 0
         return planned * SECONDS_IN_HOUR
 
     def get_epic_management_time(self) -> int:
         """Get required assignee time for managing the epic."""
         try:
-            planned = self.get_bot_directive(SPRINT_EPIC_DIRECTIVE)
+            planned = self.get_bot_directive(settings.SPRINT_EPIC_DIRECTIVE)
             return planned * SECONDS_IN_HOUR  # type: ignore
         except TypeError:
-            return SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
+            return settings.SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 
 
 class DashboardRow:
@@ -148,7 +138,7 @@ class DashboardRow:
         Calculate goal time for this user.
         Use default if time not specified in user's profile.
         """
-        self.goal_time = goal - SPRINT_HOURS_RESERVED_FOR_MEETINGS * SECONDS_IN_HOUR
+        self.goal_time = goal - settings.SPRINT_HOURS_RESERVED_FOR_MEETINGS * SECONDS_IN_HOUR
 
     @property
     def committed_time(self) -> float:
@@ -190,8 +180,9 @@ class Dashboard:
         self.members: List[str]
         self.commitments: Dict[str, Dict[str, Union[int, Dict[str, str]]]] = {}
         self.board_id = board_id
-        self.sprint: Sprint
-        self.future_sprint: Sprint
+        self.active_sprints: List[Sprint]
+        self.cell_future_sprint: Sprint
+        self.future_sprints: List[Sprint]
         self.future_sprint_start: str
         self.future_sprint_end: str
 
@@ -208,32 +199,38 @@ class Dashboard:
 
     def get_sprints(self) -> None:
         """Retrieves current and future sprint for the board."""
-        sprints: List[Sprint] = get_sprints(self.jira_connection, self.board_id)
+        sprints = get_all_sprints(self.jira_connection)
+        self.active_sprints = sprints['active']
+        self.future_sprints = sprints['future']
 
-        for sprint in sprints:
-            if sprint.state == 'active':
-                self.sprint = sprint
+        for sprint in self.future_sprints:
+            if sprint.originBoardId == self.board_id:
+                self.cell_future_sprint = sprint
                 break
 
-        self.future_sprint = find_next_sprint(sprints, self.sprint, self.jira_connection)
-        future_sprint_start_search = re.search(SPRINT_DATE_REGEX, self.future_sprint.name)
-        self.future_sprint_start = future_sprint_start_search.group(1) if future_sprint_start_search else None
+        if all(getattr(self.future_sprints[0], attr, None) for attr in ['startDate', 'endDate']):
+            self.future_sprint_start = self.future_sprints[0].startDate.split('T')[0]
+            self.future_sprint_end = self.future_sprints[0].endDate.split('T')[0]
 
-        next_future_sprint = find_next_sprint(sprints, self.future_sprint, self.jira_connection)
-        next_future_sprint_start_search = re.search(SPRINT_DATE_REGEX, next_future_sprint.name)
-        next_future_sprint_start = next_future_sprint_start_search.group(1) if next_future_sprint_start_search else None
-        end_date = datetime.strptime(next_future_sprint_start, '%Y-%m-%d') - timedelta(days=1)
-        self.future_sprint_end = end_date.strftime('%Y-%m-%d')
+        else:
+            future_sprint_start_search = re.search(settings.SPRINT_DATE_REGEX, self.future_sprints[0].name)
+            self.future_sprint_start = future_sprint_start_search.group(1) if future_sprint_start_search else None
+
+            next_future_sprint = get_next_cell_sprint(self.jira_connection, self.board_id, self.future_sprints[0])
+            next_future_sprint_start_search = re.search(settings.SPRINT_DATE_REGEX, next_future_sprint.name)
+            next_future_sprint_start = next_future_sprint_start_search.group(1) \
+                if next_future_sprint_start_search else None
+            end_date = datetime.strptime(next_future_sprint_start, '%Y-%m-%d') - timedelta(days=1)
+            self.future_sprint_end = end_date.strftime('%Y-%m-%d')
 
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
         field_ids = {field['name']: field['id'] for field in self.jira_connection.fields()}
-        self.issue_fields = {field: field_ids[field] for field in JIRA_REQUIRED_FIELDS}
+        self.issue_fields = {field: field_ids[field] for field in settings.JIRA_REQUIRED_FIELDS}
 
         issues: List[Issue] = self.jira_connection.search_issues(
             **prepare_jql_query(
-                self.sprint.id,
-                self.future_sprint.id,
+                [str(sprint.id) for sprint in self.active_sprints + self.future_sprints],
                 list(self.issue_fields.values())
             ),
             maxResults=0,
@@ -243,8 +240,9 @@ class Dashboard:
         self.members = get_cell_members(quickfilters)
         self.issues = []
 
+        active_sprint_ids = {sprint.id for sprint in self.active_sprints}
         for issue in issues:
-            self.issues.append(DashboardIssue(issue, self.sprint.id, self.members, self.issue_fields))
+            self.issues.append(DashboardIssue(issue, active_sprint_ids, self.members, self.issue_fields))
 
         for member in self.members:
             schedule = self.jira_connection.user_schedule(
@@ -269,7 +267,7 @@ class Dashboard:
                 continue
 
             # Calculate hours for recurring tickets for the upcoming sprint.
-            if issue.status == SPRINT_STATUS_RECURRING:
+            if issue.status == settings.SPRINT_STATUS_RECURRING:
                 assignee.future_remaining_assignee_time += issue.get_recurring_time()
                 continue
 
@@ -280,11 +278,11 @@ class Dashboard:
             # Calculations for the current sprint.
             if issue.current_sprint:
                 # Assume that no more review will be needed at this point.
-                if issue.status == SPRINT_STATUS_EXTERNAL_REVIEW:
+                if issue.status == settings.SPRINT_STATUS_EXTERNAL_REVIEW:
                     assignee.current_remaining_upstream_time += issue.time_estimate
 
                 # Assume that no more reviews will be needed at this point.
-                elif issue.status == SPRINT_STATUS_MERGED:
+                elif issue.status == settings.SPRINT_STATUS_MERGED:
                     assignee.current_remaining_assignee_time += issue.time_estimate
 
                 else:

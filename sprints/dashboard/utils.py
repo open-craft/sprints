@@ -125,12 +125,11 @@ def get_next_sprints(sprints: Dict[str, List[Sprint]], previous_sprint: Sprint) 
     :returns list of next sprints or empty list if no next sprint exists
     """
     previous_sprint_number = get_sprint_number(previous_sprint)
-    next_sprints = []
+    result: List[Sprint] = []
     for cell_sprints in sprints.values():
-        next_sprint = _get_next_sprint(cell_sprints, previous_sprint_number)
-        if next_sprint:
-            next_sprints.append(next_sprint)
-    return next_sprints
+        next_sprints = _get_next_sprint(cell_sprints, previous_sprint_number, many=True)
+        result.extend(next_sprints)
+    return result
 
 
 def get_next_cell_sprint(conn: CustomJira, board_id: int, previous_sprint: Sprint) -> Sprint:
@@ -143,14 +142,23 @@ def get_next_cell_sprint(conn: CustomJira, board_id: int, previous_sprint: Sprin
     return _get_next_sprint(sprints, previous_sprint_number)
 
 
-def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int) -> Sprint:
-    """Find the consecutive sprint by its number."""
+def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=False) -> Union[Sprint, List[Sprint]]:
+    """
+    Find the consecutive sprint by its number.
+    :param many: if `True`, return `list` of next sprints (with the same number)
+    """
+    result: List[Sprint] = []
+
     for sprint in sprints:
         sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)
         if sprint_number_search:
             sprint_number = int(sprint_number_search.group(1))
             if previous_sprint_number + 1 == sprint_number:
-                return sprint
+                if not many:
+                    return sprint
+                result.append(sprint)
+
+    return result
 
 
 def prepare_jql_query(sprints: List[str], fields: List[str]) -> Dict[str, Union[str, List[str]]]:

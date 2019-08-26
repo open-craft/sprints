@@ -292,7 +292,7 @@ def prepare_commitment_spreadsheet(dashboard, spreadsheet: List[List[str]]) -> T
     for user in spreadsheet[0][1:]:
         try:
             column.append(str(round(int(commitments.pop(user, '-')) / SECONDS_IN_HOUR)))
-        except TypeError:
+        except (TypeError, ValueError):
             column.append('-')
 
     # Process the users that don't exist in the spreadsheet yet.

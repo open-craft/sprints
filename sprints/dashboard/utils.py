@@ -225,7 +225,7 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
 
 def extract_sprint_name_from_str(sprint_str: str) -> str:
     """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
-    pattern = r'name=(.*?) '
+    pattern = r'name=(.*?\))'
     search = re.search(pattern, sprint_str)
     if search:
         return search.group(1)

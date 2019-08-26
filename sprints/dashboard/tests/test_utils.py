@@ -1,4 +1,5 @@
 import re
+from contextlib import contextmanager
 
 import pytest
 from django.conf import settings
@@ -7,6 +8,7 @@ from django.test import override_settings
 from sprints.dashboard.utils import (
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
+    extract_sprint_start_date_from_sprint_name,
     get_all_sprints,
     get_cell_members,
     get_cells,
@@ -20,6 +22,11 @@ from sprints.dashboard.utils import (
 )
 
 pytestmark = pytest.mark.django_db
+
+
+@contextmanager
+def does_not_raise():
+    yield
 
 
 class MockItem:
@@ -157,6 +164,12 @@ def test_get_all_sprints():
         'future': [
             MockItem(name='T2.124', state='future'),
             MockItem(name='T1.124', state='future'),
+        ],
+        'all': [
+            MockItem(name='T1.125', state='future'),
+            MockItem(name='T1.123', state='active'),
+            MockItem(name='T2.124', state='future'),
+            MockItem(name='T1.124', state='future'),
         ]
     }
     assert sprints == expected
@@ -194,6 +207,18 @@ def test_prepare_jql_query_active_sprint_tickets():
         ("Backlog", "In progress", "Need Review", "Merged"),
     )
     assert result == expected_result
+
+
+@pytest.mark.parametrize(
+    "test_input, expected, raises", [
+        ('Sprint 201 (2019-08-13)', '2019-08-13', does_not_raise()),
+        ('SE.202 (2019-08-27)', '2019-08-27', does_not_raise()),
+        ('Sprint 201 (2019-08-13', '', pytest.raises(AttributeError)),
+    ],
+)
+def test_extract_sprint_start_date_from_sprint_name(test_input, expected, raises):
+    with raises:
+        assert extract_sprint_start_date_from_sprint_name(test_input) == expected
 
 
 def test_prepare_jql_query_active_sprint_tickets_for_project():

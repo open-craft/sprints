@@ -38,7 +38,7 @@ from sprints.dashboard.utils import (
 
 
 @celery_app.task(ignore_result=True)
-def upload_spillovers_task():
+def upload_spillovers_task() -> None:
     """A task for documenting spillovers in the Google Spreadsheet."""
     with connect_to_jira() as conn:
         issue_fields = get_issue_fields(conn, SPILLOVER_REQUIRED_FIELDS)
@@ -62,7 +62,17 @@ def upload_commitments_task(board_id: int, cell_name: str) -> None:
 
 
 @celery_app.task(ignore_result=True)
-def complete_sprints():
+def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str) -> None:
+    """A task for posting the spillover reason reminder on the issue."""
+    with connect_to_jira() as conn:
+        conn.add_comment(
+            issue_key,
+            f"[~{assignee_key}], {settings.SPILLOVER_REMINDER_MESSAGE}"
+        )
+
+
+@celery_app.task(ignore_result=True)
+def complete_sprints() -> None:
     """
     1. Uploads spillovers.
     2. Moves archived issues out of the active sprint.
@@ -93,7 +103,7 @@ def complete_sprints():
 
             archived_issues: List[Issue] = conn.search_issues(
                 **prepare_jql_query_active_sprint_tickets(
-                    list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                    ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
                     {settings.SPRINT_STATUS_ARCHIVED},
                     project=cell.name,
                 ),
@@ -103,7 +113,7 @@ def complete_sprints():
 
             issues: List[Issue] = conn.search_issues(
                 **prepare_jql_query_active_sprint_tickets(
-                    list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                    ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
                     settings.SPRINT_STATUS_ACTIVE | {settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
                     project=cell.name,
                 ),

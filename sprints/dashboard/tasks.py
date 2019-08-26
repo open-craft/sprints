@@ -34,6 +34,7 @@ from sprints.dashboard.utils import (
     prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
+    get_all_sprints,
 )
 
 
@@ -43,8 +44,10 @@ def upload_spillovers_task() -> None:
     with connect_to_jira() as conn:
         issue_fields = get_issue_fields(conn, SPILLOVER_REQUIRED_FIELDS)
         issues = get_spillover_issues(conn, issue_fields)
+        active_sprints = get_all_sprints(conn)['active']
 
-    rows = prepare_spillover_rows(issues, issue_fields)
+    active_sprints_dict = {int(sprint.id): sprint for sprint in active_sprints}
+    rows = prepare_spillover_rows(issues, issue_fields, active_sprints_dict)
     upload_spillovers(rows)
 
 

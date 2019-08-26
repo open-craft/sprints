@@ -13,6 +13,7 @@ from typing import (
     Tuple,
 )
 
+from dateutil.parser import parse
 from django.conf import settings
 # noinspection PyProtectedMember
 from jira.resources import (
@@ -224,7 +225,7 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
 
 def extract_sprint_name_from_str(sprint_str: str) -> str:
     """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
-    pattern = r'name=(.*?),'
+    pattern = r'name=(.*?) '
     search = re.search(pattern, sprint_str)
     if search:
         return search.group(1)
@@ -264,17 +265,14 @@ def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str]) -> List
     )
 
 
-def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str]) -> str:
+def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str], sprint: Sprint) -> str:
     """Retrieve the spillover reason from the comment matching the `settings.SPILLOVER_REASON_DIRECTIVE` regexp."""
     # For issues spilling over more than once we need to ensure that the comment has been added in the current sprint.
-    sprint_str = getattr(issue.fields, issue_fields['Sprint'])[-1]
-    sprint_name = extract_sprint_name_from_str(sprint_str)
-    sprint_start_str = extract_sprint_start_date_from_sprint_name(sprint_name)
-    sprint_start_date = datetime.strptime(sprint_start_str, '%Y-%m-%d')
+    sprint_start_date = parse(sprint.startDate)
+
     # Check each comment created after starting the current sprint.
     for comment in reversed(getattr(issue.fields, issue_fields['Comment']).comments):  # type: Comment
-        created_str = comment.created.split('T')[0]
-        created_date = datetime.strptime(created_str, '%Y-%m-%d')
+        created_date = parse(comment.created)
         if created_date < sprint_start_date:
             break
 
@@ -285,7 +283,11 @@ def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str]) -> str:
     return ''
 
 
-def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) -> List[List[str]]:
+def prepare_spillover_rows(
+    issues: List[Issue],
+    issue_fields: Dict[str, str],
+    sprints: Dict[int, Sprint]
+) -> List[List[str]]:
     """
     Prepares the Google spreadsheet row in the specified format.
     Assumptions:
@@ -300,6 +302,8 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
     for issue in issues:
         issue_url = f'=HYPERLINK("{settings.JIRA_SERVER}/browse/{issue.key}","{issue.key}")'
         row = [issue_url]
+        current_sprint = None
+
         for field in settings.SPILLOVER_REQUIRED_FIELDS:
             cell_value = getattr(issue.fields, issue_fields[field])
             if field in settings.JIRA_INTEGER_FIELDS:
@@ -315,12 +319,13 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
                     # Ignore `None` values.
                     pass
             if field == 'Sprint':
-                cell_value = map(extract_sprint_name_from_str, cell_value)
-                cell_value = tuple(cell_value)[-1]  # We need only the last sprint (when the spillover happened).
+                original_value = cell_value
+                cell_value = extract_sprint_name_from_str(original_value[-1])
+                current_sprint = sprints[extract_sprint_id_from_str(original_value[-1])]
 
             if field == 'Comment':
                 # Retrieve the spillover reason.
-                cell_value = get_spillover_reason(issue, issue_fields)
+                cell_value = get_spillover_reason(issue, issue_fields, current_sprint)
 
                 # If the reason hasn't been posted, add comment with the reminder to the issue.
                 if not cell_value and not settings.DEBUG:  # We don't want to ping people via the dev environment.

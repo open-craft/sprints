@@ -15,7 +15,6 @@ from jira.resources import (
 )
 
 from config import celery_app
-from config.settings.base import SPILLOVER_REQUIRED_FIELDS
 from sprints.dashboard.libs.google import (
     get_commitments_spreadsheet,
     upload_commitments,
@@ -42,7 +41,7 @@ from sprints.dashboard.utils import (
 def upload_spillovers_task() -> None:
     """A task for documenting spillovers in the Google Spreadsheet."""
     with connect_to_jira() as conn:
-        issue_fields = get_issue_fields(conn, SPILLOVER_REQUIRED_FIELDS)
+        issue_fields = get_issue_fields(conn, settings.SPILLOVER_REQUIRED_FIELDS)
         issues = get_spillover_issues(conn, issue_fields)
         active_sprints = get_all_sprints(conn)['active']
 

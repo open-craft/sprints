@@ -76,7 +76,7 @@ def get_commitments_spreadsheet(cell_name: str) -> List[List[str]]:
     with connect_to_google('sheets') as conn:
         sheet = conn.spreadsheets()
         return sheet.values().get(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range=f"'{cell_name} Commitments'!A3:ZZZ999",
             majorDimension='COLUMNS',
         ).execute()['values']
@@ -91,7 +91,7 @@ def upload_commitments(users: List[str], commitments: List[str], range_: str) ->
             'majorDimension': 'COLUMNS',
         }
         sheet.values().append(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range=range_.split('!')[0],
             body=users_body,
             valueInputOption='USER_ENTERED',
@@ -102,7 +102,7 @@ def upload_commitments(users: List[str], commitments: List[str], range_: str) ->
             'majorDimension': 'COLUMNS'
         }
         sheet.values().append(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range=range_,
             body=body,
             valueInputOption='USER_ENTERED',

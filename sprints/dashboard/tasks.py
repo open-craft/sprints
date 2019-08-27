@@ -4,6 +4,9 @@ from datetime import (
 )
 from typing import List
 
+from celery import group
+# noinspection PyProtectedMember
+from celery.result import allow_join_result
 from django.conf import settings
 # noinspection PyProtectedMember
 from jira.resources import (
@@ -13,15 +16,22 @@ from jira.resources import (
 
 from config import celery_app
 from config.settings.base import SPILLOVER_REQUIRED_FIELDS
-from sprints.dashboard.libs.google import upload_spillovers
+from sprints.dashboard.libs.google import (
+    get_commitments_spreadsheet,
+    upload_commitments,
+    upload_spillovers,
+)
 from sprints.dashboard.libs.jira import connect_to_jira
+from sprints.dashboard.models import Dashboard
 from sprints.dashboard.utils import (
     get_cells,
+    get_commitment_range,
     get_issue_fields,
     get_next_sprint,
     get_spillover_issues,
     get_sprint_number,
     get_sprints,
+    prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
 )
@@ -39,6 +49,19 @@ def upload_spillovers_task():
 
 
 @celery_app.task(ignore_result=True)
+def upload_commitments_task(board_id: int, cell_name: str) -> None:
+    """A task for uploading commitments in the Google Spreadsheet."""
+    with connect_to_jira() as conn:
+        dashboard = Dashboard(board_id, conn)
+
+    spreadsheet = get_commitments_spreadsheet(cell_name)
+    users, column = prepare_commitment_spreadsheet(dashboard, spreadsheet)
+    range_ = get_commitment_range(spreadsheet, cell_name)
+
+    upload_commitments(users, column, range_)
+
+
+@celery_app.task(ignore_result=True)
 def complete_sprints():
     """
     1. Uploads spillovers.
@@ -47,9 +70,18 @@ def complete_sprints():
     4. Moves issues from the closed sprint to the next one.
     5. Opens the next shared sprint.
     """
-    upload_spillovers_task()
     with connect_to_jira() as conn:
         cells = get_cells(conn)
+        spreadsheet_tasks = [upload_spillovers_task.s()]
+
+        for cell in cells:
+            spreadsheet_tasks.append(upload_commitments_task.s(cell.board_id, cell.name))
+
+        # Run the spreadsheet tasks asynchronously and wait for the results before proceeding with ending the sprint.
+        with allow_join_result():
+            # FIXME: Use `apply_async`. Currently blocked because of `https://github.com/celery/celery/issues/4925`.
+            group(spreadsheet_tasks).apply().join()
+
         for counter, cell in enumerate(cells):  # TODO: Remove enumeration after ending the current sprint.
             sprints: List[Sprint] = get_sprints(conn, cell.board_id)
             for sprint in sprints:

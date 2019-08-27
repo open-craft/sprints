@@ -74,3 +74,41 @@ def upload_spillovers(spillovers: List[List[str]]) -> None:
             body=body,
             valueInputOption='USER_ENTERED',
         ).execute()
+
+
+def get_commitments_spreadsheet(cell_name: str) -> List[List[str]]:
+    """Retrieve the current commitment spreadsheet."""
+    with connect_to_google('sheets') as conn:
+        sheet = conn.spreadsheets()
+        return sheet.values().get(
+            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            range=f"'{cell_name} Commitments'!A3:ZZZ999",
+            majorDimension='COLUMNS',
+        ).execute()['values']
+
+
+def upload_commitments(users: List[str], commitments: List[str], range_: str) -> None:
+    """Upload new members and commitments to the spreadsheet."""
+    with connect_to_google('sheets') as conn:
+        sheet = conn.spreadsheets()
+        users_body = {
+            'values': [users],
+            'majorDimension': 'COLUMNS',
+        }
+        sheet.values().append(
+            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            range=range_.split('!')[0],
+            body=users_body,
+            valueInputOption='USER_ENTERED',
+        ).execute()
+
+        body = {
+            'values': [commitments],
+            'majorDimension': 'COLUMNS'
+        }
+        sheet.values().append(
+            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            range=range_,
+            body=body,
+            valueInputOption='USER_ENTERED',
+        ).execute()

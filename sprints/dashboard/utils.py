@@ -1,4 +1,5 @@
 import re
+import string
 from datetime import (
     datetime,
     timedelta,
@@ -9,6 +10,7 @@ from typing import (
     Iterable,
     List,
     Union,
+    Tuple,
 )
 
 from django.conf import settings
@@ -273,3 +275,40 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
 
         rows.append(row)
     return rows
+
+
+def prepare_commitment_spreadsheet(dashboard, spreadsheet: List[List[str]]) -> Tuple[List[str], List[str]]:
+    """Prepare list of new members (ones that are not present in the spreadsheet) and commitments for all members."""
+    sprint_number = int(spreadsheet[-1][0]) + 1
+    users: List[str] = []
+    column: List[str] = [str(sprint_number)]
+    commitments: Dict[str, int] = {
+        row.user.displayName: row.remaining_time
+        for row in dashboard.rows
+        if hasattr(row.user, 'displayName')
+    }
+
+    # Process existing users.
+    for user in spreadsheet[0][1:]:
+        try:
+            column.append(str(round(int(commitments.pop(user, '-')) / SECONDS_IN_HOUR)))
+        except (TypeError, ValueError):
+            column.append('-')
+
+    # Process the users that don't exist in the spreadsheet yet.
+    for user, commitment in commitments.items():
+        users.append(user)
+        column.append(str(round(commitment / SECONDS_IN_HOUR)))
+
+    return users, column
+
+
+def get_commitment_range(spreadsheet: List[List[str]], cell_name: str) -> str:
+    """Retrieve the proper range for the spreadsheet, depending on the cell and number of currently stored sprints."""
+    column_number = base_10_to_n(len(spreadsheet), len(string.ascii_uppercase))
+    return f"'{cell_name} Commitments'!{column_number}3"
+
+
+def base_10_to_n(num: int, b: int, numerals: str = string.ascii_uppercase) -> str:
+    """Convert `num` to the desired base `b` with selected `numerals`"""
+    return ((num == 0) and numerals[0]) or (base_10_to_n(num // b, b, numerals).lstrip(numerals[0]) + numerals[num % b])

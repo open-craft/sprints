@@ -64,3 +64,8 @@ tr:hover td {
   background: #ffffaa;
   color: #222222;
 }
+
+.loading {
+  color: #737a7a;
+  font-size: smaller;
+}

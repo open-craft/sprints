@@ -2,6 +2,7 @@
 
 Werkzeug==0.15.4  # https://github.com/pallets/werkzeug
 ipdb==0.12  # https://github.com/gotcha/ipdb
+pdbpp==0.10.0  # https://github.com/pdbpp/pdbpp
 Sphinx==2.0.1  # https://github.com/sphinx-doc/sphinx
 psycopg2==2.8 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
 

@@ -1,5 +1,7 @@
 import React from 'react';
 import './Table.css';
+import {Link} from "react-router-dom";
+import {PATH_JIRA_ISSUE} from "../constants";
 
 const nameColumn = {width: '20%'};  // 1 cell
 const spilloverColumn = {width: '28%'};   // 1 cell
@@ -7,9 +9,7 @@ const newWorkColumn = {width: '52%'};   // 1 cell
 const timeColumn = {width: '6%'};  // 10 cells -> 60% total
 const unestimatedColumn = {width: '10%'};  // 2 cells -> 20% total
 
-const ISSUE_PATH = 'https://tasks.opencraft.com/browse/';  // TODO: Move this to config.
-
-const Table = ({list}) =>
+const Table = ({list, url}) =>
     <table className="table">
         <thead>
         <tr className="table-header">
@@ -67,7 +67,7 @@ const Table = ({list}) =>
         {list.map(item =>
             <tr key={item.name} className="table-row">
                 <td style={nameColumn}>
-                    {item.name}
+                    <Link to={`${url}/user/${item.name}`}>{item.name}</Link>
                 </td>
                 <td style={timeColumn}>
                     {Math.round(item.current_remaining_assignee_time / 3600)}
@@ -81,15 +81,15 @@ const Table = ({list}) =>
                 <td style={unestimatedColumn}>
                     {item.current_unestimated.map(ticket =>
                         <li key={ticket}>
-                            <a href={ISSUE_PATH + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
+                            <a href={PATH_JIRA_ISSUE + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
                         </li>
                     )}
                 </td>
                 <td style={timeColumn}>
-                    {Math.round(item.future_remaining_assignee_time / 3600)}
+                    {Math.round(item.future_assignee_time / 3600)}
                 </td>
                 <td style={timeColumn}>
-                    {Math.round(item.future_remaining_review_time / 3600)}
+                    {Math.round(item.future_review_time / 3600)}
                 </td>
                 <td style={timeColumn}>
                     {Math.round(item.future_epic_management_time / 3600)}
@@ -97,7 +97,7 @@ const Table = ({list}) =>
                 <td style={unestimatedColumn}>
                     {item.future_unestimated.map(ticket =>
                         <li key={ticket}>
-                            <a href={ISSUE_PATH + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
+                            <a href={PATH_JIRA_ISSUE + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
                         </li>
                     )}
                 </td>

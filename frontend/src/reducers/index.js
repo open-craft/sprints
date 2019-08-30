@@ -1,9 +1,9 @@
 import {combineReducers} from 'redux';
 import auth from "./auth";
+import sprints from "./sprints";
 
 
-const sprints_reducers = combineReducers({
+export default combineReducers({
     auth,
+    sprints,
 });
-
-export default sprints_reducers;

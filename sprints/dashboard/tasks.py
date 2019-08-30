@@ -15,7 +15,6 @@ from jira.resources import (
 )
 
 from config import celery_app
-from config.settings.base import SPILLOVER_REQUIRED_FIELDS
 from sprints.dashboard.libs.google import (
     get_commitments_spreadsheet,
     upload_commitments,
@@ -34,17 +33,20 @@ from sprints.dashboard.utils import (
     prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
+    get_all_sprints,
 )
 
 
 @celery_app.task(ignore_result=True)
-def upload_spillovers_task():
+def upload_spillovers_task() -> None:
     """A task for documenting spillovers in the Google Spreadsheet."""
     with connect_to_jira() as conn:
-        issue_fields = get_issue_fields(conn, SPILLOVER_REQUIRED_FIELDS)
+        issue_fields = get_issue_fields(conn, settings.SPILLOVER_REQUIRED_FIELDS)
         issues = get_spillover_issues(conn, issue_fields)
+        active_sprints = get_all_sprints(conn)['active']
 
-    rows = prepare_spillover_rows(issues, issue_fields)
+    active_sprints_dict = {int(sprint.id): sprint for sprint in active_sprints}
+    rows = prepare_spillover_rows(issues, issue_fields, active_sprints_dict)
     upload_spillovers(rows)
 
 
@@ -62,7 +64,17 @@ def upload_commitments_task(board_id: int, cell_name: str) -> None:
 
 
 @celery_app.task(ignore_result=True)
-def complete_sprints():
+def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str) -> None:
+    """A task for posting the spillover reason reminder on the issue."""
+    with connect_to_jira() as conn:
+        conn.add_comment(
+            issue_key,
+            f"[~{assignee_key}], {settings.SPILLOVER_REMINDER_MESSAGE}"
+        )
+
+
+@celery_app.task(ignore_result=True)
+def complete_sprints() -> None:
     """
     1. Uploads spillovers.
     2. Moves archived issues out of the active sprint.
@@ -93,7 +105,7 @@ def complete_sprints():
 
             archived_issues: List[Issue] = conn.search_issues(
                 **prepare_jql_query_active_sprint_tickets(
-                    list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                    ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
                     {settings.SPRINT_STATUS_ARCHIVED},
                     project=cell.name,
                 ),
@@ -103,7 +115,7 @@ def complete_sprints():
 
             issues: List[Issue] = conn.search_issues(
                 **prepare_jql_query_active_sprint_tickets(
-                    list(),  # We don't need any fields here. The `key` attribute will be sufficient.
+                    ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
                     settings.SPRINT_STATUS_ACTIVE | {settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
                     project=cell.name,
                 ),

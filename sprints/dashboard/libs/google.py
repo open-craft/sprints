@@ -7,14 +7,9 @@ from typing import (
     Union,
 )
 
+from django.conf import settings
 from google.oauth2 import service_account
 from googleapiclient import discovery
-
-from config.settings.base import (
-    GOOGLE_API_CREDENTIALS,
-    GOOGLE_CALENDAR_VACATION_REGEX,
-    GOOGLE_SPILLOVER_SPREADSHEET,
-)
 
 
 @contextmanager
@@ -24,7 +19,7 @@ def connect_to_google(service: str) -> Iterator[discovery.Resource]:
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/spreadsheets',
     ]
-    credentials = service_account.Credentials.from_service_account_info(GOOGLE_API_CREDENTIALS, scopes=scopes)
+    credentials = service_account.Credentials.from_service_account_info(settings.GOOGLE_API_CREDENTIALS, scopes=scopes)
     api_version = {
         'calendar': 'v3',
         'sheets': 'v4',
@@ -51,7 +46,7 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, st
             ).execute()
 
             for event in events['items']:
-                user_search = re.match(GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE)
+                user_search = re.match(settings.GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE)
                 # Only `All day` events are taken into account.
                 if user_search and {'start', 'end'} <= event.keys():
                     user = user_search.group(1)
@@ -69,7 +64,7 @@ def upload_spillovers(spillovers: List[List[str]]) -> None:
         sheet = conn.spreadsheets()
         body = {'values': spillovers}
         sheet.values().append(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range='Spillovers',
             body=body,
             valueInputOption='USER_ENTERED',
@@ -81,7 +76,7 @@ def get_commitments_spreadsheet(cell_name: str) -> List[List[str]]:
     with connect_to_google('sheets') as conn:
         sheet = conn.spreadsheets()
         return sheet.values().get(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range=f"'{cell_name} Commitments'!A3:ZZZ999",
             majorDimension='COLUMNS',
         ).execute()['values']
@@ -96,7 +91,7 @@ def upload_commitments(users: List[str], commitments: List[str], range_: str) ->
             'majorDimension': 'COLUMNS',
         }
         sheet.values().append(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range=range_.split('!')[0],
             body=users_body,
             valueInputOption='USER_ENTERED',
@@ -107,7 +102,7 @@ def upload_commitments(users: List[str], commitments: List[str], range_: str) ->
             'majorDimension': 'COLUMNS'
         }
         sheet.values().append(
-            spreadsheetId=GOOGLE_SPILLOVER_SPREADSHEET,
+            spreadsheetId=settings.GOOGLE_SPILLOVER_SPREADSHEET,
             range=range_,
             body=body,
             valueInputOption='USER_ENTERED',

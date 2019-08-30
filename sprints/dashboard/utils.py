@@ -13,10 +13,12 @@ from typing import (
     Tuple,
 )
 
+from dateutil.parser import parse
 from django.conf import settings
 # noinspection PyProtectedMember
 from jira.resources import (
     Board,
+    Comment,
     Issue,
     Project,
     Sprint,
@@ -80,10 +82,12 @@ def get_all_sprints(conn: CustomJira) -> Dict[str, List[Sprint]]:
     result: Dict[str, List[Sprint]] = {
         'active': [],
         'future': [],
+        'all': [],
     }
 
     for cell_sprints in sprints.values():
         for sprint in cell_sprints:
+            result['all'].append(sprint)
             if sprint.state == 'active':
                 result['active'].append(sprint)
 
@@ -163,6 +167,21 @@ def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=Fa
     return result if many else None
 
 
+def get_sprint_start_date(sprint: Sprint) -> str:
+    if getattr(sprint, 'startDate', None):
+        return sprint.startDate.split('T')[0]
+
+    return extract_sprint_start_date_from_sprint_name(sprint.name)
+
+
+def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
+    if getattr(sprint, 'endDate', None):
+        return sprint.endDate.split('T')[0]
+
+    future_sprint = get_next_sprint(sprints, sprint)
+    return get_sprint_start_date(future_sprint)
+
+
 def prepare_jql_query(sprints: List[str], fields: List[str]) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
     unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
@@ -206,11 +225,19 @@ def extract_sprint_id_from_str(sprint_str: str) -> int:
 
 def extract_sprint_name_from_str(sprint_str: str) -> str:
     """We're using custom field for `Sprint`, so the `sprint` field in the result is `str`."""
-    pattern = r'name=(.*?),'
+    pattern = r'name=(.*?\))'
     search = re.search(pattern, sprint_str)
     if search:
         return search.group(1)
     raise AttributeError(f"Invalid `sprint_str`, {pattern} not found.")
+
+
+def extract_sprint_start_date_from_sprint_name(sprint_name: str) -> str:
+    """Extract sprint start date from sprint's name."""
+    search = re.search(settings.SPRINT_DATE_REGEX, sprint_name)
+    if search:
+        return search.group(1)
+    raise AttributeError(f"Invalid sprint name, {settings.SPRINT_DATE_REGEX} not found.")
 
 
 def daterange(start: str, end: str) -> Generator[str, None, None]:
@@ -238,7 +265,29 @@ def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str]) -> List
     )
 
 
-def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) -> List[List[str]]:
+def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str], sprint: Sprint) -> str:
+    """Retrieve the spillover reason from the comment matching the `settings.SPILLOVER_REASON_DIRECTIVE` regexp."""
+    # For issues spilling over more than once we need to ensure that the comment has been added in the current sprint.
+    sprint_start_date = parse(sprint.startDate)
+
+    # Check each comment created after starting the current sprint.
+    for comment in reversed(getattr(issue.fields, issue_fields['Comment']).comments):  # type: Comment
+        created_date = parse(comment.created)
+        if created_date < sprint_start_date:
+            break
+
+        search = re.search(settings.SPILLOVER_REASON_DIRECTIVE, comment.body)
+        if search:
+            return search.group(1)
+
+    return ''
+
+
+def prepare_spillover_rows(
+    issues: List[Issue],
+    issue_fields: Dict[str, str],
+    sprints: Dict[int, Sprint]
+) -> List[List[str]]:
     """
     Prepares the Google spreadsheet row in the specified format.
     Assumptions:
@@ -253,6 +302,8 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
     for issue in issues:
         issue_url = f'=HYPERLINK("{settings.JIRA_SERVER}/browse/{issue.key}","{issue.key}")'
         row = [issue_url]
+        current_sprint = None
+
         for field in settings.SPILLOVER_REQUIRED_FIELDS:
             cell_value = getattr(issue.fields, issue_fields[field])
             if field in settings.JIRA_INTEGER_FIELDS:
@@ -268,8 +319,21 @@ def prepare_spillover_rows(issues: List[Issue], issue_fields: Dict[str, str]) ->
                     # Ignore `None` values.
                     pass
             if field == 'Sprint':
-                cell_value = map(extract_sprint_name_from_str, cell_value)
-                cell_value = tuple(cell_value)[-1]  # We need only the last sprint (when the spillover happened).
+                original_value = cell_value
+                cell_value = extract_sprint_name_from_str(original_value[-1])
+                current_sprint = sprints[extract_sprint_id_from_str(original_value[-1])]
+
+            if field == 'Comment':
+                # Retrieve the spillover reason.
+                cell_value = get_spillover_reason(issue, issue_fields, current_sprint)
+
+                # If the reason hasn't been posted, add comment with the reminder to the issue.
+                if not cell_value and not settings.DEBUG:  # We don't want to ping people via the dev environment.
+                    from sprints.dashboard.tasks import add_spillover_reminder_comment_task  # Avoid circular import.
+                    add_spillover_reminder_comment_task.delay(
+                        issue.key,
+                        getattr(issue.fields, issue_fields['Assignee']).key,
+                    )
 
             row.append(str(cell_value))
 

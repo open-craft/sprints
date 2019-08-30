@@ -354,6 +354,7 @@ SPILLOVER_REQUIRED_FIELDS = (
     "Story Points",
     "Original Estimate",
     "Remaining Estimate",
+    "Comment",
 )
 # Issue fields that contain time in seconds.
 JIRA_TIME_FIELDS = {
@@ -409,6 +410,8 @@ SPRINT_EPIC_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint
 SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for this task"
 # String for overriding how much time will be needed for the task's review.
 SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
+# Regexp for retrieving spillover reason from the issue's comment.
+SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>"
 # Regex for extracting sprint number from the name of the sprint.
 # It is also used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
 SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"\w+.*?(\d+)")
@@ -437,3 +440,9 @@ GOOGLE_API_CREDENTIALS = {
 #          both of them will need to provide the full name in the calendar.
 GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"(\w+) off")
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
+GOOGLE_SPILLOVER_SPREADSHEET_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SPILLOVER_SPREADSHEET}"
+# Message to put in the comment as a reminder to the user who forgot to post the spillover reason.
+SPILLOVER_REMINDER_MESSAGE = fr"please fill the spillover reason in the " \
+                             fr"[Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}] " \
+                             fr"and the next time add the spillover reason as a Jira comment " \
+                             fr"matching the following regexp: {{code:python}} {SPILLOVER_REASON_DIRECTIVE}{{code}}"

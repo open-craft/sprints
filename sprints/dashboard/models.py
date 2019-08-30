@@ -36,6 +36,9 @@ from sprints.dashboard.utils import (
     get_cell_members,
     get_next_cell_sprint,
     prepare_jql_query,
+    get_sprint_start_date,
+    get_sprint_end_date,
+    get_issue_fields,
 )
 
 
@@ -208,25 +211,12 @@ class Dashboard:
                 self.cell_future_sprint = sprint
                 break
 
-        if all(getattr(self.future_sprints[0], attr, None) for attr in ['startDate', 'endDate']):
-            self.future_sprint_start = self.future_sprints[0].startDate.split('T')[0]
-            self.future_sprint_end = self.future_sprints[0].endDate.split('T')[0]
-
-        else:
-            future_sprint_start_search = re.search(settings.SPRINT_DATE_REGEX, self.future_sprints[0].name)
-            self.future_sprint_start = future_sprint_start_search.group(1) if future_sprint_start_search else None
-
-            next_future_sprint = get_next_cell_sprint(self.jira_connection, self.board_id, self.future_sprints[0])
-            next_future_sprint_start_search = re.search(settings.SPRINT_DATE_REGEX, next_future_sprint.name)
-            next_future_sprint_start = next_future_sprint_start_search.group(1) \
-                if next_future_sprint_start_search else None
-            end_date = datetime.strptime(next_future_sprint_start, '%Y-%m-%d') - timedelta(days=1)
-            self.future_sprint_end = end_date.strftime('%Y-%m-%d')
+        self.future_sprint_start = get_sprint_start_date(self.future_sprints[0])
+        self.future_sprint_end = get_sprint_end_date(self.future_sprints[0], sprints['all'])
 
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
-        field_ids = {field['name']: field['id'] for field in self.jira_connection.fields()}
-        self.issue_fields = {field: field_ids[field] for field in settings.JIRA_REQUIRED_FIELDS}
+        self.issue_fields = get_issue_fields(self.jira_connection, settings.JIRA_REQUIRED_FIELDS)
 
         issues: List[Issue] = self.jira_connection.search_issues(
             **prepare_jql_query(

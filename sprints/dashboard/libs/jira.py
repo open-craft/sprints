@@ -3,17 +3,12 @@ from typing import (
     Iterator,
 )
 
+from django.conf import settings
 from jira import JIRA
 from jira.client import ResultList
 from jira.resources import (
     GreenHopperResource,
     Resource,
-)
-
-from config.settings.base import (
-    JIRA_PASSWORD,
-    JIRA_SERVER,
-    JIRA_USERNAME,
 )
 
 
@@ -58,8 +53,8 @@ class CustomJira(JIRA):
 def connect_to_jira() -> Iterator[CustomJira]:
     """Context manager for establishing connection with Jira server."""
     conn = CustomJira(
-        server=JIRA_SERVER,
-        basic_auth=(JIRA_USERNAME, JIRA_PASSWORD),
+        server=settings.JIRA_SERVER,
+        basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD),
         options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH}
     )
     yield conn

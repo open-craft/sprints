@@ -1,4 +1,5 @@
 import re
+from contextlib import contextmanager
 
 import pytest
 from django.conf import settings
@@ -7,6 +8,7 @@ from django.test import override_settings
 from sprints.dashboard.utils import (
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
+    extract_sprint_start_date_from_sprint_name,
     get_all_sprints,
     get_cell_members,
     get_cells,
@@ -20,6 +22,11 @@ from sprints.dashboard.utils import (
 )
 
 pytestmark = pytest.mark.django_db
+
+
+@contextmanager
+def does_not_raise():
+    yield
 
 
 class MockItem:
@@ -157,6 +164,12 @@ def test_get_all_sprints():
         'future': [
             MockItem(name='T2.124', state='future'),
             MockItem(name='T1.124', state='future'),
+        ],
+        'all': [
+            MockItem(name='T1.125', state='future'),
+            MockItem(name='T1.123', state='active'),
+            MockItem(name='T2.124', state='future'),
+            MockItem(name='T1.124', state='future'),
         ]
     }
     assert sprints == expected
@@ -196,6 +209,18 @@ def test_prepare_jql_query_active_sprint_tickets():
     assert result == expected_result
 
 
+@pytest.mark.parametrize(
+    "test_input, expected, raises", [
+        ('Sprint 201 (2019-08-13)', '2019-08-13', does_not_raise()),
+        ('SE.202 (2019-08-27)', '2019-08-27', does_not_raise()),
+        ('Sprint 201 (2019-08-13', '', pytest.raises(AttributeError)),
+    ],
+)
+def test_extract_sprint_start_date_from_sprint_name(test_input, expected, raises):
+    with raises:
+        assert extract_sprint_start_date_from_sprint_name(test_input) == expected
+
+
 def test_prepare_jql_query_active_sprint_tickets_for_project():
     expected_fields = ['id']
     expected_result = {
@@ -210,11 +235,14 @@ def test_prepare_jql_query_active_sprint_tickets_for_project():
     assert result == expected_result
 
 
-def test_extract_sprint_name_from_str():
-    sprint_str = 'com.atlassian.greenhopper.service.sprint.Sprint@614e3007[id=245,rapidViewId=26,state=CLOSED,' \
-                 'name=Sprint 197 (2019-06-18),startDate=2019-06-17T17:21:26.945Z,' \
-                 'endDate=2019-07-01T17:21:00.000Z,completeDate=2019-07-01T17:46:48.977Z,sequence=243,goal=] '
-    assert extract_sprint_name_from_str(sprint_str) == 'Sprint 197 (2019-06-18)'
+@pytest.mark.parametrize(
+    "test_input, expected", [
+        ('name=Sprint 197 (2019-06-18),startDate=2019-06-17T17:21:26.945Z', 'Sprint 197 (2019-06-18)'),
+        ('name=TS.197 (2019-06-18),startDate=2019-06-17T17:21:26.945Z', 'TS.197 (2019-06-18)'),
+    ],
+)
+def test_extract_sprint_name_from_str(test_input, expected):
+    assert extract_sprint_name_from_str(test_input) == expected
 
 
 def test_get_issue_fields():
@@ -223,6 +251,7 @@ def test_get_issue_fields():
         required_fields[0]: 'example_id1',
         required_fields[1]: 'example_id2',
     }
+    # noinspection PyTypeChecker
     assert get_issue_fields(MockJiraConnection(), required_fields) == expected_result
 
 
@@ -246,4 +275,5 @@ def test_prepare_spillover_rows():
         ['=HYPERLINK("https://example.com/browse/TEST-1","TEST-1")', '1', '2.0'],
         ['=HYPERLINK("https://example.com/browse/TEST-2","TEST-2")', '3', '2.74'],
     ]
-    assert prepare_spillover_rows(test_issues, issue_fields) == expected_result
+    # noinspection PyTypeChecker
+    assert prepare_spillover_rows(test_issues, issue_fields, {}) == expected_result

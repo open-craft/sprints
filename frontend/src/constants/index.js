@@ -12,6 +12,7 @@ export const PATH_BASE_DASHBOARD = `${PATH_BASE}/dashboard`;
 export const PATH_CELLS = `${PATH_BASE_DASHBOARD}/cells/`;
 export const PATH_DASHBOARD = `${PATH_BASE_DASHBOARD}/dashboard/`;
 export const PARAM_BOARD_ID = 'board_id=';
+export const PATH_COMPLETE_SPRINTS = `${PATH_BASE_DASHBOARD}/complete_sprints/`;
 
-export const PATH_JIRA_BASE = `${process.env.JIRA_URL}`;
+export const PATH_JIRA_BASE = `${process.env.REACT_APP_JIRA_URL}`;
 export const PATH_JIRA_ISSUE = `${PATH_JIRA_BASE}/browse/`;

@@ -1,8 +1,6 @@
 import {connect} from "react-redux";
 import React, {Component} from 'react';
-
-const PATH_COMPLETE_SPRINTS = `${process.env.REACT_APP_API_BASE}/dashboard/complete_sprints/`;
-
+import {PATH_COMPLETE_SPRINTS} from "../constants";
 
 class CompleteSprintsButton extends Component {
     completeSprints = () => {

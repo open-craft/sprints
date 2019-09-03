@@ -11,6 +11,7 @@ from typing import (
     List,
     Union,
     Tuple,
+    Optional,
 )
 
 from dateutil.parser import parse
@@ -182,14 +183,15 @@ def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
     return get_sprint_start_date(future_sprint)
 
 
-def prepare_jql_query(sprints: List[str], fields: List[str]) -> Dict[str, Union[str, List[str]]]:
+def prepare_jql_query(sprints: List[str], fields: List[str], user: Optional[str] = None) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
     unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
     epic_in_progress = '"' + '","'.join(settings.SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
     sprints_str = ','.join(sprints)
+    user_str = f'(assignee = "{user}" OR "Reviewer 1" = "{user}") AND ' if user else ''
 
-    query = f'(Sprint IN ({sprints_str}) AND ' \
-            f'status IN ({unfinished_status})) OR (issuetype = Epic AND Status IN ({epic_in_progress}))'
+    query = f'({user_str}Sprint IN ({sprints_str}) AND ' \
+            f'status IN ({unfinished_status})) OR ({user_str}issuetype = Epic AND Status IN ({epic_in_progress}))'
 
     return {
         'jql_str': query,

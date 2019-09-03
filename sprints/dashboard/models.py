@@ -1,5 +1,5 @@
 """These are standard Python classes, not Django models. We don't store dashboard in the DB."""
-
+import functools
 import re
 from datetime import (
     datetime,
@@ -8,6 +8,7 @@ from datetime import (
 from typing import (
     Dict,
     List,
+    Optional,
     Set,
     Union,
 )
@@ -45,14 +46,25 @@ from sprints.dashboard.utils import (
 class DashboardIssue:
     """Parses Jira Issue for easier access."""
 
-    def __init__(self, issue: Issue, current_sprint_ids: Set[int], cell_members, issue_fields) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        issue: Issue,
+        current_sprint_ids: Set[int],
+        cell_members: List[str],
+        unassigned_user: JiraUser,
+        other_cell: JiraUser,
+        issue_fields: Dict[str, str],
+    ) -> None:
         self.key = issue.key
         # It should be present, but that's not enforced by the library, so it's better to specify default value.
-        self.assignee = getattr(issue.fields, issue_fields['Assignee'], None)
+        self.assignee: JiraUser = getattr(issue.fields, issue_fields['Assignee'], None)
+        if not self.assignee:
+            self.assignee = unassigned_user
         # We don't want to treat commitments from the other cell as "Unassigned".
-        if self.assignee and self.assignee.name not in cell_members:
-            self.assignee = "Other Cell"
+        elif self.assignee.name not in cell_members:
+            self.assignee = other_cell
+
+        self.summary = getattr(issue.fields, issue_fields['Summary'], '')
         self.description = getattr(issue.fields, issue_fields['Description'], '')
         self.status = getattr(issue.fields, issue_fields['Status']).name
         self.time_spent = getattr(issue.fields, issue_fields['Time Spent'], 0) or 0
@@ -71,15 +83,14 @@ class DashboardIssue:
             self.story_points = int(getattr(issue.fields, issue_fields['Story Points'], 0))
         except (AttributeError, TypeError):
             self.story_points = 0
-        self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], None)
+        self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], "Unassigned")
+        if not self.reviewer_1:
+            self.reviewer_1 = unassigned_user
         # We don't want to treat commitments from the other cell as "Unassigned".
-        if self.reviewer_1 and self.reviewer_1.name not in cell_members:
-            self.reviewer_1 = "Other Cell"
+        elif self.reviewer_1.name not in cell_members:
+            self.reviewer_1 = other_cell
 
-        self.review_time = self.calculate_review_time()
-        self.assignee_time = max(self.time_estimate - self.review_time, 0)  # We don't want negative values here
-
-    def get_bot_directive(self, pattern) -> Union[int, None]:
+    def get_bot_directive(self, pattern) -> Optional[int]:
         """
         Retrieves special directives placed for the Jira bot.
         :returns `None` if directive was not found. Otherwise returns `int` with duration defined in the directive.
@@ -91,27 +102,59 @@ class DashboardIssue:
             # Directive not found or description is `None`.
             return None
 
-    def calculate_review_time(self) -> int:
+    @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
+    @functools.lru_cache()  # We'll need to use ignore for `return` (cf: https://github.com/python/mypy/issues/5858)
+    def assignee_time(self) -> int:
+        """Calculate time needed by the assignee of the issue."""
+        if self.is_epic:
+            return 0
+
+        # Assume that no more review will be needed at this point.
+        if self.status in (settings.SPRINT_STATUS_EXTERNAL_REVIEW, settings.SPRINT_STATUS_MERGED):
+            return self.time_estimate
+
+        return max(self.time_estimate - self.review_time, 0)  # We don't want negative values here.
+
+    @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
+    @functools.lru_cache()
+    def review_time(self) -> int:
         """
         Calculate time needed for the review.
         Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
         """
+        # Assume that no more review will be needed at this point.
+        if self.status in (settings.SPRINT_STATUS_EXTERNAL_REVIEW, settings.SPRINT_STATUS_MERGED):
+            return 0
+
         try:
             planned = self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
             return planned * SECONDS_IN_HOUR  # type: ignore
 
         except TypeError:
+            # If we want to plan review time for epic or recurring issue, we need to specify it with bot's directive.
+            if self.is_epic or self.status == settings.SPRINT_STATUS_RECURRING:
+                return 0
+
             if self.story_points <= 3:
                 return SECONDS_IN_HOUR
             return 2 * SECONDS_IN_HOUR
 
-    def get_recurring_time(self) -> int:
+    @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
+    @functools.lru_cache()
+    def recurring_time(self) -> int:
         """Get required assignee time for the recurring story."""
-        planned = self.get_bot_directive(settings.SPRINT_RECURRING_DIRECTIVE) or 0
-        return planned * SECONDS_IN_HOUR
+        if self.status == settings.SPRINT_STATUS_RECURRING:
+            planned = self.get_bot_directive(settings.SPRINT_RECURRING_DIRECTIVE) or 0
+            return planned * SECONDS_IN_HOUR
+        return 0
 
-    def get_epic_management_time(self) -> int:
+    @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
+    @functools.lru_cache()
+    def epic_management_time(self) -> int:
         """Get required assignee time for managing the epic."""
+        if not self.is_epic:
+            return 0
+
         try:
             planned = self.get_bot_directive(settings.SPRINT_EPIC_DIRECTIVE)
             return planned * SECONDS_IN_HOUR  # type: ignore
@@ -122,19 +165,19 @@ class DashboardIssue:
 class DashboardRow:
     """Represents single dashboard row (user)."""
 
-    def __init__(self, user: Union[JiraUser, str, None]) -> None:
-        super().__init__()
+    def __init__(self, user: JiraUser) -> None:
         self.user = user
         self.current_remaining_assignee_time = 0
         self.current_remaining_review_time = 0
         self.current_remaining_upstream_time = 0
-        self.future_remaining_assignee_time = 0
-        self.future_remaining_review_time = 0
+        self.future_assignee_time = 0
+        self.future_review_time = 0
         self.future_epic_management_time = 0
         self.goal_time = 0
         self.current_unestimated: List[str] = []
         self.future_unestimated: List[str] = []
         self.vacation_time = 0
+        # self.issues: List[DashboardIssue] = []
 
     def set_goal_time(self, goal) -> None:
         """
@@ -149,19 +192,14 @@ class DashboardRow:
         return (self.current_remaining_assignee_time
                 + self.current_remaining_review_time
                 + self.current_remaining_upstream_time
-                + self.future_remaining_assignee_time
-                + self.future_remaining_review_time
+                + self.future_assignee_time
+                + self.future_review_time
                 + self.future_epic_management_time)
 
     @property
     def remaining_time(self) -> float:
         """Calculate available time for the upcoming sprint."""
         return self.goal_time - self.committed_time
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, JiraUser):
-            return self.user == other
-        return self.user == other.user
 
     def add_unestimated_issue(self, issue: DashboardIssue) -> None:
         """Add non-estimated issue to the list of unestimated issues."""
@@ -175,9 +213,8 @@ class Dashboard:
     """Aggregates user records into a dashboard."""
 
     def __init__(self, board_id: int, conn: CustomJira) -> None:
-        super().__init__()
         self.jira_connection = conn
-        self.dashboard: Dict[Union[JiraUser, str, None], DashboardRow] = {}
+        self.dashboard: Dict[JiraUser, DashboardRow] = {}
         self.issue_fields: Dict[str, str]
         self.issues: List[DashboardIssue]
         self.members: List[str]
@@ -191,6 +228,7 @@ class Dashboard:
 
         # Retrieve data from Jira.
         self.get_sprints()
+        self.create_mock_users()
         self.vacations = get_vacations(self.future_sprint_start, self.future_sprint_end)
         self.get_issues()
         self.generate_rows()
@@ -214,6 +252,17 @@ class Dashboard:
         self.future_sprint_start = get_sprint_start_date(self.future_sprints[0])
         self.future_sprint_end = get_sprint_end_date(self.future_sprints[0], sprints['all'])
 
+    def create_mock_users(self):
+        """Create mock users for handling unassigned and cross-cell tickets."""
+        self.unassigned_user = JiraUser(self.jira_connection._options, self.jira_connection._session)
+        self.unassigned_user.name = "Unassigned"
+        self.unassigned_user.displayName = self.unassigned_user.name
+
+        # We don't want to treat commitments from the other cell as "Unassigned".
+        self.other_cell = JiraUser(self.jira_connection._options, self.jira_connection._session)
+        self.other_cell.name = "Other Cell"
+        self.other_cell.displayName = "Other Cell"
+
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
         self.issue_fields = get_issue_fields(self.jira_connection, settings.JIRA_REQUIRED_FIELDS)
@@ -221,7 +270,7 @@ class Dashboard:
         issues: List[Issue] = self.jira_connection.search_issues(
             **prepare_jql_query(
                 [str(sprint.id) for sprint in self.active_sprints + self.future_sprints],
-                list(self.issue_fields.values())
+                list(self.issue_fields.values()),
             ),
             maxResults=0,
         )
@@ -232,7 +281,9 @@ class Dashboard:
 
         active_sprint_ids = {sprint.id for sprint in self.active_sprints}
         for issue in issues:
-            self.issues.append(DashboardIssue(issue, active_sprint_ids, self.members, self.issue_fields))
+            self.issues.append(
+                DashboardIssue(issue, active_sprint_ids, self.members, self.unassigned_user, self.other_cell,
+                               self.issue_fields))
 
         for member in self.members:
             schedule = self.jira_connection.user_schedule(
@@ -253,42 +304,39 @@ class Dashboard:
 
             # Calculate time for epic management
             if issue.is_epic:
-                assignee.future_epic_management_time += issue.get_epic_management_time()
+                assignee.future_epic_management_time += issue.epic_management_time  # type: ignore
                 continue
 
             # Calculate hours for recurring tickets for the upcoming sprint.
             if issue.status == settings.SPRINT_STATUS_RECURRING:
-                assignee.future_remaining_assignee_time += issue.get_recurring_time()
+                assignee.future_assignee_time += issue.recurring_time  # type: ignore
+                reviewer_1.future_review_time += issue.review_time  # type: ignore
                 continue
 
             # Check if the issue has any time left.
-            if issue.time_estimate == 0 and isinstance(issue.assignee, JiraUser):
+            if issue.time_estimate == 0 and issue.assignee not in (self.unassigned_user, self.other_cell):
                 assignee.add_unestimated_issue(issue)
 
             # Calculations for the current sprint.
             if issue.current_sprint:
                 # Assume that no more review will be needed at this point.
                 if issue.status == settings.SPRINT_STATUS_EXTERNAL_REVIEW:
-                    assignee.current_remaining_upstream_time += issue.time_estimate
-
-                # Assume that no more reviews will be needed at this point.
-                elif issue.status == settings.SPRINT_STATUS_MERGED:
-                    assignee.current_remaining_assignee_time += issue.time_estimate
+                    assignee.current_remaining_upstream_time += issue.assignee_time  # type: ignore
 
                 else:
-                    reviewer_1.current_remaining_review_time += issue.review_time
-                    assignee.current_remaining_assignee_time += issue.assignee_time
+                    reviewer_1.current_remaining_review_time += issue.review_time  # type: ignore
+                    assignee.current_remaining_assignee_time += issue.assignee_time  # type: ignore
 
             # Calculations for the upcoming sprint.
             else:
-                assignee.future_remaining_assignee_time += issue.assignee_time
-                reviewer_1.future_remaining_review_time += issue.review_time
+                assignee.future_assignee_time += issue.assignee_time  # type: ignore
+                reviewer_1.future_review_time += issue.review_time  # type: ignore
 
-        del self.dashboard['Other Cell']
+        self.dashboard.pop(self.other_cell, None)
 
         # Calculate commitments for each user.
         for row in self.rows:
-            if isinstance(row.user, JiraUser):
+            if row.user != self.unassigned_user:
                 # Calculate vacations
                 for vacation in self.vacations:
                     if row.user.displayName.startswith(vacation['user']):

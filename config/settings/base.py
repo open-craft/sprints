@@ -334,6 +334,7 @@ JIRA_SPRINT_BOARD_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint - ")
 JIRA_BOT_USERNAME = env.str("JIRA_BOT_USERNAME", "crafty")
 JIRA_REQUIRED_FIELDS = (
     "Assignee",
+    "Summary",
     "Description",
     "Issue Type",
     "Status",

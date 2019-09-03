@@ -1,6 +1,5 @@
 import React, {Component} from 'react';
 import './App.css';
-import Table from "./components/Table";
 import Cells from "./components/Cells";
 import {BrowserRouter, Redirect, Route, Switch} from "react-router-dom";
 import routes from './routes.js'
@@ -9,23 +8,29 @@ import {connect, Provider} from "react-redux";
 import {auth} from "./actions/";
 import {applyMiddleware, createStore} from "redux";
 import thunk from "redux-thunk";
-import sprints_reducers from "./reducers";
+import reducer from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
 import VerifyEmail from "./components/VerifyEmail";
 import CompleteSprints from "./components/CompleteSprintsButton";
+import Board from "./components/Board";
+import UserBoard from "./components/UserBoard";
 
+let store = createStore(reducer, applyMiddleware(thunk));
 
-const PATH_BASE = `${process.env.REACT_APP_API_BASE}/dashboard/`;
-const PATH_CELLS = `${PATH_BASE}cells/`;
-const PATH_DASHBOARD = `${PATH_BASE}dashboard/`;
-const PARAM_BOARD_ID = 'board_id=';
-
-const create_dashboard_url = (board_id) =>
-    `${PATH_DASHBOARD}?${PARAM_BOARD_ID}${board_id}`;
-
-let store = createStore(sprints_reducers, applyMiddleware(thunk));
-
+export default class App extends Component {
+    render() {
+        return (
+            <BrowserRouter>
+                <Switch>
+                    <Provider store={store}>
+                        <Route component={RootContainer}/>
+                    </Provider>
+                </Switch>
+            </BrowserRouter>
+        )
+    }
+}
 
 class RootContainerComponent extends Component {
 
@@ -38,7 +43,9 @@ class RootContainerComponent extends Component {
             if (this.props.auth.isLoading) {
                 return <em>Loading...</em>;
             } else if (!this.props.auth.isAuthenticated) {
-                return <Redirect to={routes.login}/>;
+                let next_path = this.props.location.pathname;
+                next_path = (next_path !== "/" && !next_path.startsWith("/login")) ? "?next=" + next_path : "";
+                return <Redirect to={routes.login + next_path}/>;
             } else {
                 return <ChildComponent {...props} />
             }
@@ -61,11 +68,13 @@ class RootContainerComponent extends Component {
                         </div>
                         : <div/>
                 }
-                <Header/>
+                <h1>OpenCraft Sprint Planning Report</h1>
+
                 <BrowserRouter>
                     <Switch>
-                        <PrivateRoute exact path={routes.cells} component={CellContainer}/>
-                        <PrivateRoute path={routes.board} component={BoardContainer}/>
+                        <PrivateRoute exact path={routes.cells} component={Cells}/>
+                        <PrivateRoute path={routes.user_board} component={UserBoard}/>
+                        <PrivateRoute path={routes.board} component={Board}/>
                         <Route path={routes.login} component={Login}/>
                         <Route path={routes.register} component={Register}/>
                         <Route path={routes.verify_email} component={VerifyEmail}/>
@@ -92,140 +101,3 @@ const mapDispatchToProps = dispatch => {
 };
 
 let RootContainer = connect(mapStateToProps, mapDispatchToProps)(RootContainerComponent);
-
-export default class App extends Component {
-    render() {
-        return (
-            <Provider store={store}>
-                <RootContainer/>
-            </Provider>
-        )
-    }
-}
-
-
-class Header extends Component {
-    render() {
-        return (
-            <h1>OpenCraft Sprint Planning Report</h1>
-        );
-    }
-}
-
-class Cell extends Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            cell: '',
-            cells: null,
-        };
-    }
-
-    setCells(result) {
-        this.setState({
-            cells: result,
-        })
-    }
-
-    fetchCells() {
-        let token = this.props.auth.token;
-        let headers = {
-            "Content-Type": "application/json",
-        };
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
-
-        fetch(PATH_CELLS, {headers,})
-            .then(response => response.json())
-            .then(result => this.setCells(result))
-            .catch(error => error);
-    }
-
-    componentDidMount() {
-        this.fetchCells();
-    }
-
-    render() {
-        const {cells} = this.state;
-        return (
-            <div className='cells'>
-                {
-                    cells
-                        ? <Cells list={cells}/>
-                        : <div>
-                            <div className="spinner-border"/>
-                            <p>Loading the list of cells…</p>
-                        </div>
-                }
-            </div>
-        );
-    }
-}
-
-let CellContainer = connect(mapStateToProps, mapDispatchToProps)(Cell);
-
-class Board extends Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            future_sprint: '',
-            rows: null,
-        };
-    }
-
-    setDashboard(result) {
-        const {rows, future_sprint, cell} = result;
-        rows.sort((x, y) => (x.name > y.name) ? 1 : -1);
-
-        this.setState({
-            cell: cell,
-            future_sprint: future_sprint,
-            rows: rows,
-        })
-    }
-
-
-    fetchDashboard(board_id) {
-        let token = this.props.auth.token;
-        let headers = {
-            "Content-Type": "application/json",
-        };
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
-
-        fetch(create_dashboard_url(board_id), {headers,})
-            .then(response => response.json())
-            .then(result => this.setDashboard(result))
-            .catch(error => error);
-    }
-
-    componentDidMount() {
-        const {board_id} = this.props.match.params;
-        this.fetchDashboard(board_id);
-    }
-
-    render() {
-        const {rows, future_sprint} = this.state;
-        return (
-            <div className='dashboard'>
-                {
-                    rows
-                        ? <div>
-                            <h2>Commitments for Upcoming Sprint - {future_sprint}</h2>
-                            <Table list={rows}/>
-                        </div>
-                        : <div>
-                            <div className="spinner-border"/>
-                            <p>Loading the dashboard…</p>
-                        </div>
-                }
-            </div>
-        );
-    }
-}
-
-let BoardContainer = connect(mapStateToProps, mapDispatchToProps)(Board);

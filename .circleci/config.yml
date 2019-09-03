@@ -69,7 +69,9 @@ jobs:
       - run:
           name: Create .env file
           command: |
-            echo -e "REACT_APP_API_BASE=$REACT_APP_API_BASE\nREACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID" > frontend/.env.production
+            echo "REACT_APP_API_BASE=$REACT_APP_API_BASE" >> frontend/.env.production
+            echo "REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID" >> frontend/.env.production
+            echo "REACT_APP_JIRA_URL=$REACT_APP_JIRA_URL" >> frontend/.env.production
       - restore_cache:
           key: dependency-cache-{{ checksum "frontend/package.json" }}
       - run:

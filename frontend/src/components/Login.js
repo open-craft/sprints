@@ -4,6 +4,7 @@ import {connect} from "react-redux";
 import {Link, Redirect} from "react-router-dom";
 import {auth} from "../actions";
 import GoogleLogin from "react-google-login";
+import * as qs from "query-string";
 
 
 class Login extends Component {
@@ -23,7 +24,9 @@ class Login extends Component {
 
     render() {
         if (this.props.isAuthenticated) {
-            return <Redirect to="/"/>
+            // Redirect to the original link instead of the main page.
+            const redirect = qs.parse(this.props.location.search).next || "/";
+            return <Redirect to={redirect}/>
         }
         return (
             <form onSubmit={this.onSubmit}>

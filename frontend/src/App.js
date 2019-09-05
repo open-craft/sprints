@@ -12,7 +12,6 @@ import reducer from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
 import VerifyEmail from "./components/VerifyEmail";
-import CompleteSprints from "./components/CompleteSprintButton";
 import Board from "./components/Board";
 import UserBoard from "./components/UserBoard";
 

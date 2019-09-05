@@ -23,18 +23,18 @@ from sprints.dashboard.libs.google import (
 from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.dashboard.models import Dashboard
 from sprints.dashboard.utils import (
+    create_next_sprint,
+    filter_sprints_by_cell,
+    get_all_sprints,
     get_cells,
     get_commitment_range,
     get_issue_fields,
     get_next_sprint,
     get_spillover_issues,
-    get_sprint_number,
     get_sprints,
     prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
-    get_all_sprints,
-    filter_sprints_by_cell,
 )
 
 
@@ -76,7 +76,18 @@ def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str) -> No
 
 
 @celery_app.task(ignore_result=True)
-def complete_sprint(board_id: int) -> None:
+def create_next_sprint_task(board_id: int) -> None:
+    """A task for posting the spillover reason reminder on the issue."""
+    with connect_to_jira() as conn:
+        cells = get_cells(conn)
+        cell = next(c for c in cells if c.board_id == board_id)
+        sprints: List[Sprint] = get_sprints(conn, cell.board_id)
+
+        create_next_sprint(conn, sprints, cell.key, board_id)
+
+
+@celery_app.task(ignore_result=True)
+def complete_sprint_task(board_id: int) -> None:
     """
     1. Uploads spillovers.
     2. Moves archived issues out of the active sprint.
@@ -162,12 +173,4 @@ def complete_sprint(board_id: int) -> None:
             # Ensure that the next sprint exists. If it doesn't exist, create it.
             future_next_sprint = get_next_sprint(sprints, next_sprint)
             if not future_next_sprint:
-                future_next_sprint_number = get_sprint_number(next_sprint) + 1
-                future_name_date = (end_date + timedelta(days=1)).strftime('%Y-%m-%d')
-                future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
-                conn.create_sprint(
-                    name=f'{cell.key}.{future_next_sprint_number} ({future_name_date})',
-                    board_id=cell.board_id,
-                    startDate=end_date.isoformat(),
-                    endDate=future_end_date.isoformat(),
-                )
+                create_next_sprint_task.delay(board_id)

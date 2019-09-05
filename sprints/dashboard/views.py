@@ -13,8 +13,8 @@ from sprints.dashboard.serializers import (
     DashboardSerializer,
 )
 from sprints.dashboard.tasks import (
-    complete_sprint,
-    upload_spillovers_task,
+    complete_sprint_task,
+    create_next_sprint_task,
 )
 from sprints.dashboard.utils import (
     get_cells,
@@ -56,28 +56,29 @@ class DashboardViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
 
-class SpilloverViewSet(viewsets.ViewSet):
+class CreateNextSprintViewSet(viewsets.ViewSet):
     """
-    Invokes task for uploading spillovers.
-    POST /dashboard/spillovers
+    Invokes task for creating the next sprint for the chosen cell.
+    POST /dashboard/create_next_sprint?board_id=<board_id>
     """
-    permission_classes = (permissions.IsAdminUser,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     # noinspection PyMethodMayBeStatic
-    def create(self, _request):
-        upload_spillovers_task.delay()
+    def create(self, request):
+        board_id = int(request.query_params.get('board_id'))
+        create_next_sprint_task.delay(board_id)
         return Response(data='', status=http.HTTPStatus.OK)
 
 
 class CompleteSprintViewSet(viewsets.ViewSet):
     """
-    Invokes task for uploading spillovers and ending the sprints.
-    POST /dashboard/end_sprint
+    Invokes task for uploading spillovers and ending the sprint for the chosen cell.
+    POST /dashboard/complete_sprint?board_id=<board_id>
     """
     permission_classes = (permissions.IsAdminUser,)
 
     # noinspection PyMethodMayBeStatic
     def create(self, request):
         board_id = int(request.query_params.get('board_id'))
-        complete_sprint.delay(board_id)
+        complete_sprint_task.delay(board_id)
         return Response(data='', status=http.HTTPStatus.OK)

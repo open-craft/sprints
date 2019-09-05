@@ -273,6 +273,23 @@ def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str], project
     )
 
 
+def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, board_id: int) -> None:
+    """Creates next sprint for the desired cell."""
+    sprints = filter_sprints_by_cell(sprints, cell_key)
+    last_sprint = sprints[-1]
+    end_date = parse(last_sprint.endDate)
+
+    future_next_sprint_number = get_sprint_number(last_sprint) + 1
+    future_name_date = (end_date + timedelta(days=1)).strftime('%Y-%m-%d')
+    future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
+    conn.create_sprint(
+        name=f'{cell_key}.{future_next_sprint_number} ({future_name_date})',
+        board_id=board_id,
+        startDate=end_date.isoformat(),
+        endDate=future_end_date.isoformat(),
+    )
+
+
 def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str], sprint: Sprint) -> str:
     """Retrieve the spillover reason from the comment matching the `settings.SPILLOVER_REASON_DIRECTIVE` regexp."""
     # For issues spilling over more than once we need to ensure that the comment has been added in the current sprint.

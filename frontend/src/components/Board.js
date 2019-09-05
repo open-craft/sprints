@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import Table from "./Table";
 import {connect} from "react-redux";
 import {auth, sprints} from "../actions";
-import CompleteSprints from "./CompleteSprintButton";
+import SprintActionButtons from "./SprintActionButtons";
 
 class Board extends Component {
     constructor(props) {
@@ -37,11 +37,7 @@ class Board extends Component {
                                     : <div/>
                             }
                             <h2>Commitments for Upcoming Sprint - {future_sprint}</h2>
-                            {
-                                this.props.auth.user.is_staff
-                                    ? <CompleteSprints board_id={this.state.board_id}/>
-                                    : <div/>
-                            }
+                            <SprintActionButtons board_id={this.state.board_id}/>
                             <Table list={rows} url={url}/>
                         </div>
                         : <div>

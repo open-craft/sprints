@@ -13,7 +13,7 @@ from sprints.dashboard.serializers import (
     DashboardSerializer,
 )
 from sprints.dashboard.tasks import (
-    complete_sprints,
+    complete_sprint,
     upload_spillovers_task,
 )
 from sprints.dashboard.utils import (
@@ -77,6 +77,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
     permission_classes = (permissions.IsAdminUser,)
 
     # noinspection PyMethodMayBeStatic
-    def create(self, _request):
-        complete_sprints.delay()
+    def create(self, request):
+        board_id = int(request.query_params.get('board_id'))
+        complete_sprint.delay(board_id)
         return Response(data='', status=http.HTTPStatus.OK)

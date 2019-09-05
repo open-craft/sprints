@@ -263,6 +263,11 @@ class Dashboard:
         self.other_cell.name = "Other Cell"
         self.other_cell.displayName = "Other Cell"
 
+    def delete_mock_users(self) -> None:
+        """Remove mock users from the dashboard. It's useful for exporting commitments."""
+        self.dashboard.pop(self.other_cell, None)
+        self.dashboard.pop(self.unassigned_user, None)
+
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
         self.issue_fields = get_issue_fields(self.jira_connection, settings.JIRA_REQUIRED_FIELDS)

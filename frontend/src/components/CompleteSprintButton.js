@@ -1,9 +1,10 @@
 import {connect} from "react-redux";
 import React, {Component} from 'react';
-import {PATH_COMPLETE_SPRINTS} from "../constants";
+import {PARAM_BOARD_ID, PATH_COMPLETE_SPRINT} from "../constants";
 
-class CompleteSprintsButton extends Component {
-    completeSprints = () => {
+class CompleteSprintButton extends Component {
+
+    completeSprint = () => {
         if (window.confirm("Are you sure you want to end the current sprint?") !== true) {
             return;
         }
@@ -17,20 +18,21 @@ class CompleteSprintsButton extends Component {
             headers["Authorization"] = `JWT ${token}`;
         }
 
-        fetch(PATH_COMPLETE_SPRINTS, {headers, body: "", method: "POST"})
+        let complete_url = `${PATH_COMPLETE_SPRINT}?${PARAM_BOARD_ID}${this.props.board_id}`;
+        fetch(complete_url, {headers, body: "", method: "POST"})
             .then(response => response.json())
     };
 
     render() {
         return (
-            <div className="complete_sprints">
+            <div className="complete_sprint">
                 <button
                     className="btn-danger"
-                    onClick={this.completeSprints}
+                    onClick={this.completeSprint}
                     ref={btn => {
                         this.btn = btn;
                     }}
-                >Complete Sprints
+                >Complete Sprint
                 </button>
             </div>
         );
@@ -43,4 +45,4 @@ const mapStateToProps = state => {
     }
 };
 
-export default connect(mapStateToProps)(CompleteSprintsButton);
+export default connect(mapStateToProps)(CompleteSprintButton);

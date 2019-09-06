@@ -103,6 +103,7 @@ def complete_sprint_task(board_id: int) -> None:
         # Run the spreadsheet tasks asynchronously and wait for the results before proceeding with ending the sprint.
         with allow_join_result():
             # FIXME: Use `apply_async`. Currently blocked because of `https://github.com/celery/celery/issues/4925`.
+            #   CAUTION: if you change it, ensure that all tasks have finished successfully.
             group(spreadsheet_tasks).apply().join()
 
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)

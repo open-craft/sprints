@@ -106,9 +106,9 @@ def get_sprint_number(previous_sprint: Sprint) -> int:
     Retrieves sprint number with regex and returns it as `int`.
     :raises AttributeError if the format is invalid
     """
-    previous_sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, previous_sprint.name)
+    previous_sprint_number_search = re.search(settings.SPRINT_REGEX, previous_sprint.name)
     if previous_sprint_number_search:
-        return int(previous_sprint_number_search.group(1))
+        return int(previous_sprint_number_search.group(2))
     else:
         raise AttributeError("Invalid `previous_sprint`.")
 
@@ -157,9 +157,9 @@ def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=Fa
     result: List[Sprint] = []
 
     for sprint in sprints:
-        sprint_number_search = re.search(settings.SPRINT_NUMBER_REGEX, sprint.name)
+        sprint_number_search = re.search(settings.SPRINT_REGEX, sprint.name)
         if sprint_number_search:
-            sprint_number = int(sprint_number_search.group(1))
+            sprint_number = int(sprint_number_search.group(2))
             if previous_sprint_number + 1 == sprint_number:
                 if not many:
                     return sprint
@@ -181,6 +181,11 @@ def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
 
     future_sprint = get_next_sprint(sprints, sprint)
     return get_sprint_start_date(future_sprint)
+
+
+def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:
+    """Filters sprints created for the specific cell. We're using cell's key for finding the suitable sprints."""
+    return [sprint for sprint in sprints if sprint.name.startswith(key)]
 
 
 def prepare_jql_query(sprints: List[str], fields: List[str], user: Optional[str] = None) -> Dict[str, Union[str, List[str]]]:
@@ -236,10 +241,10 @@ def extract_sprint_name_from_str(sprint_str: str) -> str:
 
 def extract_sprint_start_date_from_sprint_name(sprint_name: str) -> str:
     """Extract sprint start date from sprint's name."""
-    search = re.search(settings.SPRINT_DATE_REGEX, sprint_name)
+    search = re.search(settings.SPRINT_REGEX, sprint_name)
     if search:
-        return search.group(1)
-    raise AttributeError(f"Invalid sprint name, {settings.SPRINT_DATE_REGEX} not found.")
+        return search.group(3)
+    raise AttributeError(f"Invalid sprint name, {settings.SPRINT_REGEX} not found.")
 
 
 def daterange(start: str, end: str) -> Generator[str, None, None]:
@@ -256,14 +261,32 @@ def get_issue_fields(conn: CustomJira, required_fields: Iterable[str]) -> Dict[s
     return {field: field_ids[field] for field in required_fields}
 
 
-def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str]) -> List[Issue]:
+def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str], project: str = '') -> List[Issue]:
     """Retrieves all stories and epics for the current dashboard."""
     return conn.search_issues(
         **prepare_jql_query_active_sprint_tickets(
             list(issue_fields.values()),
             settings.SPRINT_STATUS_SPILLOVER,
+            project=project,
         ),
         maxResults=0,
+    )
+
+
+def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, board_id: int) -> None:
+    """Creates next sprint for the desired cell."""
+    sprints = filter_sprints_by_cell(sprints, cell_key)
+    last_sprint = sprints[-1]
+    end_date = parse(last_sprint.endDate)
+
+    future_next_sprint_number = get_sprint_number(last_sprint) + 1
+    future_name_date = (end_date + timedelta(days=1)).strftime('%Y-%m-%d')
+    future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
+    conn.create_sprint(
+        name=f'{cell_key}.{future_next_sprint_number} ({future_name_date})',
+        board_id=board_id,
+        startDate=end_date.isoformat(),
+        endDate=future_end_date.isoformat(),
     )
 
 

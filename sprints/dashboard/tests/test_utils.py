@@ -80,12 +80,12 @@ class MockJiraConnection:
     def sprints(board_id, **_kwargs):
         if board_id == 1:
             return [
-                MockItem(name='T1.125', state='future'),
-                MockItem(name='T1.123', state='active'),
+                MockItem(name='T1.125 (2019-01-01)', state='future'),
+                MockItem(name='T1.123 (2019-01-01)', state='active'),
             ]
         return [
-            MockItem(name='T2.124', state='future'),
-            MockItem(name='T1.124', state='future'),
+            MockItem(name='T2.124 (2019-01-01)', state='future'),
+            MockItem(name='T1.124 (2019-01-01)', state='future'),
         ]
 
     @staticmethod
@@ -133,16 +133,16 @@ def test_get_cell_members():
 
 
 def test_get_sprint_number():
-    sprint = MockItem(name='T1.123', state='active')
+    sprint = MockItem(name='T1.123 (2019-01-01)', state='active')
     # noinspection PyTypeChecker
     assert get_sprint_number(sprint) == 123
 
 
 def test_get_next_sprint():
     sprints = [
-        MockItem(name='T1.125', state='future'),
-        MockItem(name='T1.123', state='active'),
-        MockItem(name='T1.124', state='future'),
+        MockItem(name='T1.125 (2019-01-01)', state='future'),
+        MockItem(name='T1.123 (2019-01-01)', state='active'),
+        MockItem(name='T1.124 (2019-01-01)', state='future'),
     ]
     # noinspection PyTypeChecker
     assert get_next_sprint(sprints, sprints[1]) == sprints[2]
@@ -159,17 +159,17 @@ def test_get_all_sprints():
     sprints = get_all_sprints(MockJiraConnection())
     expected = {
         'active': [
-            MockItem(name='T1.123', state='active'),
+            MockItem(name='T1.123 (2019-01-01)', state='active'),
         ],
         'future': [
-            MockItem(name='T2.124', state='future'),
-            MockItem(name='T1.124', state='future'),
+            MockItem(name='T2.124 (2019-01-01)', state='future'),
+            MockItem(name='T1.124 (2019-01-01)', state='future'),
         ],
         'all': [
-            MockItem(name='T1.125', state='future'),
-            MockItem(name='T1.123', state='active'),
-            MockItem(name='T2.124', state='future'),
-            MockItem(name='T1.124', state='future'),
+            MockItem(name='T1.125 (2019-01-01)', state='future'),
+            MockItem(name='T1.123 (2019-01-01)', state='active'),
+            MockItem(name='T2.124 (2019-01-01)', state='future'),
+            MockItem(name='T1.124 (2019-01-01)', state='future'),
         ]
     }
     assert sprints == expected

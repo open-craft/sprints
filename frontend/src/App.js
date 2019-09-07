@@ -12,7 +12,6 @@ import reducer from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
 import VerifyEmail from "./components/VerifyEmail";
-import CompleteSprints from "./components/CompleteSprintsButton";
 import Board from "./components/Board";
 import UserBoard from "./components/UserBoard";
 
@@ -55,19 +54,16 @@ class RootContainerComponent extends Component {
     render() {
         let {PrivateRoute} = this;
         return (
-            <div className="page interactions">
-                {
-                    this.props.auth.isAuthenticated
-                        ? <div className="navbar">
-                            {
-                                this.props.auth.user.is_staff
-                                    ? <CompleteSprints/>
-                                    : <div/>
-                            }
-                            <Logout/>
-                        </div>
-                        : <div/>
-                }
+            <div className="page app">
+                <div className="page interactions">
+                    {
+                        this.props.auth.isAuthenticated
+                            ? <div className="navbar">
+                                <Logout/>
+                            </div>
+                            : <div/>
+                    }
+                </div>
                 <h1>OpenCraft Sprint Planning Report</h1>
 
                 <BrowserRouter>

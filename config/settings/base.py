@@ -413,11 +413,13 @@ SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per s
 SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
 # Regexp for retrieving spillover reason from the issue's comment.
 SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>"
-# Regex for extracting sprint number from the name of the sprint.
+# Regex for extracting sprint data from the name of the sprint.
 # It is also used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
-SPRINT_NUMBER_REGEX = env.str("SPRINT_NUMBER_REGEX", r"\w+.*?(\d+)")
-# Regex for extracting sprint staring date from the name of the sprint.
-SPRINT_DATE_REGEX = env.str("SPRINT_DATE_REGEX", r"\((.*)\)")
+# The following data is gathered:
+# Group 1. cell's key
+# Group 2. sprint number
+# Group 3. sprint starting date
+SPRINT_REGEX = env.str("SPRINT_REGEX", r"(\w+).*?(\d+).*\((.*)\)")
 # Number of days that a sprint lasts
 SPRINT_DURATION_DAYS = env.int("SPRINT_DURATION_DAYS", 14)
 

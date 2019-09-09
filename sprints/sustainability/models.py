@@ -1,7 +1,9 @@
 import re
+from multiprocessing.pool import Pool
 from typing import (
     Dict,
     List,
+    Union,
 )
 
 from django.conf import settings
@@ -9,7 +11,7 @@ from django.conf import settings
 from sprints.dashboard.libs.jira import (
     Account,
     CustomJira,
-    Expense,
+    connect_to_jira,
 )
 from sprints.dashboard.utils import (
     get_cells,
@@ -25,9 +27,12 @@ class SustainabilityAccount:
         - person-specific time spent on the account.
     """
 
-    def __init__(self, account: Account, expenses: Expense, cell_names: Dict[str, str]) -> None:
-        self.key = account.key
-        self.name = account.name
+    def __init__(self, account: Dict[str, Union[str, int]], cell_names: Dict[str, str], from_: str, to: str) -> None:
+        self.key = account['key']
+        self.name = account['name']
+        with connect_to_jira() as conn:
+            expenses = conn.expenses(int(account['id']), from_, to)
+
         self.overall: float = getattr(expenses, 'hours', 0)
         self.by_cell: Dict[str, float] = {}
         self.by_person: Dict[str, float] = {}
@@ -74,12 +79,14 @@ class SustainabilityDashboard:
 
     def generate_expenses(self, accounts: List[Account]) -> List[SustainabilityAccount]:
         """Generates aggregated worklogs for each account with `SustainabilityAccount`."""
-        result = []
-        for account in accounts:
-            # We don't want to calculate closed accounts here.
-            if account.status != 'OPEN':
-                continue
+        args = [
+            ({'id': account.id, 'key': account.key, 'name': account.name}, self.cell_names, self.from_, self.to)
+            for account in accounts if account.status == 'OPEN'
+        ]
 
-            expenses = self.jira_connection.expenses(account.id, self.from_, self.to)
-            result.append(SustainabilityAccount(account, expenses, self.cell_names))
-        return result
+        # Use multiprocessing for parallel API requests for accounts
+        pool = Pool(processes=settings.MULTIPROCESSING_POOL_SIZE)
+        results = [pool.apply_async(SustainabilityAccount, args=arg) for arg in args]
+        output = [p.get() for p in results]
+
+        return output

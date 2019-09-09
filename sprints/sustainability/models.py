@@ -32,7 +32,7 @@ class SustainabilityAccount:
         self.by_cell: Dict[str, float] = {}
         self.by_person: Dict[str, float] = {}
 
-        cell_hours = {}
+        cell_hours: Dict[str, float] = {}
         for report in expenses.reports:
             issue_search = re.search(settings.SPRINT_ISSUE_REGEX, report.name)
             if issue_search:

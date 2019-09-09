@@ -422,6 +422,11 @@ SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spil
 SPRINT_REGEX = env.str("SPRINT_REGEX", r"(\w+).*?(\d+).*\((.*)\)")
 # Number of days that a sprint lasts
 SPRINT_DURATION_DAYS = env.int("SPRINT_DURATION_DAYS", 14)
+# Regex for extracting issue data from the key of the issue.
+# The following data is gathered:
+# Group 1. cell's key
+# Group 2. issue number
+SPRINT_ISSUE_REGEX = env.str("SPRINT_ISSUE_REGEX", r"(\w+)-(\d+)")
 
 
 # GOOGLE CALENDAR
@@ -449,3 +454,8 @@ SPILLOVER_REMINDER_MESSAGE = fr"please fill the spillover reason in the " \
                              fr"[Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}] " \
                              fr"and the next time add the spillover reason as a Jira comment " \
                              fr"matching the following regexp: {{code:python}} {SPILLOVER_REASON_DIRECTIVE}{{code}}"
+
+# Specify names of the Tempo account categories.
+TEMPO_BILLABLE_ACCOUNT = env.str("TEMPO_BILLABLE_ACCOUNT", "BILLABLE")
+TEMPO_NON_BILLABLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_ACCOUNT", "NON-BILLABLE")
+TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT", "NON-BILLABLE-CELL")

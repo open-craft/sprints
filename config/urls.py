@@ -37,7 +37,9 @@ urlpatterns = [
     # User management
     path("users/", include("sprints.users.urls", namespace="users")),
     # Dashboard
-    path("dashboard/", include("sprints.dashboard.urls", namespace="dashboard"))
+    path("dashboard/", include("sprints.dashboard.urls", namespace="dashboard")),
+    # Sustainability Dashboard
+    path("sustainability/", include("sprints.sustainability.urls", namespace="sustainability")),
 ]
 
 # Provide an option to disable standard (not social auth) login/registration page.

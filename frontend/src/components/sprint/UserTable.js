@@ -1,6 +1,6 @@
 import React from 'react';
-import './Table.css';
-import {PATH_JIRA_ISSUE} from "../constants";
+import '../Table.css';
+import {PATH_JIRA_ISSUE} from "../../constants";
 
 const nameColumn = {width: '25%'};  // 1 cells -> 25% total
 const timeColumn = {width: '15%'};  // 5 cells -> 75% total

@@ -7,7 +7,6 @@ const initialState = {
 
 
 export default function sprints(state=initialState, action) {
-    let board;
 
     switch (action.type) {
 
@@ -24,7 +23,7 @@ export default function sprints(state=initialState, action) {
         case 'BOARD_LOADED':
             const {future_sprint, rows, issues} = action.data;
 
-            board = state.boards[action.board_id] || {};
+            const board = state.boards[action.board_id] || {};
             board.future_sprint = future_sprint;
             board.rows = rows;
             board.issues = issues;

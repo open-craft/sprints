@@ -1,5 +1,14 @@
 import {PARAM_BOARD_ID, PATH_CELLS, PATH_DASHBOARD} from "../constants";
 
+const prepareCellIds = (cells) => {
+    const result = {};
+    for (const cell of cells) {
+        result[cell.board_id] = cell.name;
+    }
+
+    return result;
+};
+
 export const loadCells = () => {
     return (dispatch, getState) => {
         dispatch({type: "CELLS_LOADING"});
@@ -25,8 +34,9 @@ export const loadCells = () => {
             })
             .then(result => {
                 if (result.status === 200) {
-                    dispatch({type: 'CELLS_LOADED', cells: result.data});
-                    return result.data;
+                    const cells = prepareCellIds(result.data);
+                    dispatch({type: 'CELLS_LOADED', cells: cells});
+                    return cells;
                 } else if (result.status >= 400 && result.status < 500) {
                     dispatch({type: "AUTHENTICATION_ERROR", data: result.data});
                     throw result.data;

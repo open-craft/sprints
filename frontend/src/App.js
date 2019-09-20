@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import './App.css';
-import Cells from "./components/Cells";
+import Cells from "./components/sprint/Cells";
 import {BrowserRouter, Redirect, Route, Switch} from "react-router-dom";
 import routes from './routes.js'
 import Login from "./components/Login";
@@ -12,8 +12,9 @@ import reducer from "./reducers";
 import Register from "./components/Register";
 import Logout from "./components/Logout";
 import VerifyEmail from "./components/VerifyEmail";
-import Board from "./components/Board";
-import UserBoard from "./components/UserBoard";
+import Board from "./components/sprint/Board";
+import UserBoard from "./components/sprint/UserBoard";
+import SustainabilityBoard from "./components/sustainability/SustainabilityBoard";
 
 let store = createStore(reducer, applyMiddleware(thunk));
 
@@ -77,6 +78,8 @@ class RootContainerComponent extends Component {
                         <Route component={Login}/>
                     </Switch>
                 </BrowserRouter>
+                <br/>
+                <PrivateRoute component={SustainabilityBoard}/>
             </div>
         );
     }

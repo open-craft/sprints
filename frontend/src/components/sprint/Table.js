@@ -1,7 +1,7 @@
 import React from 'react';
-import './Table.css';
+import '../Table.css';
 import {Link} from "react-router-dom";
-import {PATH_JIRA_ISSUE} from "../constants";
+import {PATH_JIRA_ISSUE} from "../../constants";
 
 const nameColumn = {width: '20%'};  // 1 cell
 const spilloverColumn = {width: '28%'};   // 1 cell

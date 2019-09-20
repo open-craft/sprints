@@ -24,4 +24,4 @@ export const PATH_JIRA_BASE = `${process.env.REACT_APP_JIRA_URL}`;
 export const PATH_JIRA_ISSUE = `${PATH_JIRA_BASE}/browse/`;
 
 // Sustainability
-export const MAX_NON_BILLABLE_TO_BILLABLE_RATIO = .25;
+export const MAX_NON_BILLABLE_TO_BILLABLE_RATIO = parseFloat(process.env.REACT_APP_MAX_NON_BILLABLE_TO_BILLABLE_RATIO);

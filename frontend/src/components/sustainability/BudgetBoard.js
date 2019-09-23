@@ -68,6 +68,11 @@ class BudgetBoard extends Component {
 
 
         if (range === 'board' && Object.keys(this.props.sprints.boards).length) {
+            const cell_name = this.props.sprints.cells[id];
+            Object.values(data).forEach(account => {
+                account.overall = account.by_cell[cell_name] || 0;
+            });
+
             this.props.sprints.boards[id].issues.forEach(issue => {
                 try {
                     if (issue.current_sprint) {
@@ -80,6 +85,10 @@ class BudgetBoard extends Component {
                 }
             });
         } else if (range === 'user_board' && Object.keys(this.props.sprints.boards).length) {
+            Object.values(data).forEach(account => {
+                account.overall = account.by_person[id] || 0;
+            });
+
             Object.values(this.props.sprints.boards).forEach(board => {
                 board.issues.forEach(issue => {
                     try {

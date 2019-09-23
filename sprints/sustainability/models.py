@@ -45,8 +45,8 @@ class SustainabilityAccount:
         from_: str,
         to: str,
         generate_budgets: bool = False,
-        start_date: str = '',
-        end_date: str = '',
+        start_date_str: str = '',
+        end_date_str: str = '',
     ) -> None:
         self.key = account['key']
         self.name = account['name']
@@ -116,14 +116,14 @@ class SustainabilityAccount:
                 self.budgets.append(current_budget)
 
             # Calculate available budget for the next sprint.
-            start_date = parse(start_date)
-            end_date = parse(end_date)
+            start_date = parse(start_date_str)
+            end_date = parse(end_date_str)
             partial_budgets: Dict[int, float] = {
                 start_date.month:
                     self.calculate_workday_budget(year, start_date.month, self.budgets[start_date.month - 1]),
                 end_date.month: self.calculate_workday_budget(year, end_date.month, self.budgets[end_date.month - 1]),
             }
-            self.next_sprint_budget = 0
+            self.next_sprint_budget = 0.
 
             for n in range(int((end_date - start_date).days)):
                 date = (start_date + timedelta(n))

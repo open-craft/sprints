@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 
 from django.forms.widgets import (
     NumberInput,
@@ -27,7 +28,7 @@ class MonthYearWidget(Widget):
         self.attrs = attrs or {}
         self.required = required
 
-    def render(self, name, value, attrs=None, renderer=None):
+    def render(self, name, value, attrs=None, renderer=None) -> str:
         try:
             year_val, month_val = value.year, value.month
         except AttributeError:
@@ -58,12 +59,12 @@ class MonthYearWidget(Widget):
 
         return mark_safe(u'\n'.join(output))
 
-    def id_for_label(cls, id_):
+    def id_for_label(cls, id_) -> str:
         return cls.month_field % id_
 
-    id_for_label = classmethod(id_for_label)
+    id_for_label = classmethod(id_for_label)  # type: ignore
 
-    def value_from_datadict(self, data, files, name):
+    def value_from_datadict(self, data, files, name) -> Optional[str]:
         y = data.get(self.year_field % name)
         m = data.get(self.month_field % name)
         if y == m == "0":

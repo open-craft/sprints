@@ -17,7 +17,8 @@ class SustainabilityBoard extends Component {
         };
     }
 
-    dateString = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    // Because everyone counts months from 0.
+    dateString = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
     loadAccounts = () => this.props.loadAccounts(this.dateString(this.state.startDate), this.dateString(this.state.endDate));
 

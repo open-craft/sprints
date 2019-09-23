@@ -9,6 +9,9 @@ class SustainabilityAccountSerializer(serializers.Serializer):
     overall = serializers.FloatField()
     by_cell = serializers.DictField()
     by_person = serializers.DictField()
+    budgets = serializers.ListField(required=False)
+    ytd_goal = serializers.FloatField(required=False)
+    next_sprint_budget = serializers.FloatField(required=False)
 
 
 # noinspection PyAbstractClass

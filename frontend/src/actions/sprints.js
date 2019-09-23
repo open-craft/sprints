@@ -2,9 +2,7 @@ import {PARAM_BOARD_ID, PATH_CELLS, PATH_DASHBOARD} from "../constants";
 
 const prepareCellIds = (cells) => {
     const result = {};
-    for (const cell of cells) {
-        result[cell.board_id] = cell.name;
-    }
+    cells.forEach(cell => result[cell.board_id] = cell.name);
 
     return result;
 };

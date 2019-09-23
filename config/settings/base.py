@@ -79,6 +79,8 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     "sprints.users.apps.UsersConfig",
+    "sprints.dashboard.apps.DashboardConfig",
+    "sprints.sustainability.apps.SustainabilityConfig",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -343,6 +345,7 @@ JIRA_REQUIRED_FIELDS = (
     "Sprint",
     "Story Points",
     "Reviewer 1",
+    "Account",
 )
 # Fields required for documenting spillovers.
 SPILLOVER_REQUIRED_FIELDS = (
@@ -461,4 +464,4 @@ TEMPO_NON_BILLABLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_ACCOUNT", "NON-BILLABLE
 TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT", "NON-BILLABLE-CELL")
 
 # Pool size for making parallel API requests
-MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 24)
+MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 6)

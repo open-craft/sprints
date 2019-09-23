@@ -1,36 +1,41 @@
-import {PARAM_FROM, PARAM_TO, PATH_SUSTAINABILITY_DASHBOARD} from "../constants";
+import {PARAM_FROM, PARAM_TO, PARAM_YEAR, PATH_SUSTAINABILITY_DASHBOARD} from "../constants";
 
 const aggregateAccounts = (data) => {
     let result = {};
 
-    for (const [account_type, accounts] of Object.entries(data)) {
+    Object.entries(data).forEach(([account_type, accounts]) => {
         result[account_type] = {
             'overall': 0,
             'by_cell': {},
             'by_person': {},
         };
 
-        for (const account of accounts) {
+        accounts.forEach(account => {
             // Calculate overall.
             result[account_type].overall = (result[account_type].overall || 0) + account.overall;
 
             // Calculate for each cell.
-            for (const [cell, hours] of Object.entries(account.by_cell)) {
+            Object.entries(account.by_cell).forEach(([cell, hours]) => {
                 result[account_type].by_cell[cell] = (result[account_type].by_cell[cell] || 0) + hours;
-            }
+            });
 
             // Calculate for each person.
-            for (const [person, hours] of Object.entries(account.by_person)) {
+            Object.entries(account.by_person).forEach(([person, hours]) => {
                 result[account_type].by_person[person] = (result[account_type].by_person[person] || 0) + hours;
-            }
-        }
-    }
+            });
+        });
+    });
 
     return result;
 };
 
 export const loadAccounts = (from, to) => {
-    let sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_FROM}${from}&${PARAM_TO}${to}`;
+    let sustainability_url;
+    if (to) {
+        sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_FROM}${from}&${PARAM_TO}${to}`;
+    } else {
+        sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_YEAR}${from}`;
+    }
 
     return (dispatch, getState) => {
         dispatch({type: "ACCOUNTS_LOADING"});
@@ -56,8 +61,16 @@ export const loadAccounts = (from, to) => {
             })
             .then(result => {
                 if (result.status === 200) {
-                    let accounts = aggregateAccounts(result.data);
-                    dispatch({type: 'ACCOUNTS_LOADED', accounts: accounts});
+                    // let accounts = to ? aggregateAccounts(result.data) : aggregateBudgets(data);
+                    let accounts;
+                    if (to) {
+                        accounts = aggregateAccounts(result.data);
+                        dispatch({type: 'ACCOUNTS_LOADED', accounts: accounts});
+                    } else {
+                        accounts = result.data;
+                        dispatch({type: 'BUDGETS_LOADED', budgets: accounts});
+                    }
+
                     return accounts;
                 } else if (result.status >= 400 && result.status < 500) {
                     dispatch({type: "AUTHENTICATION_ERROR", data: result.data});

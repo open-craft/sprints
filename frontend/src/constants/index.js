@@ -19,6 +19,7 @@ export const PATH_CREATE_NEXT_SPRINT = `${PATH_SPRINT_DASHBOARD}/create_next_spr
 export const PATH_SUSTAINABILITY_DASHBOARD = `${PATH_BASE}/sustainability/dashboard/`;
 export const PARAM_FROM = 'from=';
 export const PARAM_TO = 'to=';
+export const PARAM_YEAR = 'year=';
 
 export const PATH_JIRA_BASE = `${process.env.REACT_APP_JIRA_URL}`;
 export const PATH_JIRA_ISSUE = `${PATH_JIRA_BASE}/browse/`;

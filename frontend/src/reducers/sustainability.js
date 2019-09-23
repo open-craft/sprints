@@ -20,21 +20,28 @@
 })();
 
 const initialState = {
-    accountsLoading: true,
+    accountsLoading: false,
+    budgetsLoading: false,
     accounts: JSON.parse(localStorage.getItem("accounts")) || {},
+    budgets: JSON.parse(localStorage.getItem("budgets")) || {},
     startDate: new Date(JSON.parse(sessionStorage.getItem("startDate"))),
     endDate: new Date(JSON.parse(sessionStorage.getItem("endDate"))),
+    year: JSON.parse(sessionStorage.getItem("year")) || new Date().getFullYear(),
 };
 
 
 export default function sustainability(state = initialState, action) {
     switch (action.type) {
         case 'ACCOUNTS_LOADING':
-            return {...state, accountsLoading: true};
+            return {...state, accountsLoading: true, budgetsLoading: true};
 
         case 'ACCOUNTS_LOADED':
             localStorage.setItem("accounts", JSON.stringify(action.accounts));
             return {...state, accountsLoading: false, accounts: action.accounts};
+
+        case 'BUDGETS_LOADED':
+            localStorage.setItem("budgets", JSON.stringify(action.budgets));
+            return {...state, budgetsLoading: false, budgets: action.budgets};
 
         default:
             return state;

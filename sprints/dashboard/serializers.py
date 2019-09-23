@@ -19,6 +19,7 @@ class DashboardIssueSerializer(serializers.Serializer):
     """Serializer for dashboard issue."""
     key = serializers.CharField()
     summary = serializers.CharField()
+    account = serializers.CharField()
     assignee = serializers.SerializerMethodField()
     reviewer_1 = serializers.SerializerMethodField()
     current_sprint = serializers.BooleanField()

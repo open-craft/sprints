@@ -86,15 +86,13 @@ class BudgetBoard extends Component {
                         if (issue.current_sprint) {
                             if (issue.assignee === id) {
                                 data[issue.account].left_this_sprint += issue.assignee_time / 3600;
-                            }
-                            else if (issue.reviewer_1 === id) {
+                            } else if (issue.reviewer_1 === id) {
                                 data[issue.account].left_this_sprint += issue.review_time / 3600;
                             }
                         } else {
                             if (issue.assignee === id) {
                                 data[issue.account].planned_next_sprint += issue.assignee_time / 3600;
-                            }
-                            else if (issue.reviewer_1 === id) {
+                            } else if (issue.reviewer_1 === id) {
                                 data[issue.account].planned_next_sprint += issue.review_time / 3600;
                             }
                         }
@@ -125,12 +123,6 @@ class BudgetBoard extends Component {
         return Object.values(data);
     }
 
-    handleYearChange = year => {
-        sessionStorage.setItem("year", JSON.stringify(year));
-        // Invoke `loadAccounts` as a callback, because `setState` is asynchronous.
-        this.setState({year: year}, this.loadAccounts);
-    };
-
     render() {
         const view = JSON.parse(sessionStorage.getItem("view")) || {'name': 'cells'};
         const {name, id} = view;
@@ -140,8 +132,6 @@ class BudgetBoard extends Component {
         return (
             <div className='sustainability'>
                 <h2>Budget</h2>
-                Year: &nbsp;
-                <input type="text" value={this.state.year} onChange={this.handleYearChange}/>
                 {
                     Object.keys(data).length
                         ? <div>
@@ -156,7 +146,8 @@ class BudgetBoard extends Component {
                             {
                                 !Object.keys(this.props.sprints.boards).length
                                     ? <div className="loading">
-                                        <p>You need to load cells' boards before seeing the "Left this sprint" and "Next sprint" values.</p>
+                                        <p>You need to load cells' boards before seeing the "Left this sprint" and "Next sprint"
+                                            values.</p>
                                     </div>
                                     : <div/>
                             }

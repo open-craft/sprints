@@ -249,10 +249,10 @@ def extract_sprint_start_date_from_sprint_name(sprint_name: str) -> str:
 
 def daterange(start: str, end: str) -> Generator[str, None, None]:
     """Generates days from `start_date` to `end_date` (both inclusive)."""
-    start_date = datetime.strptime(start, '%Y-%m-%d')
-    end_date = datetime.strptime(end, '%Y-%m-%d')
+    start_date = datetime.strptime(start, settings.JIRA_API_DATE_FORMAT)
+    end_date = datetime.strptime(end, settings.JIRA_API_DATE_FORMAT)
     for n in range(int((end_date - start_date).days)):
-        yield (start_date + timedelta(n)).strftime('%Y-%m-%d')
+        yield (start_date + timedelta(n)).strftime(settings.JIRA_API_DATE_FORMAT)
 
 
 def get_issue_fields(conn: CustomJira, required_fields: Iterable[str]) -> Dict[str, str]:
@@ -280,7 +280,7 @@ def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, b
     end_date = parse(last_sprint.endDate)
 
     future_next_sprint_number = get_sprint_number(last_sprint) + 1
-    future_name_date = (end_date + timedelta(days=1)).strftime('%Y-%m-%d')
+    future_name_date = (end_date + timedelta(days=1)).strftime(settings.JIRA_API_DATE_FORMAT)
     future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
     conn.create_sprint(
         name=f'{cell_key}.{future_next_sprint_number} ({future_name_date})',

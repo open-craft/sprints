@@ -46,6 +46,15 @@ class Expense(Resource):
             self._parse_raw(raw)
 
 
+class Report(Resource):
+    """Class for representing Tempo Report resource."""
+
+    def __init__(self, options, session, raw=None):
+        Resource.__init__(self, 'report/{0}', options, session)
+        if raw:
+            self._parse_raw(raw)
+
+
 class CustomJira(JIRA):
     """Custom Jira class for using greenhopper and Tempo APIs."""
     GREENHOPPER_BASE_URL = '{server}/rest/greenhopper/1.0/{path}'
@@ -85,6 +94,18 @@ class CustomJira(JIRA):
         )
         expenses = Expense(self._options, self._session, r_json)
         return expenses
+
+    def report(self, from_: str, to: str) -> Report:
+        """
+        Retrieves team worklogs `from_` the date `to` another date (both inclusive).
+        The date format for `from_` and `to` is `%Y-%M-%d`.
+        """
+        r_json = self._get_json(
+            f'report/team/{settings.TEMPO_TEAM_ID}/utilization?dateFrom={from_}&dateTo={to}',
+            base=self.TEMPO_TIMESHEETS_URL,
+        )
+        report = Report(self._options, self._session, r_json)
+        return report
 
 
 @contextmanager

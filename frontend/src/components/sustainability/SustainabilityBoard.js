@@ -34,10 +34,15 @@ class SustainabilityBoard extends Component {
         const data = {};
 
         if (range === 'board') {
-            const cell_name = this.props.sprints.cells[id];
-            data.billable = accounts.billable_accounts.by_cell[cell_name];
-            data.non_billable = accounts.non_billable_accounts.by_cell[cell_name];
-            data.non_billable_responsible = accounts.non_billable_responsible_accounts.by_cell[cell_name];
+            try {
+                const cell_members = Object.values(this.props.sprints.boards[id].rows).map(x => x.name);
+                data.billable = cell_members.reduce((total, member) => total + (accounts.billable_accounts.by_person[member] || 0), 0);
+                data.non_billable = cell_members.reduce((total, member) => total + (accounts.non_billable_accounts.by_person[member] || 0), 0);
+                data.non_billable_responsible = cell_members.reduce((total, member) => total + (accounts.non_billable_responsible_accounts.by_person[member] || 0), 0);
+            }
+            catch (e) {
+                // Cell's board not loaded.
+            }
         } else if (range === 'user_board') {
             data.billable = accounts.billable_accounts.by_person[id];
             data.non_billable = accounts.non_billable_accounts.by_person[id];
@@ -98,7 +103,8 @@ class SustainabilityBoard extends Component {
                 />
 
                 {
-                    Object.keys(data).length
+                    // Is data present + logical implication for checking whether the cell is loaded.
+                    Object.keys(data).length && (name !== 'board' || this.props.sprints.boards[id])
                         ? <div>
                             {
                                 accountsLoading

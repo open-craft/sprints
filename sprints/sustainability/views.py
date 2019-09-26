@@ -1,3 +1,7 @@
+from datetime import datetime
+
+from dateutil.parser import parse
+from django.conf import settings
 from rest_framework import (
     permissions,
     viewsets,
@@ -34,7 +38,10 @@ class SustainabilityDashboardViewSet(viewsets.ViewSet):
 
         with connect_to_jira() as conn:
             if year:
-                dashboard = SustainabilityDashboard(conn, year, None)
+                year_date = parse(year)
+                from_ = year_date.replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
+                to = min(datetime.today(), year_date.replace(month=12, day=31)).strftime(settings.JIRA_API_DATE_FORMAT)
+                dashboard = SustainabilityDashboard(conn, from_, to, budgets=True)
             else:
                 dashboard = SustainabilityDashboard(conn, from_, to)
         serializer = SustainabilityDashboardSerializer(dashboard)

@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             name='Budget',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text="Account's key.", max_length=255)),
+                ('name', models.CharField(help_text="Account's name.", max_length=255)),
                 ('date', models.DateField(help_text="Year and month of the budget. If not specified, the last month's budget is applied.")),
                 ('hours', models.IntegerField(help_text='Number of available hours for this month.')),
             ],

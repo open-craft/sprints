@@ -4,6 +4,7 @@ import {auth, sustainability} from "../../actions";
 
 import "react-datepicker/dist/react-datepicker.css";
 import BudgetTable from "./BudgetTable";
+import {OTHER_CELL_NAME} from "../../constants";
 
 class BudgetBoard extends Component {
     constructor(props) {
@@ -20,10 +21,37 @@ class BudgetBoard extends Component {
         this.loadAccounts();
     }
 
+    calculate_sprint_time(board, data, overall, user_id) {
+        let prefix = overall ? 'overall_' : '';
+        board.issues.forEach(issue => {
+            try {
+                if (issue.current_sprint) {
+                    if (issue.assignee !== OTHER_CELL_NAME && (!user_id || issue.assignee === user_id)) {
+                        data[issue.account][prefix + 'left_this_sprint'] += issue.assignee_time / 3600;
+                    }
+                    if (issue.reviewer_1 !== OTHER_CELL_NAME && (!user_id || issue.reviewer_1 === user_id)) {
+                        data[issue.account][prefix + 'left_this_sprint'] += issue.review_time / 3600;
+                    }
+                } else {
+                    if (issue.assignee !== OTHER_CELL_NAME && (!user_id || issue.assignee === user_id)) {
+                        data[issue.account][prefix + 'planned_next_sprint'] += issue.assignee_time / 3600;
+                    }
+                    if (issue.reviewer_1 !== OTHER_CELL_NAME && (!user_id || issue.reviewer_1 === user_id)) {
+                        data[issue.account][prefix + 'planned_next_sprint'] += issue.review_time / 3600;
+                    }
+                }
+            } catch (e) {
+                // Ignore closed accounts.
+            }
+        })
+    }
+
     prepareData(accounts, range, id) {
         if (!accounts || !Object.keys(accounts).length) {
             return [];
         }
+        // Operate on copies, so state changes will be handled correctly.
+        accounts = JSON.parse(JSON.stringify(accounts));
 
         const data = {};
         let overhead = 0;  // Calculate the overhead of the billable budgets.
@@ -44,72 +72,26 @@ class BudgetBoard extends Component {
                 entry.left_this_sprint = 0;
                 entry.planned_next_sprint = 0;
                 entry.remaining_next_sprint = 0;
-                data[account.key] = entry;
+                data[account.name] = entry;
             });
         });
 
-        Object.values(this.props.sprints.boards).forEach(board => {
-            board.issues.forEach(issue => {
-                try {
-                    if (issue.current_sprint) {
-                        data[issue.account].overall_left_this_sprint += (issue.assignee_time + issue.review_time) / 3600;
-                    } else {
-                        data[issue.account].overall_planned_next_sprint += (issue.assignee_time + issue.review_time) / 3600;
-                    }
-                } catch (e) {
-                    // Ignore closed accounts.
-                }
-            })
-        });
+        Object.values(this.props.sprints.boards).forEach(board => this.calculate_sprint_time(board, data, true));
 
         Object.values(data).forEach(account => {
-            account.remaining_next_sprint = account.ytd_goal - account.overall - account.overall_left_this_sprint - account.overall_planned_next_sprint;
+            account.remaining_next_sprint = account.next_sprint_goal - account.overall - account.overall_left_this_sprint - account.overall_planned_next_sprint;
         });
 
-
         if (range === 'board' && Object.keys(this.props.sprints.boards).length) {
-            const cell_name = this.props.sprints.cells[id];
+            const cell_members = Object.values(this.props.sprints.boards[id].rows).map(x => x.name);
             Object.values(data).forEach(account => {
-                account.overall = account.by_cell[cell_name] || 0;
+                account.overall = cell_members.reduce((total, member) => total + (account.by_person[member] || 0), 0);
             });
 
-            this.props.sprints.boards[id].issues.forEach(issue => {
-                try {
-                    if (issue.current_sprint) {
-                        data[issue.account].left_this_sprint += (issue.assignee_time + issue.review_time) / 3600;
-                    } else {
-                        data[issue.account].planned_next_sprint += (issue.assignee_time + issue.review_time) / 3600;
-                    }
-                } catch (e) {
-                    // Ignore closed accounts.
-                }
-            });
+            this.calculate_sprint_time(this.props.sprints.boards[id], data, false);
         } else if (range === 'user_board' && Object.keys(this.props.sprints.boards).length) {
-            Object.values(data).forEach(account => {
-                account.overall = account.by_person[id] || 0;
-            });
-
-            Object.values(this.props.sprints.boards).forEach(board => {
-                board.issues.forEach(issue => {
-                    try {
-                        if (issue.current_sprint) {
-                            if (issue.assignee === id) {
-                                data[issue.account].left_this_sprint += issue.assignee_time / 3600;
-                            } else if (issue.reviewer_1 === id) {
-                                data[issue.account].left_this_sprint += issue.review_time / 3600;
-                            }
-                        } else {
-                            if (issue.assignee === id) {
-                                data[issue.account].planned_next_sprint += issue.assignee_time / 3600;
-                            } else if (issue.reviewer_1 === id) {
-                                data[issue.account].planned_next_sprint += issue.review_time / 3600;
-                            }
-                        }
-                    } catch (e) {
-                        // Ignore closed accounts.
-                    }
-                })
-            });
+            Object.values(data).forEach(account => account.overall = account.by_person[id] || 0);
+            Object.values(this.props.sprints.boards).forEach(board => this.calculate_sprint_time(board, data, false, id));
         } else {
             Object.values(data).forEach(account => {
                 account.left_this_sprint = account.overall_left_this_sprint;
@@ -119,7 +101,6 @@ class BudgetBoard extends Component {
 
         data['Overhead'] = {
             name: 'Overhead',
-            key: 'Overhead',
             overall: overhead,
             ytd_goal: 0,
             overall_left_this_sprint: 0,
@@ -142,7 +123,8 @@ class BudgetBoard extends Component {
             <div className='sustainability'>
                 <h2>Budget</h2>
                 {
-                    Object.keys(data).length
+                    // Is data present + logical implication for checking whether the cell is loaded.
+                    Object.keys(data).length && (name !== 'board' || this.props.sprints.boards[id])
                         ? <div>
                             {
                                 budgetsLoading
@@ -160,7 +142,7 @@ class BudgetBoard extends Component {
                                     </div>
                                     : <div/>
                             }
-                            <BudgetTable accounts={data}/>
+                            <BudgetTable accounts={data} view={name}/>
                         </div>
                         : <div>
                             <div className="spinner-border"/>

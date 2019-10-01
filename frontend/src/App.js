@@ -78,7 +78,6 @@ class RootContainerComponent extends Component {
                         <Route component={Login}/>
                     </Switch>
                 </BrowserRouter>
-                <br/>
                 <PrivateRoute component={SustainabilityBoard}/>
             </div>
         );

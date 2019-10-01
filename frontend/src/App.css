@@ -64,3 +64,7 @@ button[disabled]{
   background-color: #cccccc;
   color: #666666;
 }
+
+.sustainability {
+  margin-top: 40px;
+}

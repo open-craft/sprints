@@ -15,9 +15,12 @@ class SustainabilityDashboardViewSet(viewsets.ViewSet):
     """
     Generates sustainability stats (billable, non-billable, non-billable-cell-responsible hours) within date range.
     GET /sustainability/dashboard?from=<from_date>&to=<to_date>
+    OR
+    GET /sustainability/dashboard?year=<year>
     Query params:
         - from: start date in format `%Y-%M-%d`.
         - to: end date in format `%Y-%M-%d`.
+        - year: year in format `%Y`.
     """
 
     permission_classes = (permissions.IsAuthenticated,)
@@ -25,10 +28,14 @@ class SustainabilityDashboardViewSet(viewsets.ViewSet):
     def list(self, request):
         from_ = request.query_params.get('from')
         to = request.query_params.get('to')
-        if not (from_ and to):
-            raise ValidationError("`from` and `to` query params are required.")
+        year = request.query_params.get('year')
+        if not (from_ and to) and not year:
+            raise ValidationError("(`from` and `to`) or `year` query params are required.")
 
         with connect_to_jira() as conn:
-            dashboard = SustainabilityDashboard(conn, from_, to)
+            if year:
+                dashboard = SustainabilityDashboard(conn, year, None)
+            else:
+                dashboard = SustainabilityDashboard(conn, from_, to)
         serializer = SustainabilityDashboardSerializer(dashboard)
         return Response(serializer.data)

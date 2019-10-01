@@ -15,6 +15,7 @@ import VerifyEmail from "./components/VerifyEmail";
 import Board from "./components/sprint/Board";
 import UserBoard from "./components/sprint/UserBoard";
 import SustainabilityBoard from "./components/sustainability/SustainabilityBoard";
+import BudgetBoard from "./components/sustainability/BudgetBoard";
 
 let store = createStore(reducer, applyMiddleware(thunk));
 
@@ -79,6 +80,7 @@ class RootContainerComponent extends Component {
                     </Switch>
                 </BrowserRouter>
                 <PrivateRoute component={SustainabilityBoard}/>
+                <PrivateRoute component={BudgetBoard}/>
             </div>
         );
     }

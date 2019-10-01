@@ -2,7 +2,7 @@ import React from 'react';
 import '../Table.css';
 import {MAX_NON_BILLABLE_TO_BILLABLE_RATIO} from "../../constants";
 
-const statusClass = (remaining) => {{return Math.round(remaining) >= 0 ? 'on-track' : 'overtime'}};
+const statusClass = (remaining) => Math.round(remaining) >= 0 ? 'on-track' : 'overtime';
 
 const SustainabilityTable = ({accounts}) =>
     <div>

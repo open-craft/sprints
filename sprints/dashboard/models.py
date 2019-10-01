@@ -1,10 +1,6 @@
 """These are standard Python classes, not Django models. We don't store dashboard in the DB."""
 import functools
 import re
-from datetime import (
-    datetime,
-    timedelta,
-)
 from typing import (
     Dict,
     List,
@@ -35,11 +31,10 @@ from sprints.dashboard.utils import (
     extract_sprint_id_from_str,
     get_all_sprints,
     get_cell_members,
-    get_next_cell_sprint,
-    prepare_jql_query,
-    get_sprint_start_date,
-    get_sprint_end_date,
     get_issue_fields,
+    get_sprint_end_date,
+    get_sprint_start_date,
+    prepare_jql_query,
 )
 
 
@@ -70,6 +65,7 @@ class DashboardIssue:
         self.time_spent = getattr(issue.fields, issue_fields['Time Spent'], 0) or 0
         self.time_estimate = getattr(issue.fields, issue_fields['Remaining Estimate'], 0) or 0
         self.is_epic = getattr(issue.fields, issue_fields['Issue Type']).name == 'Epic'
+        self.account = getattr(issue.fields, issue_fields['Account'])
 
         try:
             sprint = getattr(issue.fields, issue_fields['Sprint'])

@@ -1,20 +1,25 @@
 import React, {Component} from 'react';
 import {Link} from "react-router-dom";
 import {connect} from "react-redux";
-import {auth, sprints} from "../actions";
+import {auth, sprints} from "../../actions";
 
 
-const CellsList = ({list}) =>
-    <ul>
-        {list.map(item =>
-            <li key={item.name}>
-                <Link to={`board/${item.board_id}`}>{item.name}</Link>
-            </li>
-        )}
+const CellsList = ({list}) => {
+    const items = [];
+    Object.entries(list).forEach(([id, name]) => items.push(
+        <li key={name}>
+            <Link to={`board/${id}`}>{name}</Link>
+        </li>
+    ));
+
+    return <ul style={{listStyle: 'none', paddingLeft: 0}}>
+        {items}
     </ul>;
+};
 
 class Cells extends Component {
     componentDidMount() {
+        sessionStorage.setItem('view', JSON.stringify({'name': 'cells'}));
         this.props.loadCells();
     }
 
@@ -23,7 +28,7 @@ class Cells extends Component {
         return (
             <div className='cells'>
                 {
-                    cells && cells.length
+                    cells && !Array.isArray(cells) && Object.keys(cells).length
                         ? <CellsList list={cells}/>
                         : <div>
                             <div className="spinner-border"/>

@@ -69,3 +69,15 @@ tr:hover td {
   color: #737a7a;
   font-size: smaller;
 }
+
+.sustainability-table td {
+  width: 25%;
+}
+
+.sustainability-table .overtime {
+  background: #FF0000;
+}
+
+.sustainability-table .on-track {
+  background: #00FF00;
+}

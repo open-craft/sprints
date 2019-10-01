@@ -85,8 +85,8 @@ class SustainabilityDashboard:
         ]
 
         # Use multiprocessing for parallel API requests for accounts
-        pool = Pool(processes=settings.MULTIPROCESSING_POOL_SIZE)
-        results = [pool.apply_async(SustainabilityAccount, args=arg) for arg in args]
-        output = [p.get() for p in results]
+        with Pool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
+            results = [pool.apply_async(SustainabilityAccount, args=arg) for arg in args]
+            output = [p.get() for p in results]
 
         return output

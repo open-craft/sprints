@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {auth, sprints} from "../actions";
+import {auth, sprints} from "../../actions";
 import UserTable from "./UserTable";
 
 class UserBoard extends Component {
@@ -14,6 +14,7 @@ class UserBoard extends Component {
     }
 
     componentDidMount() {
+        sessionStorage.setItem('view', JSON.stringify({'name': 'user_board', id: this.state.username}));
         this.props.loadBoard(this.state.board_id);
     }
 

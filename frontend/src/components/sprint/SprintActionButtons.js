@@ -1,6 +1,6 @@
 import {connect} from "react-redux";
 import React, {Component} from 'react';
-import {PARAM_BOARD_ID, PATH_COMPLETE_SPRINT, PATH_CREATE_NEXT_SPRINT} from "../constants";
+import {PARAM_BOARD_ID, PATH_COMPLETE_SPRINT, PATH_CREATE_NEXT_SPRINT} from "../../constants";
 
 class SprintActionButton extends Component {
 

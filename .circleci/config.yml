@@ -3,7 +3,7 @@ orbs:
   aws-s3: circleci/aws-s3@1.0.11
 
 jobs:
-  test:
+  test_backend:
     docker:
       - image: circleci/python:3.7
         environment:
@@ -40,6 +40,24 @@ jobs:
             coverage run -m pytest
             coverage report
 
+  test_frontend:
+    docker:
+      - image: circleci/node:12
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "frontend/package.json" }}
+      - run:
+          name: Install dependencies
+          command: "cd frontend && npm install"
+      - save_cache:
+          key: dependency-cache-{{ checksum "frontend/package.json" }}
+          paths:
+            - ./frontend/node_modules
+      - run:
+          name: Run tests
+          command: "cd frontend && npm run-script test-ci"
+
   build_backend:
     docker:
       - image: circleci/python:3.7
@@ -63,7 +81,7 @@ jobs:
 
   build_frontend:
     docker:
-      - image: circleci/node:11.15
+      - image: circleci/node:12
     steps:
       - checkout
       - run:
@@ -117,17 +135,20 @@ workflows:
   version: 2
   main:
     jobs:
-      - test
+      - test_backend
+      - test_frontend
 
       - build_backend:
           requires:
-            - test
+            - test_backend
+            - test_frontend
           filters:
             branches:
               only: master
       - build_frontend:
           requires:
-            - test
+            - test_backend
+            - test_frontend
           filters:
             branches:
               only: master

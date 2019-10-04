@@ -1,19 +1,9 @@
 import {PATH_GOOGLE, PATH_LOGIN, PATH_LOGOUT, PATH_REGISTER, PATH_USER, PATH_VERIFY_EMAIL} from "../constants";
+import {callApi} from "../middleware/api";
 
 export const loadUser = () => {
-    return (dispatch, getState) => {
-        dispatch({type: "USER_LOADING"});
-
-        const token = getState().auth.token;
-
-        let headers = {
-            "Content-Type": "application/json",
-        };
-
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
-        return fetch(PATH_USER, {headers,})
+    return (dispatch) => {
+        return callApi(PATH_USER)
             .then(res => {
                 if (res.status < 500) {
                     return res.json().then(data => {
@@ -37,11 +27,10 @@ export const loadUser = () => {
 };
 
 export const login = (email, password) => {
-    return (dispatch, getState) => {
-        let headers = {"Content-Type": "application/json"};
+    return (dispatch) => {
         let body = JSON.stringify({email, password});
 
-        return fetch(PATH_LOGIN, {headers, body, method: "POST"})
+        return callApi(PATH_LOGIN, body)
             .then(res => {
                 if (res.status < 500) {
                     return res.json().then(data => {
@@ -68,11 +57,10 @@ export const login = (email, password) => {
 };
 
 export const social_login = (access_token) => {
-    return (dispatch, getState) => {
-        let headers = {"Content-Type": "application/json"};
+    return (dispatch) => {
         let body = JSON.stringify({access_token});
 
-        return fetch(PATH_GOOGLE, {headers, body, method: "POST"})
+        return callApi(PATH_GOOGLE, body)
             .then(res => {
                 if (res.status < 500) {
                     return res.json().then(data => {
@@ -99,11 +87,10 @@ export const social_login = (access_token) => {
 };
 
 export const register = (email, password1, password2) => {
-    return (dispatch, getState) => {
-        let headers = {"Content-Type": "application/json"};
+    return (dispatch) => {
         let body = JSON.stringify({email, password1, password2});
 
-        return fetch(PATH_REGISTER, {headers, body, method: "POST"})
+        return callApi(PATH_REGISTER, body)
             .then(res => {
                 if (res.status < 500) {
                     return res.json().then(data => {
@@ -130,10 +117,8 @@ export const register = (email, password1, password2) => {
 };
 
 export const logout = () => {
-    return (dispatch, getState) => {
-        let headers = {"Content-Type": "application/json"};
-
-        return fetch(PATH_LOGOUT, {headers, body: "", method: "POST"})
+    return (dispatch) => {
+        return callApi(PATH_LOGOUT, "", "POST")
             .then(res => {
                 if (res.status === 200) {
                     return {status: res.status, data: {}};
@@ -159,11 +144,10 @@ export const logout = () => {
 };
 
 export const verify_email = (key) => {
-    return (dispatch, getState) => {
-        let headers = {"Content-Type": "application/json"};
+    return (dispatch) => {
         let body = JSON.stringify({key});
 
-        return fetch(PATH_VERIFY_EMAIL, {headers, body, method: "POST"})
+        return callApi(PATH_VERIFY_EMAIL, body)
             .then(res => {
                 if (res.status < 500) {
                     return res.json().then(data => {

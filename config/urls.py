@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from sprints.users.api import GoogleLogin
 
@@ -59,6 +60,7 @@ if not getattr(settings, "ACCOUNT_ALLOW_LOGIN", True):
 
 urlpatterns += [
     path("accounts/", include("allauth.urls")),
+    url(r'^rest-auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     url(r'^rest-auth/', include('rest_auth.urls')),
     url(r'^rest-auth/registration/', include('rest_auth.registration.urls')),
     url(r'^rest-auth/google/$', GoogleLogin.as_view(), name='google_login'),

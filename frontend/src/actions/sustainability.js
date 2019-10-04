@@ -1,4 +1,5 @@
 import {PARAM_FROM, PARAM_TO, PARAM_YEAR, PATH_SUSTAINABILITY_DASHBOARD} from "../constants";
+import {callApi} from "../middleware/api";
 
 const aggregateAccounts = (data) => {
     let result = {};
@@ -31,18 +32,10 @@ export const loadAccounts = (from, to) => {
         sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_YEAR}${from}`;
     }
 
-    return (dispatch, getState) => {
+    return (dispatch) => {
         dispatch({type: "ACCOUNTS_LOADING"});
 
-        let token = getState().auth.token;
-        let headers = {
-            "Content-Type": "application/json",
-        };
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
-
-        return fetch(sustainability_url, {headers,})
+        return callApi(sustainability_url)
             .then(response => {
                 if (response.status < 500) {
                     return response.json().then(data => {

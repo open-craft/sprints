@@ -418,14 +418,22 @@ def prepare_clean_sprint_rows(
     sprints: Dict[int, Sprint],
 ) -> None:
     """Adds the Google spreadsheet row in the specified format for users who achieved clean sprint."""
-    assignee_index = settings.SPILLOVER_REQUIRED_FIELDS.index("Assignee") + 1  # +1 for the issue's key
+    # +1 for the issue's key
+    status_index = settings.SPILLOVER_REQUIRED_FIELDS.index("Status") + 1
+    sprint_index = settings.SPILLOVER_REQUIRED_FIELDS.index("Sprint") + 1
+    assignee_index = settings.SPILLOVER_REQUIRED_FIELDS.index("Assignee") + 1
+
     members_with_spillovers = {row[assignee_index] for row in rows}
     members_with_clean_sprint = members - members_with_spillovers - settings.SPILLOVER_CLEAN_SPRINT_IGNORED_USERS
-    current_sprint = sprints[extract_sprint_id_from_str(getattr(meetings.fields, issue_fields['Sprint'])[-1])]
+
+    sprint = getattr(meetings.fields, issue_fields['Sprint'])[-1]
+    current_sprint = sprints[extract_sprint_id_from_str(sprint)]
 
     for member in members_with_clean_sprint:
         row = [''] * (len(settings.SPILLOVER_REQUIRED_FIELDS) + 1)
         row[0] = "Clean sprint"
+        row[status_index] = "Done"
+        row[sprint_index] = extract_sprint_name_from_str(sprint)
         row[assignee_index] = member
         row[-1] = get_spillover_reason(meetings, issue_fields, current_sprint, member)
 

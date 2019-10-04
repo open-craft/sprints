@@ -26,12 +26,15 @@ from sprints.dashboard.utils import (
     create_next_sprint,
     filter_sprints_by_cell,
     get_all_sprints,
+    get_cell_members,
     get_cells,
     get_commitment_range,
     get_issue_fields,
+    get_meetings_issue,
     get_next_sprint,
     get_spillover_issues,
     get_sprints,
+    prepare_clean_sprint_rows,
     prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
@@ -39,15 +42,18 @@ from sprints.dashboard.utils import (
 
 
 @celery_app.task(ignore_result=True)
-def upload_spillovers_task(cell_name: str) -> None:
+def upload_spillovers_task(board_id: int, cell_name: str) -> None:
     """A task for documenting spillovers in the Google Spreadsheet."""
     with connect_to_jira() as conn:
         issue_fields = get_issue_fields(conn, settings.SPILLOVER_REQUIRED_FIELDS)
         issues = get_spillover_issues(conn, issue_fields, cell_name)
         active_sprints = get_all_sprints(conn)['active']
+        meetings = get_meetings_issue(conn, cell_name, issue_fields)
+        members = set(get_cell_members(conn.quickfilters(board_id)))
 
     active_sprints_dict = {int(sprint.id): sprint for sprint in active_sprints}
     rows = prepare_spillover_rows(issues, issue_fields, active_sprints_dict)
+    prepare_clean_sprint_rows(rows, members, meetings, issue_fields, active_sprints_dict)
     upload_spillovers(rows)
 
 
@@ -66,12 +72,17 @@ def upload_commitments_task(board_id: int, cell_name: str) -> None:
 
 
 @celery_app.task(ignore_result=True)
-def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str) -> None:
+def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str = '', assignee_name: str = '') -> None:
     """A task for posting the spillover reason reminder on the issue."""
+    message = settings.SPILLOVER_REMINDER_MESSAGE
     with connect_to_jira() as conn:
+        if not assignee_key:  # We need to get the user's key from the user's name. This is a case for Meetings tickets.
+            assignee_key = conn.search_users(assignee_name)[0].key
+            message = settings.SPILLOVER_CLEAN_HINTS_MESSAGE
+
         conn.add_comment(
             issue_key,
-            f"[~{assignee_key}], {settings.SPILLOVER_REMINDER_MESSAGE}"
+            f"[~{assignee_key}], {message}"
         )
 
 
@@ -98,7 +109,10 @@ def complete_sprint_task(board_id: int) -> None:
     with connect_to_jira() as conn:
         cells = get_cells(conn)
         cell = next(c for c in cells if c.board_id == board_id)
-        spreadsheet_tasks = [upload_spillovers_task.s(cell.name), upload_commitments_task.s(cell.board_id, cell.name)]
+        spreadsheet_tasks = [
+            upload_spillovers_task.s(cell.board_id, cell.name),
+            upload_commitments_task.s(cell.board_id, cell.name),
+        ]
 
         # Run the spreadsheet tasks asynchronously and wait for the results before proceeding with ending the sprint.
         with allow_join_result():

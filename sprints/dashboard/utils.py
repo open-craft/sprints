@@ -9,9 +9,10 @@ from typing import (
     Generator,
     Iterable,
     List,
-    Union,
-    Tuple,
     Optional,
+    Set,
+    Tuple,
+    Union,
 )
 
 from dateutil.parser import parse
@@ -74,12 +75,16 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
     return members
 
 
-def get_all_sprints(conn: CustomJira) -> Dict[str, List[Sprint]]:
+def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[str, List[Sprint]]:
     """We need to retrieve all sprints to handle cross-cell tickets."""
     cells = get_cells(conn)
     sprints = {}
+    cell_key: Optional[str] = None
     for cell in cells:
         sprints[cell.board_id] = get_sprints(conn, cell.board_id)
+        if cell.board_id == board_id:
+            cell_key = cell.key
+
     result: Dict[str, List[Sprint]] = {
         'active': [],
         'future': [],
@@ -91,6 +96,8 @@ def get_all_sprints(conn: CustomJira) -> Dict[str, List[Sprint]]:
             result['all'].append(sprint)
             if sprint.state == 'active':
                 result['active'].append(sprint)
+            if cell_key and sprint.name.startswith(cell_key):
+                result.setdefault('cell', []).append(sprint)
 
     result['future'] = get_next_sprints(sprints, result['active'][0])
     return result
@@ -169,6 +176,7 @@ def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=Fa
 
 
 def get_sprint_start_date(sprint: Sprint) -> str:
+    """Returns start date of the sprint."""
     if getattr(sprint, 'startDate', None):
         return sprint.startDate.split('T')[0]
 
@@ -176,11 +184,14 @@ def get_sprint_start_date(sprint: Sprint) -> str:
 
 
 def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
+    """Returns end date of the sprint -1 day, because that's when the new sprint starts."""
     if getattr(sprint, 'endDate', None):
-        return sprint.endDate.split('T')[0]
+        date = sprint.endDate.split('T')[0]
+    else:
+        future_sprint = get_next_sprint(sprints, sprint)
+        date = get_sprint_start_date(future_sprint)
 
-    future_sprint = get_next_sprint(sprints, sprint)
-    return get_sprint_start_date(future_sprint)
+    return (parse(date) - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:
@@ -188,7 +199,8 @@ def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:
     return [sprint for sprint in sprints if sprint.name.startswith(key)]
 
 
-def prepare_jql_query(sprints: List[str], fields: List[str], user: Optional[str] = None) -> Dict[str, Union[str, List[str]]]:
+def prepare_jql_query(sprints: List[str], fields: List[str], user: Optional[str] = None) -> Dict[
+    str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
     unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
     epic_in_progress = '"' + '","'.join(settings.SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
@@ -208,12 +220,14 @@ def prepare_jql_query_active_sprint_tickets(
     fields: List[str],
     status: Iterable[str],
     project='',
+    summary='',
 ) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving sories that spilled over before ending the sprint."""
     required_project = f'project = {project} AND ' if project else ''
     required_status = '"' + '","'.join(status) + '"'
+    required_summary = f" AND summary ~ {summary}" if summary else ''
 
-    query = f'{required_project}Sprint IN openSprints() AND status IN ({required_status})'
+    query = f'{required_project}Sprint IN openSprints() AND status IN ({required_status}){required_summary}'
 
     return {
         'jql_str': query,
@@ -273,6 +287,27 @@ def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str], project
     )
 
 
+def get_meetings_issue(conn: CustomJira, project: str, issue_fields: Dict[str, str]) -> Issue:
+    """
+    Retrieves the Jira issue used for logging the meetings. We're using this for collecting hints for achieving
+    clean sprints. It is a workaround for JQL inability to do exact match.
+    https://community.atlassian.com/t5/Jira-Core-questions/How-to-query-Summary-for-EXACT-match/qaq-p/588482
+    """
+    issues = conn.search_issues(
+        **prepare_jql_query_active_sprint_tickets(
+            list(issue_fields.values()) + ['summary'],
+            (settings.SPRINT_STATUS_RECURRING,),
+            project=project,
+            summary=settings.SPRINT_MEETINGS_TICKET,
+        ),
+        maxResults=0,
+    )
+
+    for issue in issues:
+        if issue.fields.summary == settings.SPRINT_MEETINGS_TICKET:
+            return issue
+
+
 def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, board_id: int) -> None:
     """Creates next sprint for the desired cell."""
     sprints = filter_sprints_by_cell(sprints, cell_key)
@@ -290,13 +325,17 @@ def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, b
     )
 
 
-def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str], sprint: Sprint) -> str:
+def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str], sprint: Sprint, assignee: str) -> str:
     """Retrieve the spillover reason from the comment matching the `settings.SPILLOVER_REASON_DIRECTIVE` regexp."""
     # For issues spilling over more than once we need to ensure that the comment has been added in the current sprint.
     sprint_start_date = parse(sprint.startDate)
 
     # Check each comment created after starting the current sprint.
-    for comment in reversed(getattr(issue.fields, issue_fields['Comment']).comments):  # type: Comment
+    comments = getattr(issue.fields, issue_fields['Comment']).comments
+    for comment in reversed(comments):  # type: Comment
+        if assignee != comment.author.displayName:
+            continue
+
         created_date = parse(comment.created)
         if created_date < sprint_start_date:
             break
@@ -350,7 +389,12 @@ def prepare_spillover_rows(
 
             if field == 'Comment':
                 # Retrieve the spillover reason.
-                cell_value = get_spillover_reason(issue, issue_fields, current_sprint)
+                cell_value = get_spillover_reason(
+                    issue,
+                    issue_fields,
+                    current_sprint,
+                    getattr(issue.fields, issue_fields['Assignee']).displayName
+                )
 
                 # If the reason hasn't been posted, add comment with the reminder to the issue.
                 if not cell_value and not settings.DEBUG:  # We don't want to ping people via the dev environment.
@@ -364,6 +408,33 @@ def prepare_spillover_rows(
 
         rows.append(row)
     return rows
+
+
+def prepare_clean_sprint_rows(
+    rows: List[List[str]],
+    members: Set[str],
+    meetings: Issue,
+    issue_fields: Dict[str, str],
+    sprints: Dict[int, Sprint],
+) -> None:
+    """Adds the Google spreadsheet row in the specified format for users who achieved clean sprint."""
+    assignee_index = settings.SPILLOVER_REQUIRED_FIELDS.index("Assignee") + 1  # +1 for the issue's key
+    members_with_spillovers = {row[assignee_index] for row in rows}
+    members_with_clean_sprint = members - members_with_spillovers - settings.SPILLOVER_CLEAN_SPRINT_IGNORED_USERS
+    current_sprint = sprints[extract_sprint_id_from_str(getattr(meetings.fields, issue_fields['Sprint'])[-1])]
+
+    for member in members_with_clean_sprint:
+        row = [''] * (len(settings.SPILLOVER_REQUIRED_FIELDS) + 1)
+        row[0] = "Clean sprint"
+        row[assignee_index] = member
+        row[-1] = get_spillover_reason(meetings, issue_fields, current_sprint, member)
+
+        # If the reason hasn't been posted, add comment with the reminder to the issue.
+        if not row[-1] and not settings.DEBUG:  # We don't want to ping people via the dev environment.
+            from sprints.dashboard.tasks import add_spillover_reminder_comment_task  # Avoid circular import.
+            add_spillover_reminder_comment_task.delay(meetings.key, assignee_name=member)
+
+        rows.append(row)
 
 
 def prepare_commitment_spreadsheet(dashboard, spreadsheet: List[List[str]]) -> Tuple[List[str], List[str]]:

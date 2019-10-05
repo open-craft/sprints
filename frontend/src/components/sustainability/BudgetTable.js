@@ -5,9 +5,15 @@ const nameColumn = {width: '35%'};  // 1 cells -> 35 total
 const timeColumn = {width: '9%'};  // 5 cells -> 45% total
 const categoryColumn = {width: '20%'};  // 1 cells -> 20% total
 
-const statusClass = (remaining) => Math.round(remaining) >= 0 ? 'on-track' : 'overtime';
+const statusClass = (remaining, optional=0) => Math.round(remaining - optional) >= 0 ? 'on-track' : 'overtime';
+const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const showBudget = (budgets) =>
+    budgets
+        ? budgets.reduce((result, budget, index) =>
+            `${result}\n${monthNames[index]}: ${budget}`, '')
+        : '';
 
-const BudgetTable = ({accounts}) =>
+const BudgetTable = ({accounts, view}) =>
     <div>
         <table className="table sustainability-table">
             <thead>
@@ -37,11 +43,13 @@ const BudgetTable = ({accounts}) =>
             </thead>
             <tbody>
             {accounts.map(item =>
-                <tr key={item.key} className="table-row">
+                <tr key={item.name} className="table-row">
                     <td style={nameColumn}>
-                        {item.name}
+                        <abbr title={showBudget(item.budgets)}>
+                            {item.name}
+                        </abbr>
                     </td>
-                    <td style={timeColumn}>
+                    <td style={timeColumn} className={view === "cells" ? statusClass(item.ytd_goal, item.overall) : ''}>
                         {Math.round(item.overall)}
                     </td>
                     <td style={timeColumn}>

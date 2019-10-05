@@ -334,6 +334,8 @@ JIRA_PASSWORD = env.str("JIRA_PASSWORD")
 JIRA_SPRINT_BOARD_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint - ")
 # Username of a helper Jira bot used for indicating custom review time requirements.
 JIRA_BOT_USERNAME = env.str("JIRA_BOT_USERNAME", "crafty")
+# Date format used by the Jira API.
+JIRA_API_DATE_FORMAT = env.str("JIRA_API_DATE_FORMAT", "%Y-%m-%d")
 JIRA_REQUIRED_FIELDS = (
     "Assignee",
     "Summary",
@@ -460,8 +462,22 @@ SPILLOVER_REMINDER_MESSAGE = fr"please fill the spillover reason in the " \
 
 # Specify names of the Tempo account categories.
 TEMPO_BILLABLE_ACCOUNT = env.str("TEMPO_BILLABLE_ACCOUNT", "BILLABLE")
+TEMPO_BILLABLE_ACCOUNT_NAME = env.str("TEMPO_BILLABLE_ACCOUNT_NAME", "Billable account")
 TEMPO_NON_BILLABLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_ACCOUNT", "NON-BILLABLE")
+TEMPO_NON_BILLABLE_ACCOUNT_NAME = env.str("TEMPO_NON_BILLABLE_ACCOUNT_NAME", "Non-billable account")
 TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT", "NON-BILLABLE-CELL")
+TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME = env.str("TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME", "Non-billable cell responsibility account")
+
+# Dict for local account naming.
+TEMPO_ACCOUNT_TRANSLATE = {
+    TEMPO_BILLABLE_ACCOUNT_NAME: 'billable_accounts',
+    TEMPO_NON_BILLABLE_ACCOUNT_NAME: 'non_billable_accounts',
+    TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME: 'non_billable_responsible_accounts',
+}
+
+# Base TEMPO Team ID
+TEMPO_TEAM_ID = env.int("TEMPO_TEAM_ID", 1)
 
 # Pool size for making parallel API requests
-MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 6)
+MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 32)
+MULTIPROCESSING_TIMEOUT = env.int("MULTIPROCESSING_TIMEOUT", 32)

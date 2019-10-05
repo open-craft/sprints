@@ -24,5 +24,10 @@ export const PARAM_YEAR = 'year=';
 export const PATH_JIRA_BASE = `${process.env.REACT_APP_JIRA_URL}`;
 export const PATH_JIRA_ISSUE = `${PATH_JIRA_BASE}/browse/`;
 
+// Sprints
+export const UNASSIGNED_NAME = "Unassigned";
+export const OTHER_CELL_NAME = "Other Cell";
+export const SPECIAL_USER_NAMES = [UNASSIGNED_NAME, OTHER_CELL_NAME];
+
 // Sustainability
 export const MAX_NON_BILLABLE_TO_BILLABLE_RATIO = parseFloat(process.env.REACT_APP_MAX_NON_BILLABLE_TO_BILLABLE_RATIO);

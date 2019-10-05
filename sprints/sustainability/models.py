@@ -1,5 +1,4 @@
 import calendar
-import re
 from datetime import (
     datetime,
     timedelta,
@@ -8,136 +7,127 @@ from multiprocessing.pool import Pool
 from typing import (
     Dict,
     List,
-    Optional,
     Union,
 )
 
 from dateutil.parser import parse
 from django.conf import settings
 from django.db import models
+from jira.resources import PropertyHolder
 
 from sprints.dashboard.libs.jira import (
-    Account,
     CustomJira,
     connect_to_jira,
 )
 from sprints.dashboard.utils import (
     get_all_sprints,
-    get_cells,
     get_sprint_end_date,
-    get_sprint_start_date,
 )
-from sprints.sustainability.utils import split_accounts_into_categories
+from sprints.sustainability.utils import (
+    generate_month_range,
+    on_error,
+)
 
 
 class SustainabilityAccount:
     """
     Aggregates account name and key along with:
         - overall time spent on the account,
-        - cell-specific time spent on the account,
         - person-specific time spent on the account.
     """
 
-    def __init__(
-        self,
-        account: Dict[str, Union[str, int]],
-        cell_names: Dict[str, str],
-        from_: str,
-        to: str,
-        generate_budgets: bool = False,
-        start_date_str: str = '',
-        end_date_str: str = '',
-    ) -> None:
-        self.key = account['key']
-        self.name = account['name']
-        with connect_to_jira() as conn:
-            expenses = conn.expenses(int(account['id']), from_, to)
-
-        self.overall: float = getattr(expenses, 'hours', 0)
-        self.by_cell: Dict[str, float] = {}
+    def __init__(self, name: str) -> None:
+        super().__init__()
+        self.name = name
+        self.overall: float = 0
         self.by_person: Dict[str, float] = {}
 
-        cell_hours: Dict[str, float] = {}
-        for report in expenses.reports:
-            issue_search = re.search(settings.SPRINT_ISSUE_REGEX, report.name)
-            if issue_search:
-                cell = issue_search.group(1)
-                cell_hours[cell] = cell_hours.get(cell, 0) + report.hours
+    def __add__(self, other):
+        result = SustainabilityAccount(self.name)
+        result.overall = self.overall + other.overall
+        result.by_person = {
+            key: self.by_person.get(key, 0) + other.by_person.get(key, 0)
+            for key in set(self.by_person) | set(other.by_person)
+        }
+        return result
 
-            for worklog in report.reports:
-                username = worklog.user.displayName
-                self.by_person[username] = self.by_person.get(username, 0) + worklog.hours
+    def __radd__(self, other):
+        return self
 
-        # Translate cell keys into their names
-        for cell, hours in cell_hours.items():
-            try:
-                self.by_cell[cell_names[cell]] = hours
-            except KeyError:
-                # We can safely ignore non-cell issues here.
-                pass
+    def add_reports(self, reports: List[PropertyHolder]) -> None:
+        """Converts reports with worklogs into overall hours."""
+        for report in reports:
+            hours = report.hours
+            username = report.user.displayName
 
-        if generate_budgets:
-            # Retrieve account's budgets from the DB.
-            year = int(from_.split('-')[0])
+            self.overall += hours
+            self.by_person[username] = self.by_person.get(username, 0) + hours
+
+    def calculate_budgets(self, start_date: datetime, end_date: datetime) -> None:
+        """
+        Calculates budgets for the account.
+        Retrieves account's budgets from the DB.
+        """
+        year = start_date.year
+        now = datetime.now()
+        present_month = now.month if now.year == year else 13  # Hack for checking previous years.
+        present_day = now.day
+        budgets = Budget.objects.filter(name=self.name).order_by('date')
+        self.budgets: List[int] = []
+        self.ytd_goal = 0.
+
+        current_month = 1
+        current_budget = 0
+        # Calculate budgets provided in the DB.
+        for budget in budgets:
+            if budget.date.year != year:
+                current_budget = budget.hours
+
+            else:
+                previous_month = current_month
+                previous_budget = current_budget
+                current_month = budget.date.month
+                current_budget = budget.hours
+                for month in range(previous_month, current_month):
+                    self._process_budget(year, month, present_month, previous_budget)
+
+        # Calculate remaining budgets.
+        for month in range(len(self.budgets) + 1, 13):
+            self._process_budget(year, month, present_month, current_budget)
+
+        # Calculate available budget for the next sprint.
+        daily_budget: Dict[int, float] = {
+            now.month: self.calculate_workday_budget(year, now.month, self.budgets[now.month - 1]),
+            now.month + 1: self.calculate_workday_budget(year, now.month + 1, self.budgets[now.month]),
+        }
+        self.next_sprint_goal = self.ytd_goal + self._calculate_partial_budget_for_workdays(now, end_date, daily_budget)
+
+    def _process_budget(self, year, month, present_month, budget) -> None:
+        """Processes monthly budget (full or partial)."""
+        if month < present_month:
+            self.ytd_goal += budget
+        elif month == present_month:
+            # Calculate partial budget for the current month.
             now = datetime.now()
-            present_month = now.month if now.year == year else 13  # Hack for checking previous years.
-            present_day = now.day
-            budgets = Budget.objects.filter(name=self.key).order_by('date')
-            self.budgets: List[int] = []
-            self.ytd_goal = 0.
+            start = now.replace(day=1)
+            daily_budget = {now.month: self.calculate_workday_budget(year, now.month, budget)}
 
-            current_month = 1
-            current_budget = 0
-            for budget in budgets:
-                if budget.date.year != year:
-                    current_budget = budget.hours
+            self.ytd_goal += self._calculate_partial_budget_for_workdays(start, now, daily_budget)
 
-                else:
-                    previous_month = current_month
-                    previous_budget = current_budget
-                    current_month = budget.date.month
-                    current_budget = budget.hours
-                    for month in range(previous_month, current_month):
-                        if month < present_month:
-                            self.ytd_goal += previous_budget
-                        elif month == present_month:
-                            # Calculate partial budget for the current month.
-                            self.ytd_goal += \
-                                self.calculate_daily_budget(year, present_month, previous_budget) * present_day
-                        self.budgets.append(previous_budget)
-
-            for month in range(len(self.budgets) + 1, 13):
-                if month < present_month:
-                    self.ytd_goal += current_budget
-                elif month == present_month:
-                    # Calculate partial budget for the current month.
-                    self.ytd_goal += self.calculate_daily_budget(year, present_month, current_budget) * present_day
-
-                self.budgets.append(current_budget)
-
-            # Calculate available budget for the next sprint.
-            start_date = parse(start_date_str)
-            end_date = parse(end_date_str)
-            partial_budgets: Dict[int, float] = {
-                start_date.month:
-                    self.calculate_workday_budget(year, start_date.month, self.budgets[start_date.month - 1]),
-                end_date.month: self.calculate_workday_budget(year, end_date.month, self.budgets[end_date.month - 1]),
-            }
-            self.next_sprint_budget = 0.
-
-            for n in range(int((end_date - start_date).days)):
-                date = (start_date + timedelta(n))
-                if date.weekday() < 5:  # Do not count weekends.
-                    self.next_sprint_budget += partial_budgets[date.month]
+        self.budgets.append(budget)
 
     @staticmethod
-    def calculate_daily_budget(year: int, month: int, monthly_budget: int) -> float:
+    def _calculate_partial_budget_for_workdays(start: datetime, end: datetime, daily_budget: Dict[int, float]) -> float:
         """
-        Returns daily budget basing on the whole month.
-        Useful for broad estimations for the whole month.
+        Calculates budget for the workdays from `start` to `end` using the `daily_budget` per workday.
         """
-        days_in_month = calendar.monthrange(year, month)[1]
-        return monthly_budget / days_in_month
+        partial_budget = 0.
+        for n in range(int((end - start).days)):
+            date = (start + timedelta(n))
+            if date.weekday() < 5:  # Do not count weekends.
+                partial_budget += daily_budget[date.month]
+
+        return partial_budget
 
     @staticmethod
     def calculate_workday_budget(year: int, month: int, monthly_budget: int) -> float:
@@ -155,56 +145,71 @@ class SustainabilityDashboard:
     Aggregates accounts into a single dashboard.
     """
 
-    def __init__(self, conn: CustomJira, from_: str, to: Optional[str]) -> None:
+    def __init__(self, conn: CustomJira, from_: str, to: str, budgets: bool = False) -> None:
         self.jira_connection = conn
+        self.generate_budgets = budgets
         self.from_ = from_
         self.to = to
-        self.generate_budgets = False if self.to else True
 
-        accounts: List[Account] = self.jira_connection.accounts()
-        split_accounts = split_accounts_into_categories(accounts)
-        cells = get_cells(self.jira_connection)
-        self.cell_names = {cell.key: cell.name for cell in cells}
+        self.billable_accounts: Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
+        self.non_billable_accounts: Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
+        self.non_billable_responsible_accounts: \
+            Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
 
-        if not self.generate_budgets:
-            self.billable_accounts = self.generate_expenses(split_accounts[settings.TEMPO_BILLABLE_ACCOUNT])
-            self.non_billable_accounts = self.generate_expenses(split_accounts[settings.TEMPO_NON_BILLABLE_ACCOUNT])
-            self.non_billable_responsible_accounts = self.generate_expenses(
-                split_accounts[settings.TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT])
+        self.fetch_accounts()
 
-        else:
-            year = self.from_
-            self.from_ = f'{year}-01-01'
-            self.to = f'{year}-12-31'
+    def fetch_accounts(self):
+        """
+        Fetches aggregated worklogs in an async way.
+        FIXME: The exceptions here are logged, but they are not being captured by `p.get()` for some reason.
+        """
+        with Pool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
+            results = [pool.apply_async(
+                self._fetch_accounts_chunk, args, error_callback=on_error)
+                for args in generate_month_range(self.from_, self.to)
+            ]
+            output = [p.get(settings.MULTIPROCESSING_TIMEOUT) for p in results]
 
-            self.billable_accounts = self.generate_expenses(split_accounts[settings.TEMPO_BILLABLE_ACCOUNT])
-            self.non_billable_accounts = self.generate_expenses(split_accounts[settings.TEMPO_NON_BILLABLE_ACCOUNT])
-            self.non_billable_responsible_accounts = self.generate_expenses(
-                split_accounts[settings.TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT])
+        for chunk in output:
+            for category, accounts in chunk.items():
+                try:
+                    result_accounts = getattr(self, settings.TEMPO_ACCOUNT_TRANSLATE[category])
+                    for account_name, account in accounts.items():
+                        result_accounts[account_name] = result_accounts.get(account_name, None) + account
+                except KeyError:
+                    # Ignore non-existing categories
+                    pass
 
-    def generate_expenses(self, accounts: List[Account]) -> List[SustainabilityAccount]:
-        """Generates aggregated worklogs for each account with `SustainabilityAccount`."""
-        start_date = end_date = ''
-        if self.generate_budgets:
-            with connect_to_jira() as conn:
-                sprints = get_all_sprints(conn)['future']
+        for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
+            setattr(self, category, getattr(self, category).values())
+
+            if self.generate_budgets:
+                sprints = get_all_sprints(self.jira_connection)['future']
                 future_sprint = sprints[0]
-                start_date = get_sprint_start_date(future_sprint)
                 end_date = get_sprint_end_date(future_sprint, sprints)
 
-        args = [
-            (
-                {'id': account.id, 'key': account.key, 'name': account.name},
-                self.cell_names, self.from_, self.to, self.generate_budgets, start_date, end_date
-            ) for account in accounts if account.status == 'OPEN'
-        ]
+                accounts = getattr(self, category)
+                for account in accounts:
+                    account.calculate_budgets(parse(self.from_), parse(end_date))
 
-        # Use multiprocessing for parallel API requests for accounts
-        with Pool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
-            results = [pool.apply_async(SustainabilityAccount, args=arg) for arg in args]
-            output = [p.get() for p in results]
+    @staticmethod
+    def _fetch_accounts_chunk(from_: str, to: str) -> Dict[str, Dict]:
+        """Fetches worklogs by a month, which is much faster."""
+        with connect_to_jira() as conn:
+            reports = conn.report(from_, to)
+        categories: Dict[str, Dict[str, SustainabilityAccount]] = {}
+        for weekly_report in reports.reports:
+            for account_type in weekly_report.reports:
+                for account_category in account_type.reports:
+                    category = categories.setdefault(account_category.name, {})
+                    for account_reports in account_category.reports:
+                        account = category.setdefault(
+                            account_reports.name,
+                            SustainabilityAccount(account_reports.name),
+                        )
+                        account.add_reports(account_reports.reports)
 
-        return output
+        return categories
 
 
 class Budget(models.Model):
@@ -212,7 +217,7 @@ class Budget(models.Model):
     Stores monthly budgets for accounts.
     If the budget for the specific month is not present, the last existing one is used.
     """
-    name = models.CharField(max_length=255, help_text="Account's key.")
+    name = models.CharField(max_length=255, help_text="Account's name.")
     date = models.DateField(
         help_text="Year and month of the budget. If not specified, the last month's budget is applied."
     )

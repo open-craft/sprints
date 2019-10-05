@@ -26,7 +26,7 @@ drf-yasg~=1.15.0  # https://github.com/axnsan12/drf-yasg
 
 # REST auth
 # ------------------------------------------------------------------------------
-git+https://github.com/open-craft/django-rest-auth  # fork of https://github.com/Tivix/django-rest-auth with simpleJWT support
+git+https://github.com/open-craft/django-rest-auth.git@0.10.0  # fork of https://github.com/Tivix/django-rest-auth with simpleJWT support
 
 
 # Jira API

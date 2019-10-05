@@ -76,6 +76,7 @@ THIRD_PARTY_APPS = [
     "rest_auth.registration",
     "drf_yasg",
     "corsheaders",
+    'rest_framework_simplejwt.token_blacklist',
 ]
 LOCAL_APPS = [
     "sprints.users.apps.UsersConfig",
@@ -297,7 +298,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ),
@@ -306,11 +307,11 @@ REST_USE_JWT = True
 REST_AUTH_SERIALIZERS = {
     'USER_DETAILS_SERIALIZER': 'sprints.users.serializers.UserDetailsSerializer',
 }
-JWT_AUTH = {
-    'JWT_PAYLOAD_HANDLER': 'sprints.users.jwt.jwt_payload_handler_custom',
-    'JWT_EXPIRATION_DELTA': datetime.timedelta(minutes=env.int("DJANGO_JWT_EXPIRATION_MINUTES", 10)),
-    'JWT_ALLOW_REFRESH': env.bool("DJANGO_JWT_ALLOW_REFRESH", True),
-    'JWT_REFRESH_EXPIRATION_DELTA': datetime.timedelta(days=env.int("DJANGO_JWT_REFRESH_EXPIRATION_DAYS", 7)),
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(hours=env.float("JWT_ACCESS_TOKEN_LIFETIME_HOURS", 3)),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=env.float("JWT_REFRESH_TOKEN_LIFETIME_DAYS", 30)),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 

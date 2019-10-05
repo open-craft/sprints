@@ -1,4 +1,5 @@
 import {PARAM_BOARD_ID, PATH_CELLS, PATH_DASHBOARD} from "../constants";
+import {callApi} from "../middleware/api";
 
 const prepareCellIds = (cells) => {
     const result = {};
@@ -8,18 +9,10 @@ const prepareCellIds = (cells) => {
 };
 
 export const loadCells = () => {
-    return (dispatch, getState) => {
+    return (dispatch) => {
         dispatch({type: "CELLS_LOADING"});
 
-        let token = getState().auth.token;
-        let headers = {
-            "Content-Type": "application/json",
-        };
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
-
-        return fetch(PATH_CELLS, {headers,})
+        return callApi(PATH_CELLS)
             .then(response => {
                 if (response.status < 500) {
                     return response.json().then(data => {
@@ -46,18 +39,10 @@ export const loadCells = () => {
 export const loadBoard = (board_id) => {
     let board_url = `${PATH_DASHBOARD}?${PARAM_BOARD_ID}${board_id}`;
 
-    return (dispatch, getState) => {
+    return (dispatch) => {
         dispatch({type: "BOARD_LOADING", board_id: board_id});
 
-        let token = getState().auth.token;
-        let headers = {
-            "Content-Type": "application/json",
-        };
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
-
-        return fetch(board_url, {headers,})
+        return callApi(board_url)
             .then(response => {
                 if (response.status < 500) {
                     return response.json().then(data => {

@@ -1,6 +1,7 @@
 import {connect} from "react-redux";
 import React, {Component} from 'react';
 import {PARAM_BOARD_ID, PATH_COMPLETE_SPRINT, PATH_CREATE_NEXT_SPRINT} from "../../constants";
+import {callApi} from "../../middleware/api";
 
 class SprintActionButton extends Component {
 
@@ -10,16 +11,9 @@ class SprintActionButton extends Component {
         }
 
         this.btn.setAttribute("disabled", "disabled");
-        let token = this.props.auth.token;
-        let headers = {
-            "Content-Type": "application/json",
-        };
-        if (token) {
-            headers["Authorization"] = `JWT ${token}`;
-        }
 
         let complete_url = `${this.props.url}?${PARAM_BOARD_ID}${this.props.board_id}`;
-        fetch(complete_url, {headers, body: "", method: "POST"})
+        callApi(complete_url, "", "POST")
             .then(response => response.json())
     };
 

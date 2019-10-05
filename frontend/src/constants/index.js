@@ -8,6 +8,7 @@ export const PATH_REGISTER = `${PATH_AUTH}/registration/`;
 export const PATH_GOOGLE = `${PATH_AUTH}/google/`;
 export const PATH_LOGOUT = `${PATH_AUTH}/logout/`;
 export const PATH_VERIFY_EMAIL = `${PATH_AUTH}/registration/verify-email/`;
+export const PATH_REFRESH_TOKEN = `${PATH_AUTH}/refresh/`;
 
 export const PATH_SPRINT_DASHBOARD = `${PATH_BASE}/dashboard`;
 export const PATH_CELLS = `${PATH_SPRINT_DASHBOARD}/cells/`;

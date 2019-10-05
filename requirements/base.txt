@@ -20,12 +20,13 @@ django-cors-headers~=3.0.2  # https://github.com/ottoyiu/django-cors-headers
 # ------------------------------------------------------------------------------
 djangorestframework~=3.9.4  # https://github.com/encode/django-rest-framework
 djangorestframework-jwt~=1.11.0  # https://github.com/GetBlimp/django-rest-framework-jwt
+djangorestframework_simplejwt~=4.3.0  # https://github.com/davesque/django-rest-framework-simplejwt
 coreapi~=2.3.3  # https://github.com/core-api/python-client
 drf-yasg~=1.15.0  # https://github.com/axnsan12/drf-yasg
 
 # REST auth
 # ------------------------------------------------------------------------------
-django-rest-auth~=0.9.5  # https://github.com/Tivix/django-rest-auth
+git+https://github.com/open-craft/django-rest-auth.git@0.10.0  # fork of https://github.com/Tivix/django-rest-auth with simpleJWT support
 
 
 # Jira API

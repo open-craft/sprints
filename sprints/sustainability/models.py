@@ -3,7 +3,7 @@ from datetime import (
     datetime,
     timedelta,
 )
-from multiprocessing.pool import Pool
+from multiprocessing.pool import ThreadPool
 from typing import (
     Dict,
     List,
@@ -163,7 +163,7 @@ class SustainabilityDashboard:
         Fetches aggregated worklogs in an async way.
         FIXME: The exceptions here are logged, but they are not being captured by `p.get()` for some reason.
         """
-        with Pool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
+        with ThreadPool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
             results = [pool.apply_async(
                 self._fetch_accounts_chunk, args, error_callback=on_error)
                 for args in generate_month_range(self.from_, self.to)

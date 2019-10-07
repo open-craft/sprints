@@ -36,6 +36,7 @@ from sprints.dashboard.utils import (
     get_sprint_end_date,
     get_sprint_start_date,
     prepare_jql_query,
+    get_sprint_meeting_day_division,
 )
 
 
@@ -176,7 +177,7 @@ class DashboardRow:
         self.goal_time = 0
         self.current_unestimated: List[str] = []
         self.future_unestimated: List[str] = []
-        self.vacation_time = 0
+        self.vacation_time = 0.
         # self.issues: List[DashboardIssue] = []
 
     def set_goal_time(self, goal) -> None:
@@ -218,7 +219,7 @@ class Dashboard:
         self.issue_fields: Dict[str, str]
         self.issues: List[DashboardIssue]
         self.members: List[str]
-        self.commitments: Dict[str, Dict[str, Union[int, Dict[str, str]]]] = {}
+        self.commitments: Dict[str, Dict[str, Dict[str, int]]] = {}
         self.board_id = board_id
         self.active_sprints: List[Sprint]
         self.cell_future_sprint: Sprint
@@ -282,6 +283,7 @@ class Dashboard:
         quickfilters: List[QuickFilter] = self.jira_connection.quickfilters(self.board_id)
 
         self.members = get_cell_members(quickfilters)
+        self.sprint_division = get_sprint_meeting_day_division()
         self.issues = []
 
         active_sprint_ids = {sprint.id for sprint in self.active_sprints}
@@ -349,9 +351,21 @@ class Dashboard:
                             max(vacation['start']['date'], self.future_sprint_start),  # type: ignore
                             min(vacation['end']['date'], self.future_sprint_end),  # type: ignore
                         ):
-                            row.vacation_time += self.commitments[row.user.name]['days'][vacation_date]  # type: ignore
+                            # Special cases for partial day when the sprint starts/ends.
+                            if vacation_date == self.future_sprint_start:
+                                row.vacation_time += \
+                                    self.commitments[row.user.name]['days'][vacation_date] * \
+                                    (1 - self.sprint_division[row.user.displayName])
+                            elif vacation_date == self.future_sprint_end:
+                                row.vacation_time += \
+                                    self.commitments[row.user.name]['days'][vacation_date] * \
+                                    self.sprint_division[row.user.displayName]
+                            else:
+                                row.vacation_time += \
+                                    self.commitments[row.user.name]['days'][vacation_date]
                     elif row.user.displayName < vacation['user']:
                         # Small optimization, as users' vacations are sorted.
                         break
 
+                # noinspection PyTypeChecker
                 row.set_goal_time(self.commitments[row.user.name]['total'] - row.vacation_time)

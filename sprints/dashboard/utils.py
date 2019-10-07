@@ -1,5 +1,6 @@
 import re
 import string
+import time
 from datetime import (
     datetime,
     timedelta,
@@ -26,6 +27,7 @@ from jira.resources import (
     Sprint,
 )
 
+from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
     QuickFilter,
@@ -204,8 +206,11 @@ def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:
     return [sprint for sprint in sprints if sprint.name.startswith(key)]
 
 
-def prepare_jql_query(sprints: List[str], fields: List[str], user: Optional[str] = None) -> Dict[
-    str, Union[str, List[str]]]:
+def prepare_jql_query(
+    sprints: List[str],
+    fields: List[str],
+    user: Optional[str] = None
+) -> Dict[str, Union[str, List[str]]]:
     """Prepare JQL query for retrieving stories and epics for the selected cell for the current and upcoming sprint."""
     unfinished_status = '"' + '","'.join(settings.SPRINT_STATUS_ACTIVE) + '"'
     epic_in_progress = '"' + '","'.join(settings.SPRINT_STATUS_EPIC_IN_PROGRESS) + '"'
@@ -496,3 +501,60 @@ def get_commitment_range(spreadsheet: List[List[str]], cell_name: str) -> str:
 def base_10_to_n(num: int, b: int, numerals: str = string.ascii_uppercase) -> str:
     """Convert `num` to the desired base `b` with selected `numerals`"""
     return ((num == 0) and numerals[0]) or (base_10_to_n(num // b, b, numerals).lstrip(numerals[0]) + numerals[num % b])
+
+
+def _get_sprint_meeting_day_division_for_member(hours: str) -> float:
+    """
+    Helper method for determining at which point of the member's working day is the sprint meeting.
+    It handles the "minus" and "plus" timezones by adding the `-` at the end of the availability string.
+
+    For invalid time format, 0 (before the working day) is assumed, but the error is logged to Sentry.
+    """
+    hours = hours.replace('*', '').replace(' ', '')  # Strip unnecessary characters
+    minus_timezone = hours.endswith('-')
+    search = re.search(settings.GOOGLE_AVAILABILITY_REGEX, hours)
+    try:
+        start_str = f"{search.group(1)}{search.group(2)}"  # type: ignore
+        end_str = f"{search.group(3)}{search.group(4)}"  # type: ignore
+        start_hour = time.strptime(start_str, settings.GOOGLE_AVAILABILITY_TIME_FORMAT).tm_hour
+        end_hour = time.strptime(end_str, settings.GOOGLE_AVAILABILITY_TIME_FORMAT).tm_hour
+        if end_hour == 0:
+            end_hour = 24
+    except (AttributeError, TypeError, ValueError) as e:
+        # Log exception to Sentry if the format is invalid, but do not break the server.
+        from sentry_sdk import capture_exception
+        capture_exception(e)
+        return 0
+
+    if end_hour < start_hour:  # Special case
+        if minus_timezone:
+            end_hour = 24
+        else:
+            start_hour = 0
+
+    available_hours = end_hour - start_hour
+    meeting_relative = settings.SPRINT_MEETING_HOUR_UTC - start_hour
+    meeting_division = max(min(meeting_relative / available_hours, 1), 0)
+    return meeting_division
+
+
+def get_sprint_meeting_day_division() -> Dict[str, float]:
+    """
+    Returns how much of the members' days is before the sprint meeting.
+    Example:
+        - 1. means that the meeting is after the set working day,
+        - 0. means that the meeting is before the set working day,
+        - .75 means that the meeting is in the third quarter of the set working day
+          (e.g. the member is working from 12 to 20 and the meeting is at 18).
+    """
+    spreadsheet = get_availability_spreadsheet()
+    result = {}
+
+    for row in spreadsheet[2:]:
+        if row[0] and row[1]:
+            result[row[0]] = _get_sprint_meeting_day_division_for_member(row[1])
+        else:
+            # Ignore instructions and explanations added below the availability list.
+            break
+
+    return result

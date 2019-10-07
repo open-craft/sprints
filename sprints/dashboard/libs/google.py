@@ -138,3 +138,14 @@ def get_rotations_users(sprint_number: str, cell_name: str) -> Dict[str, List[st
                     result[role_name].append(column[row])  # type: ignore
 
     return result
+
+
+def get_availability_spreadsheet() -> List[List[str]]:
+    """Retrieve the availability spreadsheet."""
+    with connect_to_google('sheets') as conn:
+        sheet = conn.spreadsheets()
+        return sheet.values().get(
+            spreadsheetId=settings.GOOGLE_CONTACT_SPREADSHEET,
+            range=settings.GOOGLE_AVAILABILITY_RANGE,
+            majorDimension='ROWS',
+        ).execute()['values']

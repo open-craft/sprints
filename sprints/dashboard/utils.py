@@ -75,6 +75,11 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
     return members
 
 
+def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str, str]:
+    """Returns cell members with their names."""
+    return {conn.user(member).displayName: member for member in members}
+
+
 def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[str, List[Sprint]]:
     """We need to retrieve all sprints to handle cross-cell tickets."""
     cells = get_cells(conn)
@@ -412,7 +417,7 @@ def prepare_spillover_rows(
 
 def prepare_clean_sprint_rows(
     rows: List[List[str]],
-    members: Set[str],
+    members: Dict[str, str],
     meetings: Issue,
     issue_fields: Dict[str, str],
     sprints: Dict[int, Sprint],
@@ -424,7 +429,7 @@ def prepare_clean_sprint_rows(
     assignee_index = settings.SPILLOVER_REQUIRED_FIELDS.index("Assignee") + 1
 
     members_with_spillovers = {row[assignee_index] for row in rows}
-    members_with_clean_sprint = members - members_with_spillovers - settings.SPILLOVER_CLEAN_SPRINT_IGNORED_USERS
+    members_with_clean_sprint = members.keys() - members_with_spillovers - settings.SPILLOVER_CLEAN_SPRINT_IGNORED_USERS
 
     sprint = getattr(meetings.fields, issue_fields['Sprint'])[-1]
     current_sprint = sprints[extract_sprint_id_from_str(sprint)]
@@ -440,7 +445,7 @@ def prepare_clean_sprint_rows(
         # If the reason hasn't been posted, add comment with the reminder to the issue.
         if not row[-1] and not settings.DEBUG:  # We don't want to ping people via the dev environment.
             from sprints.dashboard.tasks import add_spillover_reminder_comment_task  # Avoid circular import.
-            add_spillover_reminder_comment_task.delay(meetings.key, assignee_name=member)
+            add_spillover_reminder_comment_task.delay(meetings.key, members[member], clean_sprint=True)
 
         rows.append(row)
 

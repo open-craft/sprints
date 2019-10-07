@@ -38,6 +38,7 @@ from sprints.dashboard.utils import (
     prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
+    get_cell_member_names,
 )
 
 
@@ -49,7 +50,7 @@ def upload_spillovers_task(board_id: int, cell_name: str) -> None:
         issues = get_spillover_issues(conn, issue_fields, cell_name)
         active_sprints = get_all_sprints(conn)['active']
         meetings = get_meetings_issue(conn, cell_name, issue_fields)
-        members = set(get_cell_members(conn.quickfilters(board_id)))
+        members = get_cell_member_names(conn, get_cell_members(conn.quickfilters(board_id)))
 
     active_sprints_dict = {int(sprint.id): sprint for sprint in active_sprints}
     rows = prepare_spillover_rows(issues, issue_fields, active_sprints_dict)
@@ -72,14 +73,10 @@ def upload_commitments_task(board_id: int, cell_name: str) -> None:
 
 
 @celery_app.task(ignore_result=True)
-def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str = '', assignee_name: str = '') -> None:
+def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str, clean_sprint: bool = False) -> None:
     """A task for posting the spillover reason reminder on the issue."""
-    message = settings.SPILLOVER_REMINDER_MESSAGE
+    message = settings.SPILLOVER_CLEAN_HINTS_MESSAGE if clean_sprint else settings.SPILLOVER_REMINDER_MESSAGE
     with connect_to_jira() as conn:
-        if not assignee_key:  # We need to get the user's key from the user's name. This is a case for Meetings tickets.
-            assignee_key = conn.search_users(assignee_name)[0].key
-            message = settings.SPILLOVER_CLEAN_HINTS_MESSAGE
-
         conn.add_comment(
             issue_key,
             f"[~{assignee_key}], {message}"

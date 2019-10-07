@@ -391,7 +391,7 @@ JIRA_CELL_ROLE_EPIC_NAME = env.str("JIRA_CELL_ROLE_EPIC_NAME", "Firefighting")
 #       }
 #   ]
 # }
-JIRA_CELL_ROLES = json.loads(env.str("JIRA_CELL_ROLES"))
+JIRA_CELL_ROLES = json.loads(env.str("JIRA_CELL_ROLES", "{}"))
 # SPRINT
 # ------------------------------------------------------------------------------
 # How many hours per sprint to reserve for meetings.

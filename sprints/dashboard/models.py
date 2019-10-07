@@ -1,6 +1,7 @@
 """These are standard Python classes, not Django models. We don't store dashboard in the DB."""
 import functools
 import re
+from decimal import Decimal
 from typing import (
     Dict,
     List,
@@ -86,14 +87,15 @@ class DashboardIssue:
         elif self.reviewer_1.name not in cell_members:
             self.reviewer_1 = other_cell
 
-    def get_bot_directive(self, pattern) -> Optional[int]:
+    def get_bot_directive(self, pattern) -> Optional[float]:
         """
         Retrieves special directives placed for the Jira bot.
         :returns `None` if directive was not found. Otherwise returns `int` with duration defined in the directive.
         """
         try:
             search = re.search(pattern, self.description)
-            return int(search.group(1))  # type: ignore
+            # return int(search.group(1))  # type: ignore
+            return float(Decimal(f"{search.group(1)}.{search.group(2)}"))  # type: ignore
         except (AttributeError, TypeError):
             # Directive not found or description is `None`.
             return None
@@ -118,13 +120,15 @@ class DashboardIssue:
         Calculate time needed for the review.
         Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
         """
-        # Assume that no more review will be needed at this point.
+        # Assume that no more review will be needed at this point
+        # (unless specified with SPRINT_REVIEW_REMAINING_DIRECTIVE).
         if self.status in (settings.SPRINT_STATUS_EXTERNAL_REVIEW, settings.SPRINT_STATUS_MERGED):
-            return 0
+            planned = self.get_bot_directive(settings.SPRINT_REVIEW_REMAINING_DIRECTIVE) or 0
+            return int(planned * SECONDS_IN_HOUR)
 
         try:
-            planned = self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
-            return planned * SECONDS_IN_HOUR  # type: ignore
+            planned = self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)  # type: ignore
+            return int(planned * SECONDS_IN_HOUR)
 
         except TypeError:
             # If we want to plan review time for epic or recurring issue, we need to specify it with bot's directive.
@@ -133,7 +137,7 @@ class DashboardIssue:
 
             if self.story_points <= 3:
                 return SECONDS_IN_HOUR
-            return 2 * SECONDS_IN_HOUR
+            return int(2 * SECONDS_IN_HOUR)
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()
@@ -141,7 +145,7 @@ class DashboardIssue:
         """Get required assignee time for the recurring story."""
         if self.status == settings.SPRINT_STATUS_RECURRING:
             planned = self.get_bot_directive(settings.SPRINT_RECURRING_DIRECTIVE) or 0
-            return planned * SECONDS_IN_HOUR
+            return int(planned * SECONDS_IN_HOUR)
         return 0
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
@@ -153,7 +157,7 @@ class DashboardIssue:
 
         try:
             planned = self.get_bot_directive(settings.SPRINT_EPIC_DIRECTIVE)
-            return planned * SECONDS_IN_HOUR  # type: ignore
+            return int(planned * SECONDS_IN_HOUR)  # type: ignore
         except TypeError:
             return settings.SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 

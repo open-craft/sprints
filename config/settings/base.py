@@ -428,11 +428,13 @@ SPRINT_STATUS_EPIC_IN_PROGRESS = {
     SPRINT_STATUS_IN_DEVELOPMENT,
 }
 # String for overriding how much time will be needed for an epic management per sprint.
-SPRINT_EPIC_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for epic management"
+SPRINT_EPIC_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d*)\.?(\d*) hours per sprint for epic management"
 # String for overriding how much time will be needed for a recurring task per sprint.
-SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for this task"
+SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d*)\.?(\d*) hours per sprint for this task"
 # String for overriding how much time will be needed for the task's review.
-SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
+SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d*)\.?(\d*) hours for reviewing this task"
+# String for overriding how much time will be needed for the task's review.
+SPRINT_REVIEW_REMAINING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d*)\.?(\d*) hours for the remaining review of this task"
 # Regexp for retrieving spillover reason from the issue's comment.
 SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>"
 # Adds ability to ignore users that are not members of the specific cells, but are assigned to their boards.

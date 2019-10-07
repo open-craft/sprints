@@ -123,18 +123,18 @@ def get_rotations_spreadsheet() -> List[List[str]]:
 def get_rotations_users(sprint_number: str, cell_name: str) -> Dict[str, List[str]]:
     """Retrieve users that have cell roles assigned for the chosen sprint."""
     spreadsheet = get_rotations_spreadsheet()
-    sprint_rows = []
+    sprint_rows: List[int] = []
     for i, row in enumerate(spreadsheet[0]):
         if row.startswith(sprint_number):
             sprint_rows.append(i)
 
-    result = {}
+    result: Dict[str, List[str]] = {}
     for column in spreadsheet:
         if column[0].startswith(cell_name):
             role_name = column[0].replace(cell_name, '').strip()
             result[role_name] = []
-            for row in sprint_rows:
-                if column[row]:
-                    result[role_name].append(column[row])
+            for row in sprint_rows:  # type: ignore
+                if column[row]:  # type: ignore
+                    result[role_name].append(column[row])  # type: ignore
 
     return result

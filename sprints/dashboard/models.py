@@ -245,8 +245,8 @@ class Dashboard:
                 self.cell_future_sprint = sprint
                 break
 
-        self.future_sprint_start = get_sprint_start_date(self.future_sprints[0])
-        self.future_sprint_end = get_sprint_end_date(self.future_sprints[0], sprints['all'])
+        self.future_sprint_start = get_sprint_start_date(self.cell_future_sprint)
+        self.future_sprint_end = get_sprint_end_date(self.cell_future_sprint, sprints['all'])
 
     def create_mock_users(self):
         """Create mock users for handling unassigned and cross-cell tickets."""

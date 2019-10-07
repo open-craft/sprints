@@ -419,6 +419,8 @@ SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per s
 SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
 # Regexp for retrieving spillover reason from the issue's comment.
 SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>"
+# Adds ability to ignore users that are not members of the specific cells, but are assigned to their boards.
+SPILLOVER_CLEAN_SPRINT_IGNORED_USERS = set(env.list("SPILLOVER_CLEAN_SPRINT_IGNORED_USERS", default=[]))
 # Regex for extracting sprint data from the name of the sprint.
 # It is also used for distinguishing standard sprints from special ones (e.g. Stretch Goals).
 # The following data is gathered:
@@ -433,7 +435,8 @@ SPRINT_DURATION_DAYS = env.int("SPRINT_DURATION_DAYS", 14)
 # Group 1. cell's key
 # Group 2. issue number
 SPRINT_ISSUE_REGEX = env.str("SPRINT_ISSUE_REGEX", r"(\w+)-(\d+)")
-
+# Exact name of the tickets for logging the clean sprint hints.
+SPRINT_MEETINGS_TICKET = env.str("SPRINT_MEETINGS_TICKET", "Meetings")
 
 # GOOGLE CALENDAR
 # ------------------------------------------------------------------------------
@@ -460,6 +463,11 @@ SPILLOVER_REMINDER_MESSAGE = fr"please fill the spillover reason in the " \
                              fr"[Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}] " \
                              fr"and the next time add the spillover reason as a Jira comment " \
                              fr"matching the following regexp: {{code:python}} {SPILLOVER_REASON_DIRECTIVE}{{code}}"
+# Message to put in the comment as a reminder to the user who forgot to post the spillover avoidance hints.
+SPILLOVER_CLEAN_HINTS_MESSAGE = fr"congratulations for achieving the clean sprint! Please post some hints about " \
+                                fr"managing this on the [Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}] " \
+                                fr"and the next time add them upfront as a Jira comment " \
+                                fr"matching the following regexp: {{code:python}} {SPILLOVER_REASON_DIRECTIVE}{{code}}"
 
 # Specify names of the Tempo account categories.
 TEMPO_BILLABLE_ACCOUNT = env.str("TEMPO_BILLABLE_ACCOUNT", "BILLABLE")

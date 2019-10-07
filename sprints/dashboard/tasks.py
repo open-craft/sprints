@@ -1,8 +1,12 @@
+import string
 from datetime import (
     datetime,
     timedelta,
 )
-from typing import List
+from typing import (
+    Dict,
+    List,
+)
 
 from celery import group
 # noinspection PyProtectedMember
@@ -17,6 +21,7 @@ from jira.resources import (
 from config import celery_app
 from sprints.dashboard.libs.google import (
     get_commitments_spreadsheet,
+    get_rotations_users,
     upload_commitments,
     upload_spillovers,
 )
@@ -33,10 +38,12 @@ from sprints.dashboard.utils import (
     get_meetings_issue,
     get_next_sprint,
     get_spillover_issues,
+    get_sprint_number,
     get_sprints,
     prepare_clean_sprint_rows,
     prepare_commitment_spreadsheet,
     prepare_jql_query_active_sprint_tickets,
+    prepare_jql_query_cell_role_epic,
     prepare_spillover_rows,
 )
 
@@ -95,6 +102,47 @@ def create_next_sprint_task(board_id: int) -> None:
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)
 
         create_next_sprint(conn, sprints, cell.key, board_id)
+
+
+@celery_app.task(ignore_result=True)
+def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number: int) -> None:
+    """A task for posting the spillover reason reminder on the issue."""
+    rotations = get_rotations_users(str(sprint_number), cell['name'])
+    with connect_to_jira() as conn:
+        jira_fields = get_issue_fields(conn, settings.JIRA_REQUIRED_FIELDS)
+        epic = conn.search_issues(
+            **prepare_jql_query_cell_role_epic(
+                ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
+                project=cell['name'],
+            ),
+            maxResults=1,
+        )[0]
+
+        fields = {
+            'project': cell['key'],
+            jira_fields['Account']: settings.JIRA_CELL_ROLE_ACCOUNT,  # This needs to be string.
+            jira_fields['Issue Type']: 'Story',
+            jira_fields['Sprint']: sprint_id,
+            jira_fields['Epic Link']: epic.key,
+        }
+
+        for role, users in rotations.items():
+            for sprint_part, user in enumerate(users):
+                user_key = conn.search_users(user)[0].key
+                fields.update({
+                    jira_fields['Assignee']: {'name': user_key},
+                    jira_fields['Reviewer 1']: {'name': user_key},
+                })
+                for subrole in settings.JIRA_CELL_ROLES.get(role, []):
+                    fields.update({
+                        jira_fields['Summary']:
+                            f"Sprint {sprint_number}{string.ascii_lowercase[sprint_part]} {subrole['name']}",
+                        jira_fields['Story Points']: subrole['story_points'],
+                        # This requires special dict structure.
+                        'timetracking': {'originalEstimate': f"{subrole['hours']}h"},
+                    })
+
+                    conn.create_issue(fields)
 
 
 @celery_app.task(ignore_result=True)
@@ -188,4 +236,12 @@ def complete_sprint_task(board_id: int) -> None:
             # Ensure that the next sprint exists. If it doesn't exist, create it.
             future_next_sprint = get_next_sprint(sprints, next_sprint)
             if not future_next_sprint:
-                create_next_sprint_task.delay(board_id)
+                create_next_sprint_task(board_id)
+                future_next_sprint = get_next_sprint(sprints, next_sprint)
+
+            cell_dict = {
+                'key': cell.key,
+                'name': cell.name,
+                'board_id': cell.board_id,
+            }
+            create_role_issues_task.delay(cell_dict, future_next_sprint.id, get_sprint_number(future_next_sprint))

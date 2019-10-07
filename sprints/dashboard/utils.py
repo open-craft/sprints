@@ -222,12 +222,23 @@ def prepare_jql_query_active_sprint_tickets(
     project='',
     summary='',
 ) -> Dict[str, Union[str, List[str]]]:
-    """Prepare JQL query for retrieving sories that spilled over before ending the sprint."""
+    """Prepare JQL query for retrieving stories that spilled over before ending the sprint."""
     required_project = f'project = {project} AND ' if project else ''
     required_status = '"' + '","'.join(status) + '"'
     required_summary = f" AND summary ~ {summary}" if summary else ''
 
     query = f'{required_project}Sprint IN openSprints() AND status IN ({required_status}){required_summary}'
+
+    return {
+        'jql_str': query,
+        'fields': fields,
+    }
+
+
+def prepare_jql_query_cell_role_epic(fields: List[str], project: str) -> Dict[str, Union[str, List[str]]]:
+    """Prepare JQL query for retrieving epic for the cell role tickets."""
+    query = f'summary ~ {settings.JIRA_CELL_ROLE_EPIC_NAME} AND project = {project} AND ' \
+            f'status = {settings.SPRINT_STATUS_RECURRING} AND issuetype = Epic'
 
     return {
         'jql_str': query,

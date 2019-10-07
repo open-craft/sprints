@@ -2,6 +2,7 @@
 Base settings to build other settings files upon.
 """
 import datetime
+import json
 
 import environ
 
@@ -349,6 +350,7 @@ JIRA_REQUIRED_FIELDS = (
     "Story Points",
     "Reviewer 1",
     "Account",
+    "Epic Link",
 )
 # Fields required for documenting spillovers.
 SPILLOVER_REQUIRED_FIELDS = (
@@ -375,7 +377,21 @@ JIRA_INTEGER_FIELDS = {
 } | JIRA_TIME_FIELDS
 # A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
 JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = (\w+).* or .*\1.*\1")
-
+# Jira account for assigning cell-role-related tickets.
+JIRA_CELL_ROLE_ACCOUNT = env.str("JIRA_CELL_ROLE_ACCOUNT")
+# Jira epic name for cell-role tickets.
+JIRA_CELL_ROLE_EPIC_NAME = env.str("JIRA_CELL_ROLE_EPIC_NAME", "Firefighting")
+# Jira cell roles in the following format:
+# {
+#   ROLE1: [
+#       {
+#           name: subrole1,
+#           hours: 1,
+#           story_points: 0.5
+#       }
+#   ]
+# }
+JIRA_CELL_ROLES = json.loads(env.str("JIRA_CELL_ROLES", "{}"))
 # SPRINT
 # ------------------------------------------------------------------------------
 # How many hours per sprint to reserve for meetings.
@@ -458,6 +474,10 @@ GOOGLE_API_CREDENTIALS = {
 GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"(\w+) off")
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
 GOOGLE_SPILLOVER_SPREADSHEET_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SPILLOVER_SPREADSHEET}"
+# Spreadsheet with the cell rotations.
+GOOGLE_ROTATIONS_SPREADSHEET = env.str("GOOGLE_ROTATIONS_SPREADSHEET")
+# Range (sheet) of the spreadsheet with the cell rotations.
+GOOGLE_ROTATIONS_RANGE = env.str("GOOGLE_ROTATIONS_RANGE")
 # Message to put in the comment as a reminder to the user who forgot to post the spillover reason.
 SPILLOVER_REMINDER_MESSAGE = fr"please fill the spillover reason in the " \
                              fr"[Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}] " \

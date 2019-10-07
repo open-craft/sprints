@@ -107,3 +107,34 @@ def upload_commitments(users: List[str], commitments: List[str], range_: str) ->
             body=body,
             valueInputOption='USER_ENTERED',
         ).execute()
+
+
+def get_rotations_spreadsheet() -> List[List[str]]:
+    """Retrieve the current rotations spreadsheet."""
+    with connect_to_google('sheets') as conn:
+        sheet = conn.spreadsheets()
+        return sheet.values().get(
+            spreadsheetId=settings.GOOGLE_ROTATIONS_SPREADSHEET,
+            range=settings.GOOGLE_ROTATIONS_RANGE,
+            majorDimension='COLUMNS',
+        ).execute()['values']
+
+
+def get_rotations_users(sprint_number: str, cell_name: str) -> Dict[str, List[str]]:
+    """Retrieve users that have cell roles assigned for the chosen sprint."""
+    spreadsheet = get_rotations_spreadsheet()
+    sprint_rows: List[int] = []
+    for i, row in enumerate(spreadsheet[0]):
+        if row.startswith(sprint_number):
+            sprint_rows.append(i)
+
+    result: Dict[str, List[str]] = {}
+    for column in spreadsheet:
+        if column[0].startswith(cell_name):
+            role_name = column[0].replace(cell_name, '').strip()
+            result[role_name] = []
+            for row in sprint_rows:  # type: ignore
+                if column[row]:  # type: ignore
+                    result[role_name].append(column[row])  # type: ignore
+
+    return result

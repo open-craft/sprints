@@ -2,7 +2,6 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {auth, sprints} from "../../actions";
 import UserTable from "./UserTable";
-import Back from "../Back";
 
 class UserBoard extends Component {
     constructor(props) {
@@ -45,7 +44,6 @@ class UserBoard extends Component {
                                     : <div/>
                             }
                             <h2>Commitments of {username} for the current and upcoming sprint</h2>
-                            <Back path={this.props.match.url}/>
                             <UserTable list={user_issues} username={username}/>
                         </div>
                         : <div>

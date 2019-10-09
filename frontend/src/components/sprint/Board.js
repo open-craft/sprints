@@ -38,10 +38,7 @@ class Board extends Component {
                                     : <div/>
                             }
                             <h2>Commitments for Upcoming Sprint - {future_sprint}</h2>
-                            <SprintActionButtons
-                                board_id={this.state.board_id}
-                                path={this.props.match.url}
-                            />
+                            <SprintActionButtons board_id={this.state.board_id}/>
                             <Table list={rows} url={url}/>
                         </div>
                         : <div>

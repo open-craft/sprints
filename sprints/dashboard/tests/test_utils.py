@@ -1,11 +1,12 @@
 import re
-from contextlib import contextmanager
 
 import pytest
 from django.conf import settings
 from django.test import override_settings
 
+from sprints.dashboard.tests.helpers import does_not_raise
 from sprints.dashboard.utils import (
+    _get_sprint_meeting_day_division_for_member,
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
     extract_sprint_start_date_from_sprint_name,
@@ -19,15 +20,9 @@ from sprints.dashboard.utils import (
     prepare_jql_query,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
-    _get_sprint_meeting_day_division_for_member,
 )
 
 pytestmark = pytest.mark.django_db
-
-
-@contextmanager
-def does_not_raise():
-    yield
 
 
 class MockItem:

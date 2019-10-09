@@ -34,6 +34,7 @@ from sprints.dashboard.libs.jira import (
 )
 
 SECONDS_IN_HOUR = 3600
+SECONDS_IN_MINUTE = 60
 
 
 class Cell:

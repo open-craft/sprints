@@ -427,12 +427,22 @@ SPRINT_STATUS_EPIC_IN_PROGRESS = {
     SPRINT_STATUS_ACCEPTED,
     SPRINT_STATUS_IN_DEVELOPMENT,
 }
+# Which statuses indicate that the ticket doesn't need a review (unless specified with a bot's directive).
+SPRINT_STATUS_NO_MORE_REVIEW = {
+    SPRINT_STATUS_EXTERNAL_REVIEW,
+    SPRINT_STATUS_MERGED,
+    SPRINT_STATUS_RECURRING,
+}
+# Regex for retrieving time from sprint directives. It captures data into `hours` and `minutes` groups.
+SPRINT_TIME_REGEX = r"(?:(?P<hours>\d+)\s?h.*?)?\s?(?:(?P<minutes>\d+)\s?m.*?)?"
+# Base of the sprint directive for planning time.
+SPRINT_PLANNING_DIRECTIVE_BASE = fr"\[~{JIRA_BOT_USERNAME}\]: plan {SPRINT_TIME_REGEX}"
 # String for overriding how much time will be needed for an epic management per sprint.
-SPRINT_EPIC_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for epic management"
+SPRINT_EPIC_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} per sprint for epic management"
 # String for overriding how much time will be needed for a recurring task per sprint.
-SPRINT_RECURRING_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours per sprint for this task"
+SPRINT_RECURRING_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} per sprint for this task"
 # String for overriding how much time will be needed for the task's review.
-SPRINT_REVIEW_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: plan (\d+) hours for reviewing this task"
+SPRINT_REVIEW_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} for reviewing this task"
 # Regexp for retrieving spillover reason from the issue's comment.
 SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>"
 # Adds ability to ignore users that are not members of the specific cells, but are assigned to their boards.
@@ -451,6 +461,8 @@ SPRINT_DURATION_DAYS = env.int("SPRINT_DURATION_DAYS", 14)
 # Group 1. cell's key
 # Group 2. issue number
 SPRINT_ISSUE_REGEX = env.str("SPRINT_ISSUE_REGEX", r"(\w+)-(\d+)")
+# An UTC hour at which the sprint meeting starts.
+SPRINT_MEETING_HOUR_UTC = env.int("SPRINT_MEETING_HOUR_UTC", 16)
 # Exact name of the tickets for logging the clean sprint hints.
 SPRINT_MEETINGS_TICKET = env.str("SPRINT_MEETINGS_TICKET", "Meetings")
 
@@ -473,6 +485,10 @@ GOOGLE_API_CREDENTIALS = {
 #          both of them will need to provide the full name in the calendar.
 GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"(\w+) off")
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
+GOOGLE_CONTACT_SPREADSHEET = env.str("GOOGLE_CONTACT_SPREADSHEET")
+GOOGLE_AVAILABILITY_RANGE = env.str("GOOGLE_AVAILABILITY_RANGE")
+GOOGLE_AVAILABILITY_REGEX = env.str("GOOGLE_AVAILABILITY_REGEX", r"(\d+).*(pm|am)-(\d+).*(pm|am)")
+GOOGLE_AVAILABILITY_TIME_FORMAT = env.str("GOOGLE_AVAILABILITY_TIME_FORMAT", "%I%p")
 GOOGLE_SPILLOVER_SPREADSHEET_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SPILLOVER_SPREADSHEET}"
 # Spreadsheet with the cell rotations.
 GOOGLE_ROTATIONS_SPREADSHEET = env.str("GOOGLE_ROTATIONS_SPREADSHEET")

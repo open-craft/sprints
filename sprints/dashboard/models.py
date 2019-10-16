@@ -4,9 +4,7 @@ import re
 from typing import (
     Dict,
     List,
-    Optional,
     Set,
-    Union,
 )
 
 from django.conf import settings
@@ -27,12 +25,14 @@ from sprints.dashboard.libs.jira import (
 )
 from sprints.dashboard.utils import (
     SECONDS_IN_HOUR,
+    SECONDS_IN_MINUTE,
     daterange,
     extract_sprint_id_from_str,
     get_all_sprints,
     get_cell_members,
     get_issue_fields,
     get_sprint_end_date,
+    get_sprint_meeting_day_division,
     get_sprint_start_date,
     prepare_jql_query,
 )
@@ -86,17 +86,19 @@ class DashboardIssue:
         elif self.reviewer_1.name not in cell_members:
             self.reviewer_1 = other_cell
 
-    def get_bot_directive(self, pattern) -> Optional[int]:
+    def get_bot_directive(self, pattern) -> int:
         """
-        Retrieves special directives placed for the Jira bot.
-        :returns `None` if directive was not found. Otherwise returns `int` with duration defined in the directive.
+        Retrieves time (in seconds) specified with special directives placed for the Jira bot in ticket's description.
+        :returns `int` with duration (converted to seconds) defined with the directive.
+        :raises `ValueError` if directive was not found.
         """
         try:
-            search = re.search(pattern, self.description)
-            return int(search.group(1))  # type: ignore
-        except (AttributeError, TypeError):
-            # Directive not found or description is `None`.
-            return None
+            search = re.search(pattern, self.description).groupdict('0')  # type: ignore
+            hours = int(search.get('hours', 0))
+            minutes = int(search.get('minutes', 0))
+            return hours * SECONDS_IN_HOUR + minutes * SECONDS_IN_MINUTE
+        except (AttributeError, TypeError):  # Directive not found or description is `None`.
+            raise ValueError
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()  # We'll need to use ignore for `return` (cf: https://github.com/python/mypy/issues/5858)
@@ -118,30 +120,28 @@ class DashboardIssue:
         Calculate time needed for the review.
         Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
         """
-        # Assume that no more review will be needed at this point.
-        if self.status in (settings.SPRINT_STATUS_EXTERNAL_REVIEW, settings.SPRINT_STATUS_MERGED):
-            return 0
-
         try:
-            planned = self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
-            return planned * SECONDS_IN_HOUR  # type: ignore
+            return self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
 
-        except TypeError:
-            # If we want to plan review time for epic or recurring issue, we need to specify it with bot's directive.
-            if self.is_epic or self.status == settings.SPRINT_STATUS_RECURRING:
+        except ValueError:
+            # If we want to plan review time for epic or ticket with `SPRINT_STATUS_NO_MORE_REVIEW` status,
+            # we need to specify it with bot's directive.
+            if self.is_epic or self.status in settings.SPRINT_STATUS_NO_MORE_REVIEW:
                 return 0
 
             if self.story_points <= 3:
                 return SECONDS_IN_HOUR
-            return 2 * SECONDS_IN_HOUR
+            return int(2 * SECONDS_IN_HOUR)
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()
     def recurring_time(self) -> int:
         """Get required assignee time for the recurring story."""
         if self.status == settings.SPRINT_STATUS_RECURRING:
-            planned = self.get_bot_directive(settings.SPRINT_RECURRING_DIRECTIVE) or 0
-            return planned * SECONDS_IN_HOUR
+            try:
+                return self.get_bot_directive(settings.SPRINT_RECURRING_DIRECTIVE)
+            except ValueError:  # Directive not found.
+                pass
         return 0
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
@@ -152,9 +152,8 @@ class DashboardIssue:
             return 0
 
         try:
-            planned = self.get_bot_directive(settings.SPRINT_EPIC_DIRECTIVE)
-            return planned * SECONDS_IN_HOUR  # type: ignore
-        except TypeError:
+            return self.get_bot_directive(settings.SPRINT_EPIC_DIRECTIVE)
+        except ValueError:
             return settings.SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 
 
@@ -172,7 +171,7 @@ class DashboardRow:
         self.goal_time = 0
         self.current_unestimated: List[str] = []
         self.future_unestimated: List[str] = []
-        self.vacation_time = 0
+        self.vacation_time = 0.
         # self.issues: List[DashboardIssue] = []
 
     def set_goal_time(self, goal) -> None:
@@ -214,7 +213,7 @@ class Dashboard:
         self.issue_fields: Dict[str, str]
         self.issues: List[DashboardIssue]
         self.members: List[str]
-        self.commitments: Dict[str, Dict[str, Union[int, Dict[str, str]]]] = {}
+        self.commitments: Dict[str, Dict[str, Dict[str, int]]] = {}
         self.board_id = board_id
         self.active_sprints: List[Sprint]
         self.cell_future_sprint: Sprint
@@ -278,6 +277,7 @@ class Dashboard:
         quickfilters: List[QuickFilter] = self.jira_connection.quickfilters(self.board_id)
 
         self.members = get_cell_members(quickfilters)
+        self.sprint_division = get_sprint_meeting_day_division()
         self.issues = []
 
         active_sprint_ids = {sprint.id for sprint in self.active_sprints}
@@ -345,9 +345,21 @@ class Dashboard:
                             max(vacation['start']['date'], self.future_sprint_start),  # type: ignore
                             min(vacation['end']['date'], self.future_sprint_end),  # type: ignore
                         ):
-                            row.vacation_time += self.commitments[row.user.name]['days'][vacation_date]  # type: ignore
+                            # Special cases for partial day when the sprint starts/ends.
+                            if vacation_date == self.future_sprint_start:
+                                row.vacation_time += \
+                                    self.commitments[row.user.name]['days'][vacation_date] * \
+                                    (1 - self.sprint_division[row.user.displayName])
+                            elif vacation_date == self.future_sprint_end:
+                                row.vacation_time += \
+                                    self.commitments[row.user.name]['days'][vacation_date] * \
+                                    self.sprint_division[row.user.displayName]
+                            else:
+                                row.vacation_time += \
+                                    self.commitments[row.user.name]['days'][vacation_date]
                     elif row.user.displayName < vacation['user']:
                         # Small optimization, as users' vacations are sorted.
                         break
 
+                # noinspection PyTypeChecker
                 row.set_goal_time(self.commitments[row.user.name]['total'] - row.vacation_time)

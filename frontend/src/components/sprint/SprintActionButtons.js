@@ -2,6 +2,9 @@ import {connect} from "react-redux";
 import React, {Component} from 'react';
 import {PARAM_BOARD_ID, PATH_COMPLETE_SPRINT, PATH_CREATE_NEXT_SPRINT} from "../../constants";
 import {callApi} from "../../middleware/api";
+import {Link} from "react-router-dom";
+import routes from "../../routes";
+import Button from "../Button";
 
 class SprintActionButton extends Component {
 
@@ -45,6 +48,7 @@ let SprintActionButtonCombined = connect(mapStateToProps)(SprintActionButton);
 
 const SprintActionButtons = ({board_id}) =>
     <div className="sprint_actions">
+        <Link to={routes.cells}><Button>Go back</Button></Link>
         <SprintActionButtonCombined
             board_id={board_id}
             caption="Create Next Sprint"

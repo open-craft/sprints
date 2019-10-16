@@ -1,11 +1,12 @@
 import re
-from contextlib import contextmanager
 
 import pytest
 from django.conf import settings
 from django.test import override_settings
 
+from sprints.dashboard.tests.helpers import does_not_raise
 from sprints.dashboard.utils import (
+    _get_sprint_meeting_day_division_for_member,
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
     extract_sprint_start_date_from_sprint_name,
@@ -22,11 +23,6 @@ from sprints.dashboard.utils import (
 )
 
 pytestmark = pytest.mark.django_db
-
-
-@contextmanager
-def does_not_raise():
-    yield
 
 
 class MockItem:
@@ -277,3 +273,20 @@ def test_prepare_spillover_rows():
     ]
     # noinspection PyTypeChecker
     assert prepare_spillover_rows(test_issues, issue_fields, {}) == expected_result
+
+
+@pytest.mark.parametrize(
+    "test_input, expected, raises", [
+        ('12pm-9pm*', .44, does_not_raise()),
+        ('3pm-12am-', .11, does_not_raise()),
+        ('9am - 5pm*', .88, does_not_raise()),
+        ('6pm-1am*-', 0., does_not_raise()),
+        ('11pm-8am*', 1., does_not_raise()),
+        ('2pm-5:30pm', .67, does_not_raise()),
+        ('8am-4pm', 1., does_not_raise()),
+        ('invalid', 0., pytest.raises(ModuleNotFoundError)),
+    ],
+)
+def test_get_sprint_meeting_day_division_for_member(test_input, expected, raises):
+    with raises:
+        assert _get_sprint_meeting_day_division_for_member(test_input) == pytest.approx(expected, 0.1)

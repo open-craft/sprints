@@ -2,6 +2,9 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {auth, sprints} from "../../actions";
 import UserTable from "./UserTable";
+import routes from "../../routes";
+import {Link} from "react-router-dom";
+import Button from "../Button";
 
 class UserBoard extends Component {
     constructor(props) {
@@ -23,6 +26,7 @@ class UserBoard extends Component {
     }
 
     render() {
+        const cell_board_url = routes.board.replace(/:.*id/, this.state.board_id);
         const username = this.state.username;
         const {boardLoading, boards} = this.props.sprints;
         const board = boards[this.state.board_id] || {};
@@ -44,6 +48,7 @@ class UserBoard extends Component {
                                     : <div/>
                             }
                             <h2>Commitments of {username} for the current and upcoming sprint</h2>
+                            <Link to={cell_board_url}><Button>Go back</Button></Link>
                             <UserTable list={user_issues} username={username}/>
                         </div>
                         : <div>

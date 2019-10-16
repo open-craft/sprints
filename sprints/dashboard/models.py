@@ -96,7 +96,6 @@ class DashboardIssue:
             search = re.search(pattern, self.description).groupdict('0')  # type: ignore
             hours = int(search.get('hours', 0))
             minutes = int(search.get('minutes', 0))
-            print(hours, minutes)
             return hours * SECONDS_IN_HOUR + minutes * SECONDS_IN_MINUTE
         except (AttributeError, TypeError):  # Directive not found or description is `None`.
             raise ValueError
@@ -121,20 +120,13 @@ class DashboardIssue:
         Calculate time needed for the review.
         Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
         """
-        # Assume that no more review will be needed at this point
-        # (unless specified with SPRINT_REVIEW_REMAINING_DIRECTIVE).
-        if self.status in (settings.SPRINT_STATUS_EXTERNAL_REVIEW, settings.SPRINT_STATUS_MERGED):
-            try:
-                return self.get_bot_directive(settings.SPRINT_REVIEW_REMAINING_DIRECTIVE)
-            except ValueError:
-                return 0
-
         try:
             return self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
 
         except ValueError:
-            # If we want to plan review time for epic or recurring issue, we need to specify it with bot's directive.
-            if self.is_epic or self.status == settings.SPRINT_STATUS_RECURRING:
+            # If we want to plan review time for epic or ticket with `SPRINT_STATUS_NO_MORE_REVIEW` status,
+            # we need to specify it with bot's directive.
+            if self.is_epic or self.status in settings.SPRINT_STATUS_NO_MORE_REVIEW:
                 return 0
 
             if self.story_points <= 3:

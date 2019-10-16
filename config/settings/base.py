@@ -427,6 +427,12 @@ SPRINT_STATUS_EPIC_IN_PROGRESS = {
     SPRINT_STATUS_ACCEPTED,
     SPRINT_STATUS_IN_DEVELOPMENT,
 }
+# Which statuses indicate that the ticket doesn't need a review (unless specified with a bot's directive).
+SPRINT_STATUS_NO_MORE_REVIEW = {
+    SPRINT_STATUS_EXTERNAL_REVIEW,
+    SPRINT_STATUS_MERGED,
+    SPRINT_STATUS_RECURRING,
+}
 # Regex for retrieving time from sprint directives. It captures data into `hours` and `minutes` groups.
 SPRINT_TIME_REGEX = r"(?:(?P<hours>\d+)\s?h.*?)?\s?(?:(?P<minutes>\d+)\s?m.*?)?"
 # Base of the sprint directive for planning time.
@@ -437,8 +443,6 @@ SPRINT_EPIC_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} per sprint for epic m
 SPRINT_RECURRING_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} per sprint for this task"
 # String for overriding how much time will be needed for the task's review.
 SPRINT_REVIEW_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} for reviewing this task"
-# String for overriding how much time will be needed for the task's review.
-SPRINT_REVIEW_REMAINING_DIRECTIVE = f"{SPRINT_PLANNING_DIRECTIVE_BASE} for the remaining review of this task"
 # Regexp for retrieving spillover reason from the issue's comment.
 SPILLOVER_REASON_DIRECTIVE = fr"\[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>"
 # Adds ability to ignore users that are not members of the specific cells, but are assigned to their boards.

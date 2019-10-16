@@ -63,8 +63,8 @@ from sprints.dashboard.tests.helpers import does_not_raise
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 10 minutes for the remaining review of this task',
-            settings.SPRINT_REVIEW_REMAINING_DIRECTIVE,
+            'Test [~crafty]: plan 10 minutes for reviewing this task',
+            settings.SPRINT_REVIEW_DIRECTIVE,
             600,
             does_not_raise(),
         ),

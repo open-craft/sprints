@@ -23,7 +23,7 @@ class SprintActionButton extends Component {
                 } else {
                     window.alert(`Error ${response.status} returned while scheduling the task.`);
                 }
-            })
+            });
     };
 
     render() {

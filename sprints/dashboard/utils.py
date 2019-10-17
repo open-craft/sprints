@@ -410,21 +410,25 @@ def prepare_spillover_rows(
                 current_sprint = sprints[extract_sprint_id_from_str(original_value[-1])]
 
             if field == 'Comment':
-                # Retrieve the spillover reason.
-                cell_value = get_spillover_reason(
-                    issue,
-                    issue_fields,
-                    current_sprint,
-                    getattr(issue.fields, issue_fields['Assignee']).displayName
-                )
-
-                # If the reason hasn't been posted, add comment with the reminder to the issue.
-                if not cell_value and not settings.DEBUG:  # We don't want to ping people via the dev environment.
-                    from sprints.dashboard.tasks import add_spillover_reminder_comment_task  # Avoid circular import.
-                    add_spillover_reminder_comment_task.delay(
-                        issue.key,
-                        getattr(issue.fields, issue_fields['Assignee']).key,
+                try:
+                    # Retrieve the spillover reason.
+                    cell_value = get_spillover_reason(
+                        issue,
+                        issue_fields,
+                        current_sprint,
+                        getattr(issue.fields, issue_fields['Assignee']).displayName
                     )
+
+                    # If the reason hasn't been posted, add comment with the reminder to the issue.
+                    if not cell_value and not settings.DEBUG:  # We don't want to ping people via the dev environment.
+                        # Avoid circular import.
+                        from sprints.dashboard.tasks import add_spillover_reminder_comment_task
+                        add_spillover_reminder_comment_task.delay(
+                            issue.key,
+                            getattr(issue.fields, issue_fields['Assignee']).key,
+                        )
+                except AttributeError:
+                    cell_value = 'Unassigned'
 
             row.append(str(cell_value))
 

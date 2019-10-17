@@ -125,10 +125,10 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 
         for role, users in rotations.items():
             for sprint_part, user in enumerate(users):
-                user_key = conn.search_users(user)[0].key
+                user_name = conn.search_users(user)[0].name
                 fields.update({
-                    jira_fields['Assignee']: {'name': user_key},
-                    jira_fields['Reviewer 1']: {'name': user_key},
+                    jira_fields['Assignee']: {'name': user_name},
+                    jira_fields['Reviewer 1']: {'name': user_name},
                 })
                 for subrole in settings.JIRA_CELL_ROLES.get(role, []):
                     fields.update({

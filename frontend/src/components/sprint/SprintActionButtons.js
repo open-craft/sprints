@@ -13,11 +13,17 @@ class SprintActionButton extends Component {
             return;
         }
 
-        this.btn.setAttribute("disabled", "disabled");
-
-        let complete_url = `${this.props.url}?${PARAM_BOARD_ID}${this.props.board_id}`;
-        callApi(complete_url, "", "POST")
-            .then(response => response.json())
+        let action_url = `${this.props.url}?${PARAM_BOARD_ID}${this.props.board_id}`;
+        callApi(action_url, "", "POST")
+            .then(response => {
+                if (response.status === 200) {
+                    this.btn.setAttribute("disabled", "disabled");
+                    this.btn.removeAttribute("class");
+                    window.alert("The task has been successfully scheduled!\nYou can track its progress with Flower.");
+                } else {
+                    window.alert(`Error ${response.status} returned while scheduling the task.`);
+                }
+            });
     };
 
     render() {

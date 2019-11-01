@@ -65,7 +65,10 @@ class DashboardIssue:
         self.time_spent = getattr(issue.fields, issue_fields['Time Spent'], 0) or 0
         self.time_estimate = getattr(issue.fields, issue_fields['Remaining Estimate'], 0) or 0
         self.is_epic = getattr(issue.fields, issue_fields['Issue Type']).name == 'Epic'
-        self.account = getattr(issue.fields, issue_fields['Account']).name
+        try:
+            self.account = getattr(issue.fields, issue_fields['Account']).name
+        except AttributeError:  # Inherited account in a subtask is null
+            self.account = None
 
         try:
             sprint = getattr(issue.fields, issue_fields['Sprint'])

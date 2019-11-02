@@ -6,13 +6,166 @@ App for tracking sprint commitments, vacations and spillovers.
 .. image:: https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg
      :target: https://github.com/pydanny/cookiecutter-django/
      :alt: Built with Cookiecutter Django
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-     :target: https://github.com/ambv/black
-     :alt: Black code style
-
 
 :License: AGPL-3.0
 
+Overview
+========
+
+Sprint Planning Dashboard
+-------------------------
+
+Listing cells
+^^^^^^^^^^^^^
+On the main view there is the list of the cells. They are retrieved by looking for Jira boards with `JIRA_SPRINT_BOARD_PREFIX` prefix.
+
+Cell's dashboard
+^^^^^^^^^^^^^^^^
+
+Estimations
+~~~~~~~~~~~
+The basic idea for calculating estimations is the following:
+
+1. `SPRINT_HOURS_RESERVED_FOR_MEETINGS` hours are reserved for the meetings for each sprint.
+2. `SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT` hours are reserved for epic management for each sprint.
+3. 1 hour is planned for reviewing each task with <= 3 story points. For bigger tasks, 2 hours are reserved.
+4. Each of these defaults can be overridden for each ticket by putting the following in the ticket’s description:
+    a) [~{JIRA_BOT_USERNAME}]: plan `time` per sprint for epic management
+    b) [~{JIRA_BOT_USERNAME}]: plan `time` per sprint for this task
+    c) [~{JIRA_BOT_USERNAME}]: plan `time` for reviewing this task
+
+**Note**: The `time` should match the following regexp:
+
+.. code::
+
+    (?:(?P<hours>\d+)\s?h.*?)?\s?(?:(?P<minutes>\d+)\s?m.*?)?
+
+, so anything like 1h 30m, 1h or 30m will work. You can use the following directives for overriding the default values:
+
+Dashboard
+~~~~~~~~~
+For each member of the cell this view displays:
+
+1. Assignee, reviewer, upstream and epic-related hours for the present and upcoming sprint.
+2. Tickets that are missing an estimation.
+3. Scheduled vacations for the upcoming sprint, which are retrieved from the Google Calendar events that match `GOOGLE_CALENDAR_VACATION_REGEX`. Partial vacations (based on the time of the meeting for each person’s day) are retrieved from the `GOOGLE_AVAILABILITY_RANGE` of the `GOOGLE_CONTACT_SPREADSHEET` using the `GOOGLE_AVAILABILITY_REGEX`. The minus (-) suffix there indicates that the member’s timezone is UTC-X. This is taken into account if user’s workday spans over two days in UTC (i.e. start hour is after end hour).
+4. Committed time, which is the sum of all estimation hours.
+5. Goal for the next sprint, which is calculated by summing up user's commitments for each day of the sprint and subtracting `SPRINT_HOURS_RESERVED_FOR_MEETINGS` and `Vacation` hours from it.
+6. Remaining time, which is the result of `Goal` - `Committed`.
+
+User's dashboard
+~~~~~~~~~~~~~~~~
+This view shows all assigned (as `Assignee` or `Reviewer 1`) tickets of the user with:
+
+1. Task's key (you can hover over it to see the ticket's name)
+2. User's role
+3. Current status of the ticket
+4. Remaining time for the current user
+5. Sprint indicator (active or future one)
+6. Epic/Story indicator
+
+Caching
+~~~~~~~
+After you refresh the board for the second time, you’ll immediately see cached data **and a spinner showing that it’s being reloaded**. This makes using the dashboard much smoother.
+
+
+Completing the sprints
+~~~~~~~~~~~~~~~~~~~~~~
+In case when users needs to schedule tickets for sprints that haven’t been created yet, they can press the `Create Next Sprint` to create a new one for the currently viewed cell.
+
+Completing the sprints
+~~~~~~~~~~~~~~~~~~~~~~
+To complete the sprint, you need to have `Staff status` permissions.
+The main idea behind this is that they are not shared by cells - you need to have separate sprint for each one. You can press the `Complete Sprint` button on the cell's dashboard to schedule a Celery task with the following pipeline:
+
+1. Upload spillovers.
+    This uploads all spillovers to the `GOOGLE_SPILLOVER_SPREADSHEET`. The following rows are filled in the spreadsheet:
+
+    a) Ticket
+        The key of the ticket.
+    b) Status
+        The status of the ticket at the moment of ending the sprint.
+    c) Sprints
+        The active sprint (the one that is currently being ended).
+    d) Assignee
+        The assignee, for whom the spillover is being counted.
+    e) Reviewer 1
+    f) Reviewer 2
+    g) Reporter
+    h) Story Points
+    i) Estimated time
+        The initial estimation of the ticket (in hours).
+    j) Remaining time
+        The remaining time for the ticket (in hours).
+    k) Reason for the spillover
+        The reason of the spillover is retrieved from the comments made within the active sprint. The assignees should provide it with a comment matching the following regexp: ```[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>```. In case of multiple occurrences of comments matching this regexp, only the last one is taken into account. In case of no occurrences of such comments, the Jira bot will create a comment defined in `SPILLOVER_REMINDER_MESSAGE`.
+
+    If the users have achieved the clean sprint (without spillovers), they can post some hints on the ticket with the `SPRINT_MEETINGS_TICKET` name by adding a comment matching the spillover reason regexp (provided above). In case of no such comment, they will be reminded on the ticket with `SPILLOVER_CLEAN_HINTS_MESSAGE` comment. It's possible to disable the pings for specific users by adding them to `SPILLOVER_CLEAN_SPRINT_IGNORED_USERS` (this can be useful for people that are members of multiple cells, as they will be pinged on each cell-specific ticket).
+2. Upload commitments.
+    The `goal` of each user from the dashboard is uploaded to the cell-specific commitments sheet of the `GOOGLE_SPILLOVER_SPREADSHEET`.
+3. Move archived issues out of the active sprint.
+    There has been a bug before that disallowed completing the sprint if it had archived issues, so we're moving all of them out of the active sprint.
+4. Close the active sprint.
+5. Move issues from the closed sprint to the next one.
+6. Open the next sprint.
+7. Create role-specific tasks for the future sprint.
+    The assignees for these tickets are retrieved from the `GOOGLE_ROTATIONS_RANGE` defined within `GOOGLE_ROTATIONS_SPREADSHEET`. The format of this document is the following:
+
+    a) First column contains sprint number (you can create multiple role tasks for one week by dividing sprint into parts, e.g. `Sprint 100a, Sprint 100b` - each in a separate row).
+    b) Next columns' headers contain role names prefixed by the full cell name (e.g. `Cell_1 FF`) and their fields contain assignees for the tickets.
+
+    The metadata (name, of these ticket is defined in `JIRA_CELL_ROLES`. Please see its docstring for the detailed explanation of its format.
+
+
+Sustainability
+^^^^^^^^^^^^^^
+Both dashboards are aware of the sprint board’s current view (whether it’s showing cells/cell’s board/person’s board). Therefore, when you click on the cell’s name, the sustainability dashboard recalculates its data for displaying cell/person-related data only.
+
+**TODO**: there is a rework of the columns planned for the next sprint, so this section will be expanded.
+
+Setting up budgets
+~~~~~~~~~~~~~~~~~~
+To set up the budgets for the accounts you need to:
+
+1. Log into the backend admin (by default it's http://localhost:8000/admin) with your superuser account.
+2. Go to `Sustainability/Budgets`.
+3. Add a new budget for the account.
+
+The budgets are rolling, so these entries are perceived as *changes* of the budgets. It means that the budget for the account with the specified `name` will be `hours` (per month) up to the next change or current date.
+
+    E.g. we have the account "Account - Security". From the beginning of 2019 we want the budget to be 100h/month, but from September to November (both inclusive) we want to raise it to 200h/month. From December and for the whole 2020 it should be lowered back to 100h/month. Therefore we need to create 3 entries via the Django admin:
+
+    .. code:: javascript
+
+        [{
+            "name": "Account - Security",
+            "date": January 2019,
+            "hours": 100
+        }, {
+            "name": "Account - Security",
+            "date": September 2019,
+            "hours": 200
+        }, {
+            "name": "Account - Security",
+            "date": December 2019,
+            "hours": 100
+        }]
+
+    Side note: the `date` is a `DateField`, but the example is using simplified representation for brevity.
+
+
+Sustainability Dashboard
+~~~~~~~~~~~~~~~~~~~~~~~~
+This view presents the assumptions described in `handbook's cell_budgets`_.
+The key information here is the ratio of non-billable cell responsible to billable hours. It is calculated in the following way:
+
+    each cell ensures that it doesn’t exceed a budget of 1h of internal/unbilled budget for every 2.5h the cell bills to clients.
+
+.. _`handbook's cell_budgets`: https://handbook.opencraft.com/en/latest/cell_budgets/
+
+Budget Dashboard
+~~~~~~~~~~~~~~~~~~~~~~~~
+This presents a list of all active accounts and the time spent on them from the beginning of the current year and the goal, basing on the budget stored in the DB.
 
 Settings
 --------

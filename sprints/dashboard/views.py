@@ -1,5 +1,7 @@
 import http
 
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import (
     permissions,
     viewsets,
@@ -20,16 +22,22 @@ from sprints.dashboard.utils import (
     get_cells,
 )
 
+_board_id_param = openapi.Parameter(
+    'board_id', openapi.IN_QUERY, description="cell's board ID", type=openapi.TYPE_INTEGER
+)
+_cell_response = openapi.Response('list of the cells', CellSerializer)
+_dashboard_response = openapi.Response('sprint planning dashboard', DashboardSerializer)
+_task_scheduled_response = openapi.Response("task scheduled")
+
 
 # noinspection PyMethodMayBeStatic
 class CellViewSet(viewsets.ViewSet):
     """
     Lists all available cells.
-    GET /dashboard/cells/
     """
-
     permission_classes = (permissions.IsAuthenticated,)
 
+    @swagger_auto_schema(responses={200: _cell_response})
     def list(self, _request):
         with connect_to_jira() as conn:
             cells = get_cells(conn)
@@ -41,13 +49,10 @@ class CellViewSet(viewsets.ViewSet):
 class DashboardViewSet(viewsets.ViewSet):
     """
     Generates a specified cell's board.
-    GET /dashboard/dashboard
-    Query params:
-        - board_id: cell's board ID.
     """
-
     permission_classes = (permissions.IsAuthenticated,)
 
+    @swagger_auto_schema(manual_parameters=[_board_id_param], responses={200: _dashboard_response})
     def list(self, request):
         board_id = int(request.query_params.get('board_id'))
         with connect_to_jira() as conn:
@@ -56,28 +61,28 @@ class DashboardViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
 
+# noinspection PyMethodMayBeStatic
 class CreateNextSprintViewSet(viewsets.ViewSet):
     """
     Invokes task for creating the next sprint for the chosen cell.
-    POST /dashboard/create_next_sprint?board_id=<board_id>
     """
     permission_classes = (permissions.IsAuthenticated,)
 
-    # noinspection PyMethodMayBeStatic
+    @swagger_auto_schema(manual_parameters=[_board_id_param], responses={200: _task_scheduled_response})
     def create(self, request):
         board_id = int(request.query_params.get('board_id'))
         create_next_sprint_task.delay(board_id)
         return Response(data='', status=http.HTTPStatus.OK)
 
 
+# noinspection PyMethodMayBeStatic
 class CompleteSprintViewSet(viewsets.ViewSet):
     """
     Invokes task for uploading spillovers and ending the sprint for the chosen cell.
-    POST /dashboard/complete_sprint?board_id=<board_id>
     """
     permission_classes = (permissions.IsAdminUser,)
 
-    # noinspection PyMethodMayBeStatic
+    @swagger_auto_schema(manual_parameters=[_board_id_param], responses={200: _task_scheduled_response})
     def create(self, request):
         board_id = int(request.query_params.get('board_id'))
         complete_sprint_task.delay(board_id)

@@ -146,10 +146,12 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 def complete_sprint_task(board_id: int) -> None:
     """
     1. Uploads spillovers.
-    2. Moves archived issues out of the active sprint.
-    3. Closes the shared sprint.
-    4. Moves issues from the closed sprint to the next one.
-    5. Opens the next shared sprint.
+    2. Uploads commitments.
+    3. Moves archived issues out of the active sprint.
+    4. Closes the active sprint.
+    5. Moves issues from the closed sprint to the next one.
+    6. Opens the next sprint.
+    7. Creates role tickets.
     """
     with connect_to_jira() as conn:
         cells = get_cells(conn)

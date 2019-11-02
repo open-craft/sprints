@@ -2,6 +2,8 @@ from datetime import datetime
 
 from dateutil.parser import parse
 from django.conf import settings
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import (
     permissions,
     viewsets,
@@ -13,22 +15,33 @@ from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.sustainability.models import SustainabilityDashboard
 from sprints.sustainability.serializers import SustainabilityDashboardSerializer
 
+_from_param = openapi.Parameter(
+    'from', openapi.IN_QUERY, description="start date in format `%Y-%M-%d`", type=openapi.TYPE_STRING
+)
+_to_param = openapi.Parameter(
+    'to', openapi.IN_QUERY, description="end date in format `%Y-%M-%d`", type=openapi.TYPE_STRING
+)
+_year_param = openapi.Parameter(
+    'year', openapi.IN_QUERY, description="year in format `%Y`", type=openapi.TYPE_STRING
+)
+_sustainability_response = openapi.Response(
+    'sustainability dashboard for the selected period', SustainabilityDashboardSerializer
+)
+
 
 # noinspection PyMethodMayBeStatic
 class SustainabilityDashboardViewSet(viewsets.ViewSet):
     """
     Generates sustainability stats (billable, non-billable, non-billable-cell-responsible hours) within date range.
-    GET /sustainability/dashboard?from=<from_date>&to=<to_date>
-    OR
-    GET /sustainability/dashboard?year=<year>
-    Query params:
-        - from: start date in format `%Y-%M-%d`.
-        - to: end date in format `%Y-%M-%d`.
-        - year: year in format `%Y`.
+
+    You should either use both `from` and `to` query params here or `year` query param.
     """
 
     permission_classes = (permissions.IsAuthenticated,)
 
+    @swagger_auto_schema(
+        manual_parameters=[_from_param, _to_param, _year_param], responses={200: _sustainability_response}
+    )
     def list(self, request):
         from_ = request.query_params.get('from')
         to = request.query_params.get('to')

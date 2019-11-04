@@ -10,8 +10,8 @@ REDIS_URL=redis://redis:6379/0
 # ------------------------------------------------------------------------------
 
 # Flower
-CELERY_FLOWER_USER=kJtrEYByunMyFNPJeALMRoyxcRTInfFw
-CELERY_FLOWER_PASSWORD=v7SFcfYcMLeAp6xDnFmxom9rNClFeTgmZz1wNn0HGSMPN1tbjSkxbeIKklPe2H8a
+CELERY_FLOWER_USER=flower_user
+CELERY_FLOWER_PASSWORD=flower_password
 
 # Jira
 JIRA_SERVER=https://jira.server
@@ -34,7 +34,7 @@ GOOGLE_ROTATIONS_RANGE=
 # JWT_REFRESH_TOKEN_LIFETIME_DAYS=30
 
 CELERY_BROKER_URL=redis://redis:6379/0
-DATABASE_URL=postgres://WmBQECsnGEnJEoysAOQIgHDHpxnNIKYt:WkcsI7Uuu3Jq7T1qylr9D3LI3WDVYszitV7p4uznJ4Ke9j7lAcuonprZ885hj8pJ@postgres:5432/sprints
+DATABASE_URL=postgres://postgres_user:postgres_password@postgres:5432/sprints
 
 # CORS
 # FRONTEND_URL=

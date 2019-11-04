@@ -30,9 +30,9 @@ The basic idea for calculating estimations is the following:
 2. `SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT` hours are reserved for epic management for each sprint.
 3. 1 hour is planned for reviewing each task with <= 3 story points. For bigger tasks, 2 hours are reserved.
 4. Each of these defaults can be overridden for each ticket by putting the following in the ticket’s description:
-    a) [~{JIRA_BOT_USERNAME}]: plan `time` per sprint for epic management
-    b) [~{JIRA_BOT_USERNAME}]: plan `time` per sprint for this task
-    c) [~{JIRA_BOT_USERNAME}]: plan `time` for reviewing this task
+    a) [~{JIRA_BOT_USERNAME}]: plan `<time>` per sprint for epic management
+    b) [~{JIRA_BOT_USERNAME}]: plan `<time>` per sprint for this task
+    c) [~{JIRA_BOT_USERNAME}]: plan `<time>` for reviewing this task
 
 **Note**: The `time` should match the following regexp:
 
@@ -40,7 +40,7 @@ The basic idea for calculating estimations is the following:
 
     (?:(?P<hours>\d+)\s?h.*?)?\s?(?:(?P<minutes>\d+)\s?m.*?)?
 
-, so anything like 1h 30m, 1h or 30m will work. You can use the following directives for overriding the default values:
+So anything like 1h 30m, 1h or 30m will work.
 
 Dashboard
 ~~~~~~~~~
@@ -69,14 +69,14 @@ Caching
 After you refresh the board for the second time, you’ll immediately see cached data **and a spinner showing that it’s being reloaded**. This makes using the dashboard much smoother.
 
 
-Completing the sprints
+Creating new sprints
 ~~~~~~~~~~~~~~~~~~~~~~
-In case when users needs to schedule tickets for sprints that haven’t been created yet, they can press the `Create Next Sprint` to create a new one for the currently viewed cell.
+In case when user needs to schedule tickets for sprints that haven’t been created yet, they can press `Create Next Sprint` to create a new one for the currently viewed cell.
 
-Completing the sprints
+Completing sprints
 ~~~~~~~~~~~~~~~~~~~~~~
-To complete the sprint, you need to have `Staff status` permissions.
-The main idea behind this is that they are not shared by cells - you need to have separate sprint for each one. You can press the `Complete Sprint` button on the cell's dashboard to schedule a Celery task with the following pipeline:
+To complete a sprint, you need to have `Staff status` permissions.
+The main idea behind this is that sprints are not shared by cells - you need to have separate sprint for each one. You can press the `Complete Sprint` button on the cell's dashboard to schedule a Celery task with the following pipeline:
 
 1. Upload spillovers.
     This uploads all spillovers to the `GOOGLE_SPILLOVER_SPREADSHEET`. The following rows are filled in the spreadsheet:
@@ -85,7 +85,7 @@ The main idea behind this is that they are not shared by cells - you need to hav
         The key of the ticket.
     b) Status
         The status of the ticket at the moment of ending the sprint.
-    c) Sprints
+    c) Sprint
         The active sprint (the one that is currently being ended).
     d) Assignee
         The assignee, for whom the spillover is being counted.
@@ -100,7 +100,7 @@ The main idea behind this is that they are not shared by cells - you need to hav
     k) Reason for the spillover
         The reason of the spillover is retrieved from the comments made within the active sprint. The assignees should provide it with a comment matching the following regexp: ```[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>```. In case of multiple occurrences of comments matching this regexp, only the last one is taken into account. In case of no occurrences of such comments, the Jira bot will create a comment defined in `SPILLOVER_REMINDER_MESSAGE`.
 
-    If the users have achieved the clean sprint (without spillovers), they can post some hints on the ticket with the `SPRINT_MEETINGS_TICKET` name by adding a comment matching the spillover reason regexp (provided above). In case of no such comment, they will be reminded on the ticket with `SPILLOVER_CLEAN_HINTS_MESSAGE` comment. It's possible to disable the pings for specific users by adding them to `SPILLOVER_CLEAN_SPRINT_IGNORED_USERS` (this can be useful for people that are members of multiple cells, as they will be pinged on each cell-specific ticket).
+    If the team members have achieved a clean sprint (without spillovers), they can post some hints on the ticket with the `SPRINT_MEETINGS_TICKET` name by adding a comment matching the spillover reason regexp (provided above). In case of no such comment, they will be reminded on the ticket with `SPILLOVER_CLEAN_HINTS_MESSAGE` comment. It's possible to disable the pings for specific users by adding them to `SPILLOVER_CLEAN_SPRINT_IGNORED_USERS` (this can be useful for people that are members of multiple cells, as they will be pinged on each cell-specific ticket).
 2. Upload commitments.
     The `goal` of each user from the dashboard is uploaded to the cell-specific commitments sheet of the `GOOGLE_SPILLOVER_SPREADSHEET`.
 3. Move archived issues out of the active sprint.
@@ -113,13 +113,14 @@ The main idea behind this is that they are not shared by cells - you need to hav
 
     a) First column contains sprint number (you can create multiple role tasks for one week by dividing sprint into parts, e.g. `Sprint 100a, Sprint 100b` - each in a separate row).
     b) Next columns' headers contain role names prefixed by the full cell name (e.g. `Cell_1 FF`) and their fields contain assignees for the tickets.
+    c) The "Date" column is omitted.
 
-    The metadata (name, of these ticket is defined in `JIRA_CELL_ROLES`. Please see its docstring for the detailed explanation of its format.
+    The metadata (name, duration, story points), of these tickets is defined in `JIRA_CELL_ROLES`. Please see its docstring for the detailed explanation of its format.
 
 
 Sustainability
 ^^^^^^^^^^^^^^
-Both dashboards are aware of the sprint board’s current view (whether it’s showing cells/cell’s board/person’s board). Therefore, when you click on the cell’s name, the sustainability dashboard recalculates its data for displaying cell/person-related data only.
+The Sustainability Dashboard and Budget Dashboard (both described below) are aware of the sprint board’s current view (whether it’s showing cells/cell’s board/person’s board). Therefore, when you click on the cell’s name, the sustainability dashboard recalculates its data for displaying cell/person-related data only.
 
 **TODO**: there is a rework of the columns planned for the next sprint, so this section will be expanded.
 
@@ -156,16 +157,16 @@ The budgets are rolling, so these entries are perceived as *changes* of the budg
 
 Sustainability Dashboard
 ~~~~~~~~~~~~~~~~~~~~~~~~
-This view presents the assumptions described in `handbook's cell_budgets`_.
-The key information here is the ratio of non-billable cell responsible to billable hours. It is calculated in the following way:
+This view allows you to verify the assumptions described in `handbook's cell_budgets`_.
+The key information here is the ratio of non-billable cell hours to billable cell hours. It is calculated in the following way:
 
     each cell ensures that it doesn’t exceed a budget of 1h of internal/unbilled budget for every 2.5h the cell bills to clients.
 
-.. _`handbook's cell_budgets`: https://handbook.opencraft.com/en/latest/cell_budgets/
+.. _`handbook's cell_budgets`: https://handbook.opencraft.com/en/latest/cell_budgets/#cell-budgets
 
 Budget Dashboard
 ~~~~~~~~~~~~~~~~~~~~~~~~
-This presents a list of all active accounts and the time spent on them from the beginning of the current year and the goal, basing on the budget stored in the DB.
+This presents a list of all active accounts and the time spent on them from the beginning of the current year and the goal, based on the budget stored in the DB.
 
 Settings
 --------

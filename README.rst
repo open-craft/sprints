@@ -71,7 +71,7 @@ After you refresh the board for the second time, you’ll immediately see cached
 
 Creating new sprints
 ~~~~~~~~~~~~~~~~~~~~~~
-In case when user needs to schedule tickets for sprints that haven’t been created yet, they can press `Create Next Sprint` to create a new one for the currently viewed cell.
+In case when a user needs to schedule tickets for sprints that haven’t been created yet, they can press `Create Next Sprint` to create a new one for the currently viewed cell.
 
 Completing sprints
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -108,14 +108,14 @@ The main idea behind this is that sprints are not shared by cells - you need to 
 4. Close the active sprint.
 5. Move issues from the closed sprint to the next one.
 6. Open the next sprint.
-7. Create role-specific tasks for the future sprint.
+7. Create role-specific tasks for the sprint after next.
     The assignees for these tickets are retrieved from the `GOOGLE_ROTATIONS_RANGE` defined within `GOOGLE_ROTATIONS_SPREADSHEET`. The format of this document is the following:
 
     a) First column contains sprint number (you can create multiple role tasks for one week by dividing sprint into parts, e.g. `Sprint 100a, Sprint 100b` - each in a separate row).
     b) Next columns' headers contain role names prefixed by the full cell name (e.g. `Cell_1 FF`) and their fields contain assignees for the tickets.
     c) The "Date" column is omitted.
 
-    The metadata (name, duration, story points), of these tickets is defined in `JIRA_CELL_ROLES`. Please see its docstring for the detailed explanation of its format.
+    The metadata (name, duration, story points) of these tickets is defined in `JIRA_CELL_ROLES`. Please see its docstring for the detailed explanation of its format.
 
 
 Sustainability
@@ -157,12 +157,12 @@ The budgets are rolling, so these entries are perceived as *changes* of the budg
 
 Sustainability Dashboard
 ~~~~~~~~~~~~~~~~~~~~~~~~
-This view allows you to verify the assumptions described in `handbook's cell_budgets`_.
+This view allows you to verify the assumptions described in `the "Cell Budgets" chapter of our handbook`_.
 The key information here is the ratio of non-billable cell hours to billable cell hours. It is calculated in the following way:
 
-    each cell ensures that it doesn’t exceed a budget of 1h of internal/unbilled budget for every 2.5h the cell bills to clients.
+    each cell ensures that it doesn't exceed a budget of 1h of internal/unbilled budget for every 2.5h the cell bills to clients.
 
-.. _`handbook's cell_budgets`: https://handbook.opencraft.com/en/latest/cell_budgets/#cell-budgets
+.. _`the "Cell Budgets" chapter of our handbook`: https://handbook.opencraft.com/en/latest/cell_budgets/#cell-budgets
 
 Budget Dashboard
 ~~~~~~~~~~~~~~~~~~~~~~~~

@@ -500,9 +500,10 @@ SPILLOVER_REMINDER_MESSAGE = fr"please fill the spillover reason in the " \
                              fr"and the next time add the spillover reason as a Jira comment " \
                              fr"matching the following regexp: {{code:python}} {SPILLOVER_REASON_DIRECTIVE}{{code}}"
 # Message to put in the comment as a reminder to the user who forgot to post the spillover avoidance hints.
-SPILLOVER_CLEAN_HINTS_MESSAGE = fr"congratulations for achieving the clean sprint! Please post some hints about " \
-                                fr"managing this on the [Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}] " \
-                                fr"and the next time add them upfront as a Jira comment " \
+SPILLOVER_CLEAN_HINTS_MESSAGE = fr"congratulations for achieving a clean sprint! " \
+                                fr"If you have any hints about how you did this, please add them to the " \
+                                fr"[Spillover spreadsheet|{GOOGLE_SPILLOVER_SPREADSHEET_URL}]. " \
+                                fr"You can also add them upfront as a Jira comment " \
                                 fr"matching the following regexp: {{code:python}} {SPILLOVER_REASON_DIRECTIVE}{{code}}"
 
 # Specify names of the Tempo account categories.

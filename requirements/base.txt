@@ -22,7 +22,7 @@ djangorestframework~=3.9.4  # https://github.com/encode/django-rest-framework
 djangorestframework-jwt~=1.11.0  # https://github.com/GetBlimp/django-rest-framework-jwt
 djangorestframework_simplejwt~=4.3.0  # https://github.com/davesque/django-rest-framework-simplejwt
 coreapi~=2.3.3  # https://github.com/core-api/python-client
-drf-yasg~=1.15.0  # https://github.com/axnsan12/drf-yasg
+drf-yasg~=1.17.0  # https://github.com/axnsan12/drf-yasg
 
 # REST auth
 # ------------------------------------------------------------------------------

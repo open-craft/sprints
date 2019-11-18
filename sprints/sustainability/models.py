@@ -118,7 +118,8 @@ class SustainabilityAccount:
         """
         partial_budget = 0.
         for n in range(int((end - start).days)):
-            if (date := start + timedelta(n)).weekday() < 5:  # Do not count weekends.
+            date = (start + timedelta(n))
+            if date.weekday() < 5:  # Do not count weekends.
                 partial_budget += daily_budget[date.month]
 
         return partial_budget
@@ -191,7 +192,8 @@ class SustainabilityDashboard:
         """Wraps fetching account chunks for caching."""
         key = f"{settings.CACHE_SUSTAINABILITY_PREFIX}{from_} - {to}"
         if force:
-            cache.set(key, SustainabilityDashboard._fetch_accounts_chunk(from_, to), cache_timeout)
+            cache.set(key, categories := SustainabilityDashboard._fetch_accounts_chunk(from_, to), cache_timeout)
+            return categories
 
         if not (categories := cache.get(key)):
             categories = cache.get_or_set(key, SustainabilityDashboard._fetch_accounts_chunk(from_, to), cache_timeout)

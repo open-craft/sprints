@@ -5,26 +5,9 @@ import {callApi} from "../../middleware/api";
 import {Link} from "react-router-dom";
 import routes from "../../routes";
 import Button from "../Button";
+import {sprints} from "../../actions";
 
 class SprintActionButton extends Component {
-    checkAction = () => {
-        let action_url = `${this.props.url}${this.props.board_id}/`;
-        callApi(action_url)
-            .then(response => {
-                if (response.status === 200) {
-                    this.btn.setAttribute("class", "btn-danger");
-                    this.btn.removeAttribute("disabled");
-                    this.btn.onclick = this.sprintAction;
-                } else {
-                    return response.json().then(data => {
-                        if (data.detail) {
-                            this.btn.setAttribute("title", data.detail);
-                        }
-                    });
-                }
-            })
-    };
-
     sprintAction = () => {
         if (window.confirm(`Are you sure you want to ${this.props.action}?`) !== true) {
             return;
@@ -46,13 +29,28 @@ class SprintActionButton extends Component {
             });
     };
 
+    setButton() {
+        if (this.props.sprints.buttons[this.props.action] === true) {
+            this.btn.setAttribute("class", "btn-danger");
+            this.btn.removeAttribute("disabled");
+            this.btn.onclick = this.sprintAction;
+        } else {
+            this.btn.setAttribute("title", this.props.sprints.buttons[this.props.action]);
+        }
+    };
+
+    componentDidMount() {
+        this.props.checkPermissions(this.props.action, this.props.url, this.props.board_id);
+    }
+
     render() {
         if (this.props.is_restricted) {
             if (!this.props.auth.user.is_staff) {
                 return null;
             }
-
-            this.checkAction();  // Restricted buttons require validation (obtained by sending `GET` to the same endpoint).
+            if (this.btn) {
+                this.setButton();
+            }
         }
 
         return (
@@ -72,10 +70,19 @@ class SprintActionButton extends Component {
 const mapStateToProps = state => {
     return {
         auth: state.auth,
+        sprints: state.sprints,
     }
 };
 
-let SprintActionButtonCombined = connect(mapStateToProps)(SprintActionButton);
+const mapDispatchToProps = dispatch => {
+    return {
+        checkPermissions: (action, url, board_id) => {
+            return dispatch(sprints.checkPermissions(action, url, board_id));
+        }
+    }
+};
+
+let SprintActionButtonCombined = connect(mapStateToProps, mapDispatchToProps)(SprintActionButton);
 
 const SprintActionButtons = ({board_id}) =>
     <div className="sprint_actions">

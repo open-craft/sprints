@@ -22,23 +22,26 @@ def validate_worklog_cache(long_term=True, force_regenerate=False) -> bool:
     :param force_regenerate: If true, regenerates cache for each month in the specified range.
     """
     today = datetime.today()
-    last_day_of_month = calendar.monthrange(today.year, today.month)[1]
-    end_date = today.replace(day=last_day_of_month)
+
+    if not cache.add(
+        settings.CACHE_WORKLOG_REGENERATE_LOCK, True, settings.CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS
+    ):  # Cache regeneration is still running or has ended unsuccessfully.
+        return False
 
     if long_term:
         # Validate cache for all one-month periods from the beginning of `settings.TEMPO_START_YEAR` to the present one.
-        if not cache.add(
-            settings.CACHE_WORKLOG_REGENERATE_LOCK, True, settings.CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS
-        ):  # Cache regeneration is still running or has ended unsuccessfully.
-            return False
-
         start_year = parse(str(settings.TEMPO_START_YEAR))
         start_date = start_year.replace(month=1, day=1)
         cache_timeout = settings.CACHE_WORKLOG_TIMEOUT_LONG_TERM
+        end_date = (today - relativedelta(months=settings.CACHE_WORKLOG_MUTABLE_MONTHS))
+        last_day_of_month = calendar.monthrange(end_date.year, end_date.month)[1]
+        end_date = end_date.replace(day=last_day_of_month)
     else:
         # Validate cache only for the last `settings.CACHE_WORKLOG_MUTABLE_MONTHS` mutable months.
         start_date = (today - relativedelta(months=settings.CACHE_WORKLOG_MUTABLE_MONTHS - 1)).replace(day=1)
         cache_timeout = settings.CACHE_WORKLOG_TIMEOUT_SHORT_TERM
+        last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+        end_date = today.replace(day=last_day_of_month)
 
     start_str = start_date.strftime(settings.JIRA_API_DATE_FORMAT)
     end_str = end_date.strftime(settings.JIRA_API_DATE_FORMAT)
@@ -51,6 +54,5 @@ def validate_worklog_cache(long_term=True, force_regenerate=False) -> bool:
             force=force_regenerate,
         )
 
-    if long_term:
-        cache.delete(settings.CACHE_WORKLOG_REGENERATE_LOCK)
+    cache.delete(settings.CACHE_WORKLOG_REGENERATE_LOCK)
     return True

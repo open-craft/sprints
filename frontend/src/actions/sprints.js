@@ -72,3 +72,30 @@ export const loadBoard = (board_id, cache = false) => {
             });
     };
 };
+
+export const checkPermissions = (action, url, board_id) => {
+    let action_url = `${url}${board_id}/`;
+    return (dispatch) => {
+        dispatch({type: "PERMISSION_LOADING", board_id: board_id});
+
+        return callApi(action_url)
+            .then(response => {
+                if (response.status < 500) {
+                    return response.json().then(data => {
+                        return {status: response.status, data};
+                    })
+                } else {
+                    console.log("Server Error!");
+                    throw response;
+                }
+            })
+            .then(result => {
+                if (result.status === 200) {
+                    dispatch({type: 'PERMISSION_GRANTED', board_id: board_id, data: result.data, action: action});
+                    return result.data;
+                } else if (result.status >= 400 && result.status < 500) {
+                    dispatch({type: "PERMISSION_DENIED", data: result.data, action: action});
+                }
+            });
+    };
+};

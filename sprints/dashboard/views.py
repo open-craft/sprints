@@ -1,6 +1,6 @@
 import http
 from datetime import datetime
-from typing import Optional
+from typing import Union
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -64,8 +64,7 @@ class DashboardViewSet(viewsets.ViewSet):
             with connect_to_jira() as conn:
                 dashboard = Dashboard(int(pk), conn)
                 data = DashboardSerializer(dashboard).data
-                if use_cache:
-                    cache.set(pk, data, settings.CACHE_SPRINT_TIMEOUT_ONE_TIME)
+                cache.set(pk, data, settings.CACHE_SPRINT_TIMEOUT_ONE_TIME)
         return Response(data)
 
     @swagger_auto_schema(responses={200: _task_scheduled_response})
@@ -83,7 +82,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
     permission_classes = (permissions.IsAdminUser,)
 
     @staticmethod
-    def is_forbidden_to_end_sprint(board_id: int, acquire_lock: bool = False) -> Optional[str]:
+    def can_end_sprint(board_id: int, acquire_lock: bool = False) -> Union[str, bool]:
         """
         Checks if the sprint can be closed now. If it cannot be closed, this returns the reason. There are 2 conditions:
         1. The current day is the last day of the current sprint.
@@ -100,12 +99,12 @@ class CompleteSprintViewSet(viewsets.ViewSet):
         )) or (not acquire_lock and cache.get(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}', False)):
             return "The completion task is already running or hasn't been completed successfully."
 
-        return None
+        return True
 
     @swagger_auto_schema(responses={200: _can_complete_sprint, 403: _cannot_complete_sprint})
     def retrieve(self, _request, pk=None):
         """Checks if the sprint can be closed now. Otherwise returns proper error message."""
-        if error_message := self.is_forbidden_to_end_sprint(pk):
+        if (error_message := self.can_end_sprint(pk)) is not True:
             raise PermissionDenied(detail=error_message)
         return Response(data='', status=http.HTTPStatus.OK)
 
@@ -117,7 +116,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
         Sets a lock in the cache, so it won't be possible to schedule the sprint completion task twice for one cell.
         We want to set it here (instead of doing it inside the task) to avoid race conditions.
         """
-        if error_message := self.is_forbidden_to_end_sprint(pk, acquire_lock=True):
+        if (error_message := self.can_end_sprint(pk, acquire_lock=True)) is not True:
             raise PermissionDenied(detail=error_message)
 
         complete_sprint_task.delay(int(pk))

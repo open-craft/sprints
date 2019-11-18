@@ -3,6 +3,7 @@ const initialState = {
     boardLoading: true,
     cells: JSON.parse(localStorage.getItem("cells")) || [],
     boards: JSON.parse(localStorage.getItem("boards")) || {},
+    buttons: {}
 };
 
 
@@ -31,6 +32,20 @@ export default function sprints(state=initialState, action) {
             state.boards[action.board_id] = board;
             localStorage.setItem("boards", JSON.stringify(state.boards));
             return {...state, boardLoading: false};
+
+        case 'PERMISSION_GRANTED':
+            const buttons = {};
+            buttons[action.action] = true;
+            return {...state, buttons: buttons};
+
+        case 'PERMISSION_DENIED':
+            const button_err = {};
+            let data = action.data;
+            if (data.detail) {
+                data = data.detail;
+            }
+            button_err[action.action] = data;
+            return {...state, buttons: button_err};
 
         default:
             return state;

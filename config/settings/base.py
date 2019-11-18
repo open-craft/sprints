@@ -298,20 +298,12 @@ CELERYD_TASK_TIME_LIMIT = SECONDS_IN_MINUTE * 30
 CELERYD_TASK_SOFT_TIME_LIMIT = CELERYD_TASK_TIME_LIMIT
 
 CELERY_BEAT_SCHEDULE = {
-    "Validate long-term cache every minute.": {
+    "Validate long-term cache integrity every 15 minutes.": {
         "task": "sprints.sustainability.tasks.validate_worklog_cache",
-        "schedule": crontab(),
+        "schedule": crontab(minute='*/15'),
         "kwargs": {
             "long_term": True,
             "force_regenerate": False,
-        },
-    },
-    "Recreate short-term cache every minute.": {
-        "task": "sprints.sustainability.tasks.validate_worklog_cache",
-        "schedule": crontab(),
-        "kwargs": {
-            "long_term": False,
-            "force_regenerate": True,
         },
     },
     "Recreate long-term cache once per week.": {
@@ -570,8 +562,8 @@ TEMPO_START_YEAR = env.int("TEMPO_START_YEAR", 2015)
 CACHE_WORKLOG_MUTABLE_MONTHS = env.int("CACHE_TEMPO_MUTABLE_MONTHS", 2)
 CACHE_WORKLOG_TIMEOUT_LONG_TERM = SECONDS_IN_HOUR * HOURS_IN_DAY * 31
 CACHE_WORKLOG_TIMEOUT_SHORT_TERM = SECONDS_IN_MINUTE * 2
-CACHE_WORKLOG_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE
-CACHE_SPRINT_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE
+CACHE_WORKLOG_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE * 2
+CACHE_SPRINT_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE * 2
 CACHE_WORKLOG_REGENERATE_LOCK = "cache-worklog-regenerate"
 CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS = env.int("CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS", SECONDS_IN_MINUTE * 30)
 CACHE_SPRINT_END_DATE_PREFIX = "sprint_end_date-"

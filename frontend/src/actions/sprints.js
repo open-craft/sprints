@@ -1,4 +1,4 @@
-import {PARAM_BOARD_ID, PATH_CELLS, PATH_DASHBOARD} from "../constants";
+import {PATH_DASHBOARD, USE_CACHE} from "../constants";
 import {callApi} from "../middleware/api";
 
 const prepareCellIds = (cells) => {
@@ -12,7 +12,7 @@ export const loadCells = () => {
     return (dispatch) => {
         dispatch({type: "CELLS_LOADING"});
 
-        return callApi(PATH_CELLS)
+        return callApi(PATH_DASHBOARD)
             .then(response => {
                 if (response.status < 500) {
                     return response.json().then(data => {
@@ -36,8 +36,8 @@ export const loadCells = () => {
     }
 };
 
-export const loadBoard = (board_id) => {
-    let board_url = `${PATH_DASHBOARD}?${PARAM_BOARD_ID}${board_id}`;
+export const loadBoard = (board_id, cache = false) => {
+    let board_url = `${PATH_DASHBOARD}${board_id}/` + (cache ? `?${USE_CACHE}` : '');
 
     return (dispatch) => {
         dispatch({type: "BOARD_LOADING", board_id: board_id});
@@ -70,5 +70,5 @@ export const loadBoard = (board_id) => {
                     throw result.data;
                 }
             });
-    }
+    };
 };

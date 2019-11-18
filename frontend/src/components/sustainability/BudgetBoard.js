@@ -26,19 +26,28 @@ class BudgetBoard extends Component {
         const {name, id} = view;
         const {budgetsLoading} = this.props.sustainability;
         const data = this.props.accounts;
+        const {boards, boardLoading} = this.props.sprints;
 
         return (
             <div className='sustainability'>
                 <h2>Budget</h2>
                 {
                     // Is data present + logical implication for checking whether the cell is loaded.
-                    Object.keys(data).length && (name !== 'board' || this.props.sprints.boards[id])
+                    Object.keys(data).length && (name !== 'board' || boards[id])
                         ? <div>
                             {
                                 budgetsLoading
                                     ? <div className="loading">
                                         <div className="spinner-border"/>
                                         <p>You are viewing the cached version now. The dashboard is being reloaded…</p>
+                                    </div>
+                                    : <div/>
+                            }
+                            {
+                                boardLoading
+                                    ? <div className="loading">
+                                        <div className="spinner-border"/>
+                                        <p>The <i>Left this sprint</i> and <i>Next Sprint</i> columns are cached versions. The dashboard is being reloaded…</p>
                                     </div>
                                     : <div/>
                             }

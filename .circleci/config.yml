@@ -5,10 +5,11 @@ orbs:
 jobs:
   test_backend:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
         environment:
           DATABASE_URL: postgresql://root@localhost/circle_test?sslmode=disable
           CELERY_BROKER_URL: redis://redis:6379/0
+          REDIS_URL: redis://redis:6379/0
       - image: circleci/postgres:10.3
         environment:
           POSTGRES_USER: root
@@ -60,7 +61,7 @@ jobs:
 
   build_backend:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
@@ -109,7 +110,7 @@ jobs:
 
   deploy_frontend:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
     steps:
       - attach_workspace:
           at: build
@@ -124,7 +125,7 @@ jobs:
 
   deploy_backend:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
     steps:
       - run:
           name: Deploy backend

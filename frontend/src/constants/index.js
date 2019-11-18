@@ -10,12 +10,9 @@ export const PATH_LOGOUT = `${PATH_AUTH}/logout/`;
 export const PATH_VERIFY_EMAIL = `${PATH_AUTH}/registration/verify-email/`;
 export const PATH_REFRESH_TOKEN = `${PATH_AUTH}/refresh/`;
 
-export const PATH_SPRINT_DASHBOARD = `${PATH_BASE}/dashboard`;
-export const PATH_CELLS = `${PATH_SPRINT_DASHBOARD}/cells/`;
-export const PATH_DASHBOARD = `${PATH_SPRINT_DASHBOARD}/dashboard/`;
-export const PARAM_BOARD_ID = 'board_id=';
-export const PATH_COMPLETE_SPRINT = `${PATH_SPRINT_DASHBOARD}/complete_sprint/`;
-export const PATH_CREATE_NEXT_SPRINT = `${PATH_SPRINT_DASHBOARD}/create_next_sprint/`;
+export const PATH_DASHBOARD = `${PATH_BASE}/dashboard/`;
+export const PATH_COMPLETE_SPRINT = `${PATH_DASHBOARD}complete_sprint/`;
+export const USE_CACHE = 'cache=true';
 
 export const PATH_SUSTAINABILITY_DASHBOARD = `${PATH_BASE}/sustainability/dashboard/`;
 export const PARAM_FROM = 'from=';

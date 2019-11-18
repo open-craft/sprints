@@ -29,35 +29,25 @@ class SprintActionButton extends Component {
             });
     };
 
-    setButton() {
-        if (this.props.sprints.buttons[this.props.action] === true) {
-            this.btn.setAttribute("class", "btn-danger");
-            this.btn.removeAttribute("disabled");
-            this.btn.onclick = this.sprintAction;
-        } else {
-            this.btn.setAttribute("title", this.props.sprints.buttons[this.props.action]);
-        }
-    };
-
     componentDidMount() {
         this.props.checkPermissions(this.props.action, this.props.url, this.props.board_id);
     }
 
     render() {
+        const canUseButton = this.props.sprints.buttons[this.props.action] === true;
+
         if (this.props.is_restricted) {
             if (!this.props.auth.user.is_staff) {
                 return null;
-            }
-            if (this.btn) {
-                this.setButton();
             }
         }
 
         return (
             <button
-                className={this.props.is_restricted ? "" : "btn-warning"}
-                disabled={this.props.is_restricted ? "disabled" : ""}
+                className={this.props.is_restricted ? (canUseButton ? "btn-danger" : "" ) : "btn-warning"}
+                disabled={this.props.is_restricted ? (canUseButton ? "" : "disabled") : ""}
                 onClick={this.sprintAction}
+                title={this.props.sprints.canCloseSprint}
                 ref={btn => {
                     this.btn = btn;
                 }}

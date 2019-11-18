@@ -39,13 +39,11 @@ export default function sprints(state=initialState, action) {
             return {...state, buttons: buttons};
 
         case 'PERMISSION_DENIED':
-            const button_err = {};
             let data = action.data;
             if (data.detail) {
                 data = data.detail;
             }
-            button_err[action.action] = data;
-            return {...state, buttons: button_err};
+            return {...state, canCloseSprint: data};
 
         default:
             return state;

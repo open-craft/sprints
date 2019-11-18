@@ -24,8 +24,6 @@ from sprints.dashboard.libs.jira import (
     QuickFilter,
 )
 from sprints.dashboard.utils import (
-    SECONDS_IN_HOUR,
-    SECONDS_IN_MINUTE,
     daterange,
     extract_sprint_id_from_str,
     get_all_sprints,
@@ -35,6 +33,10 @@ from sprints.dashboard.utils import (
     get_sprint_meeting_day_division,
     get_sprint_start_date,
     prepare_jql_query,
+)
+from config.settings.base import (
+    SECONDS_IN_HOUR,
+    SECONDS_IN_MINUTE,
 )
 
 

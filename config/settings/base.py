@@ -5,6 +5,11 @@ import datetime
 import json
 
 import environ
+from celery.schedules import crontab
+
+SECONDS_IN_HOUR = 3600
+SECONDS_IN_MINUTE = 60
+HOURS_IN_DAY = 24
 
 ROOT_DIR = (
     environ.Path(__file__) - 3
@@ -87,6 +92,22 @@ LOCAL_APPS = [
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env("REDIS_URL"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Mimicing memcache behavior.
+            # http://niwinz.github.io/django-redis/latest/#_memcached_exceptions_behavior
+            "IGNORE_EXCEPTIONS": True,
+        },
+    }
+}
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------
@@ -271,10 +292,33 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
 # TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_TIME_LIMIT = 5 * 60
+CELERYD_TASK_TIME_LIMIT = SECONDS_IN_MINUTE * 30
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
 # TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_SOFT_TIME_LIMIT = 60
+CELERYD_TASK_SOFT_TIME_LIMIT = CELERYD_TASK_TIME_LIMIT
+
+CELERY_BEAT_SCHEDULE = {
+    "Validate long-term cache integrity every 15 minutes.": {
+        "task": "sprints.sustainability.tasks.validate_worklog_cache",
+        "schedule": crontab(minute='*/15'),
+        "kwargs": {
+            "long_term": True,
+            "force_regenerate": False,
+        },
+    },
+    "Recreate long-term cache once per week.": {
+        "task": "sprints.sustainability.tasks.validate_worklog_cache",
+        "schedule": crontab(
+            minute=0,
+            hour=0,
+            day_of_week='sun',
+        ),
+        "kwargs": {
+            "long_term": True,
+            "force_regenerate": True,
+        },
+    },
+}
 
 # django-allauth
 # ------------------------------------------------------------------------------
@@ -513,6 +557,21 @@ TEMPO_NON_BILLABLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_ACCOUNT", "NON-BILLABLE
 TEMPO_NON_BILLABLE_ACCOUNT_NAME = env.str("TEMPO_NON_BILLABLE_ACCOUNT_NAME", "Non-billable account")
 TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT = env.str("TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT", "NON-BILLABLE-CELL")
 TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME = env.str("TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME", "Non-billable cell responsibility account")
+TEMPO_START_YEAR = env.int("TEMPO_START_YEAR", 2015)
+
+CACHE_WORKLOG_MUTABLE_MONTHS = env.int("CACHE_TEMPO_MUTABLE_MONTHS", 2)
+CACHE_WORKLOG_TIMEOUT_LONG_TERM = SECONDS_IN_HOUR * HOURS_IN_DAY * 31
+CACHE_WORKLOG_TIMEOUT_SHORT_TERM = SECONDS_IN_MINUTE * 2
+CACHE_WORKLOG_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE * 2
+CACHE_SPRINT_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE * 2
+CACHE_WORKLOG_REGENERATE_LOCK = "cache-worklog-regenerate"
+CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS = env.int("CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS", SECONDS_IN_MINUTE * 30)
+CACHE_SPRINT_END_DATE_PREFIX = "sprint_end_date-"
+CACHE_SPRINT_END_DATE_TIMEOUT_SECONDS = SECONDS_IN_HOUR * HOURS_IN_DAY * SPRINT_DURATION_DAYS
+CACHE_SPRINT_END_LOCK = "sprint_end_lock-"
+CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS = SECONDS_IN_HOUR * HOURS_IN_DAY
+CACHE_SUSTAINABILITY_PREFIX = "sustainability-"
+CACHE_SUSTAINABILITY_DATE_FORMAT = "%Y-%m"
 
 # Dict for local account naming.
 TEMPO_ACCOUNT_TRANSLATE = {

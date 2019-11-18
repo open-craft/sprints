@@ -20,7 +20,17 @@ const CellsList = ({list}) => {
 class Cells extends Component {
     componentDidMount() {
         sessionStorage.setItem('view', JSON.stringify({'name': 'cells'}));
-        this.props.loadCells();
+        this.loadCells();
+    }
+
+    loadCells() {
+        // Reload dashboards for all cells (using the cache, if possible).
+        this.props.loadCells()
+            .then(result => {
+                if (result && Object.keys(result).length) {
+                    Object.keys(result).forEach(id => this.props.loadBoard(id));
+                }
+            });
     }
 
     render() {
@@ -54,6 +64,9 @@ const mapDispatchToProps = dispatch => {
         },
         loadCells: () => {
             return dispatch(sprints.loadCells());
+        },
+        loadBoard: (board_id) => {
+            return dispatch(sprints.loadBoard(board_id, true));
         }
     }
 };

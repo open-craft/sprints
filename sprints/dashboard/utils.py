@@ -11,7 +11,6 @@ from typing import (
     Iterable,
     List,
     Optional,
-    Set,
     Tuple,
     Union,
 )
@@ -19,6 +18,7 @@ from typing import (
 from dateutil.parser import parse
 from django.conf import settings
 # noinspection PyProtectedMember
+from django.core.cache import cache
 from jira.resources import (
     Board,
     Comment,
@@ -27,14 +27,13 @@ from jira.resources import (
     Sprint,
 )
 
+from config.settings.base import SECONDS_IN_HOUR
 from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
     QuickFilter,
+    connect_to_jira,
 )
-
-SECONDS_IN_HOUR = 3600
-SECONDS_IN_MINUTE = 60
 
 
 class Cell:
@@ -200,6 +199,26 @@ def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
         date = get_sprint_start_date(future_sprint)
 
     return (parse(date) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def get_current_sprint_end_date(sprint_type='active') -> str:
+    """Retrieves the cached end of sprint date for speeding up more frequent requests."""
+    if not (result := cache.get(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}")):
+        result = cache.get_or_set(
+            f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}",
+            _get_current_sprint_end_date(sprint_type),
+            settings.CACHE_SPRINT_END_DATE_TIMEOUT_SECONDS
+        )
+    return result
+
+
+def _get_current_sprint_end_date(type_: str) -> str:
+    """Retrieves the end of sprint date. `type_` can be set to `active` or `future`."""
+    with connect_to_jira() as conn:
+        sprints = get_all_sprints(conn)[type_]
+
+    sprint = sprints[0]
+    return get_sprint_end_date(sprint, sprints)
 
 
 def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:

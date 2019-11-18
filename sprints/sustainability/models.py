@@ -12,17 +12,12 @@ from typing import (
 
 from dateutil.parser import parse
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
 from jira.resources import PropertyHolder
 
-from sprints.dashboard.libs.jira import (
-    CustomJira,
-    connect_to_jira,
-)
-from sprints.dashboard.utils import (
-    get_all_sprints,
-    get_sprint_end_date,
-)
+from sprints.dashboard.libs.jira import connect_to_jira
+from sprints.dashboard.utils import get_current_sprint_end_date
 from sprints.sustainability.utils import (
     generate_month_range,
     on_error,
@@ -145,8 +140,7 @@ class SustainabilityDashboard:
     Aggregates accounts into a single dashboard.
     """
 
-    def __init__(self, conn: CustomJira, from_: str, to: str, budgets: bool = False) -> None:
-        self.jira_connection = conn
+    def __init__(self, from_: str, to: str, budgets: bool = False) -> None:
         self.generate_budgets = budgets
         self.from_ = from_
         self.to = to
@@ -165,7 +159,10 @@ class SustainabilityDashboard:
         """
         with ThreadPool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
             results = [pool.apply_async(
-                self._fetch_accounts_chunk, args, error_callback=on_error)
+                self.fetch_accounts_chunk,
+                args + (settings.CACHE_WORKLOG_TIMEOUT_ONE_TIME,),
+                error_callback=on_error,
+            )
                 for args in generate_month_range(self.from_, self.to)
             ]
             output = [p.get(settings.MULTIPROCESSING_TIMEOUT) for p in results]
@@ -184,13 +181,23 @@ class SustainabilityDashboard:
             setattr(self, category, getattr(self, category).values())
 
             if self.generate_budgets:
-                sprints = get_all_sprints(self.jira_connection)['future']
-                future_sprint = sprints[0]
-                end_date = get_sprint_end_date(future_sprint, sprints)
+                end_date = get_current_sprint_end_date('future')
 
                 accounts = getattr(self, category)
                 for account in accounts:
                     account.calculate_budgets(parse(self.from_), parse(end_date))
+
+    @staticmethod
+    def fetch_accounts_chunk(from_: str, to: str, cache_timeout=0, force=False) -> Dict[str, Dict]:
+        """Wraps fetching account chunks for caching."""
+        key = f"{settings.CACHE_SUSTAINABILITY_PREFIX}{from_} - {to}"
+        if force:
+            cache.set(key, categories := SustainabilityDashboard._fetch_accounts_chunk(from_, to), cache_timeout)
+            return categories
+
+        if not (categories := cache.get(key)):
+            categories = cache.get_or_set(key, SustainabilityDashboard._fetch_accounts_chunk(from_, to), cache_timeout)
+        return categories
 
     @staticmethod
     def _fetch_accounts_chunk(from_: str, to: str) -> Dict[str, Dict]:

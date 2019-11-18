@@ -13,6 +13,7 @@ from celery import group
 from celery.result import allow_join_result
 from django.conf import settings
 # noinspection PyProtectedMember
+from django.core.cache import cache
 from jira.resources import (
     Issue,
     Sprint,
@@ -31,6 +32,7 @@ from sprints.dashboard.utils import (
     create_next_sprint,
     filter_sprints_by_cell,
     get_all_sprints,
+    get_cell_member_names,
     get_cell_members,
     get_cells,
     get_commitment_range,
@@ -45,7 +47,6 @@ from sprints.dashboard.utils import (
     prepare_jql_query_active_sprint_tickets,
     prepare_jql_query_cell_role_epic,
     prepare_spillover_rows,
-    get_cell_member_names,
 )
 
 
@@ -92,7 +93,7 @@ def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str, clean
 
 @celery_app.task(ignore_result=True)
 def create_next_sprint_task(board_id: int) -> None:
-    """A task for posting the spillover reason reminder on the issue."""
+    """A task for creating the next sprint for the specified cell."""
     with connect_to_jira() as conn:
         cells = get_cells(conn)
         cell = next(c for c in cells if c.board_id == board_id)
@@ -152,6 +153,8 @@ def complete_sprint_task(board_id: int) -> None:
     5. Moves issues from the closed sprint to the next one.
     6. Opens the next sprint.
     7. Creates role tickets.
+    8. Releases the sprint completion lock.
+    9. Clears cache related to end of sprint date.
     """
     with connect_to_jira() as conn:
         cells = get_cells(conn)
@@ -244,3 +247,7 @@ def complete_sprint_task(board_id: int) -> None:
                 'board_id': cell.board_id,
             }
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, get_sprint_number(future_next_sprint))
+
+    cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
+    cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")
+    cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}future")

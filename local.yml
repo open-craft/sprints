@@ -12,6 +12,7 @@ services:
     image: sprints_local_django
     depends_on:
       - postgres
+      - redis
       - celeryworker
     volumes:
       - .:/app
@@ -45,6 +46,9 @@ services:
     depends_on:
       - redis
       - postgres
+      - celerybeat
+    environment:
+      - COLUMNS=80  # https://github.com/celery/celery/issues/5761
 
     ports: []
     command: /start-celeryworker
@@ -58,6 +62,8 @@ services:
 
     ports: []
     command: /start-celerybeat
+    environment:
+      - COLUMNS=80  # https://github.com/celery/celery/issues/5761
 
   flower:
     <<: *django

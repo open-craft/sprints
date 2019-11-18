@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime
 
 from dateutil.parser import parse
@@ -11,7 +12,6 @@ from rest_framework import (
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.sustainability.models import SustainabilityDashboard
 from sprints.sustainability.serializers import SustainabilityDashboardSerializer
 
@@ -49,13 +49,15 @@ class SustainabilityDashboardViewSet(viewsets.ViewSet):
         if not (from_ and to) and not year:
             raise ValidationError("(`from` and `to`) or `year` query params are required.")
 
-        with connect_to_jira() as conn:
-            if year:
-                year_date = parse(year)
-                from_ = year_date.replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
-                to = min(datetime.today(), year_date.replace(month=12, day=31)).strftime(settings.JIRA_API_DATE_FORMAT)
-                dashboard = SustainabilityDashboard(conn, from_, to, budgets=True)
-            else:
-                dashboard = SustainabilityDashboard(conn, from_, to)
+        if year:
+            year_date = parse(year)
+            from_ = year_date.replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
+            today = datetime.today()
+            last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+            current_end_date = today.replace(day=last_day_of_month)
+            to = min(current_end_date, year_date.replace(month=12, day=31)).strftime(settings.JIRA_API_DATE_FORMAT)
+            dashboard = SustainabilityDashboard(from_, to, budgets=True)
+        else:
+            dashboard = SustainabilityDashboard(from_, to)
         serializer = SustainabilityDashboardSerializer(dashboard)
         return Response(serializer.data)

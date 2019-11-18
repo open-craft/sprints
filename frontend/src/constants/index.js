@@ -17,7 +17,6 @@ export const USE_CACHE = 'cache=true';
 export const PATH_SUSTAINABILITY_DASHBOARD = `${PATH_BASE}/sustainability/dashboard/`;
 export const PARAM_FROM = 'from=';
 export const PARAM_TO = 'to=';
-export const PARAM_YEAR = 'year=';
 
 export const PATH_JIRA_BASE = `${process.env.REACT_APP_JIRA_URL}`;
 export const PATH_JIRA_ISSUE = `${PATH_JIRA_BASE}/browse/`;
@@ -28,4 +27,7 @@ export const OTHER_CELL_NAME = "Other Cell";
 export const SPECIAL_USER_NAMES = [UNASSIGNED_NAME, OTHER_CELL_NAME];
 
 // Sustainability
+export const COMPANY_NAME = `${process.env.REACT_APP_COMPANY_NAME}`;
 export const MAX_NON_BILLABLE_TO_BILLABLE_RATIO = parseFloat(process.env.REACT_APP_MAX_NON_BILLABLE_TO_BILLABLE_RATIO);
+export const MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO = parseFloat(process.env.REACT_APP_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO);
+export const ACCOUNT_STRIP_NAMES = JSON.parse(process.env.REACT_APP_ACCOUNT_STRIP_NAMES);

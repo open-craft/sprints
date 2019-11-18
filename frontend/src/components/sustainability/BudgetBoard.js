@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {auth, sustainability} from "../../actions";
+import {auth} from "../../actions";
 
 import "react-datepicker/dist/react-datepicker.css";
 import BudgetTable from "./BudgetTable";
@@ -15,18 +15,13 @@ class BudgetBoard extends Component {
         };
     }
 
-    loadAccounts = () => this.props.loadAccounts(this.state.year);
-
-    componentDidMount() {
-        this.loadAccounts();
-    }
-
     render() {
         const view = JSON.parse(sessionStorage.getItem("view")) || {'name': 'cells'};
         const {name, id} = view;
-        const {budgetsLoading} = this.props.sustainability;
+        const {accountsLoading} = this.props.sustainability;
         const data = this.props.accounts;
         const {boards, boardLoading} = this.props.sprints;
+        const accounts = data.filter(account => account.overall);  // Hide unused accounts.
 
         return (
             <div className='sustainability'>
@@ -36,7 +31,7 @@ class BudgetBoard extends Component {
                     Object.keys(data).length && (name !== 'board' || boards[id])
                         ? <div>
                             {
-                                budgetsLoading
+                                accountsLoading
                                     ? <div className="loading">
                                         <div className="spinner-border"/>
                                         <p>You are viewing the cached version now. The dashboard is being reloaded…</p>
@@ -54,12 +49,11 @@ class BudgetBoard extends Component {
                             {
                                 !Object.keys(this.props.sprints.boards).length
                                     ? <div className="loading">
-                                        <p>You need to load cells' boards before seeing the "Left this sprint" and "Next sprint"
-                                            values.</p>
+                                        <p>You need to load cells' boards before seeing the "Left this sprint" and "Next sprint" values.</p>
                                     </div>
                                     : <div/>
                             }
-                            <BudgetTable accounts={data} view={name}/>
+                            <BudgetTable accounts={accounts} view={name}/>
                         </div>
                         : <div>
                             <div className="spinner-border"/>
@@ -84,9 +78,6 @@ const mapDispatchToProps = dispatch => {
     return {
         loadUser: () => {
             return dispatch(auth.loadUser());
-        },
-        loadAccounts: (from, to) => {
-            return dispatch(sustainability.loadAccounts(from, to));
         }
     }
 };

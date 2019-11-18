@@ -1,4 +1,4 @@
-import {PARAM_FROM, PARAM_TO, PARAM_YEAR, PATH_SUSTAINABILITY_DASHBOARD} from "../constants";
+import {PARAM_FROM, PARAM_TO, PATH_SUSTAINABILITY_DASHBOARD} from "../constants";
 import {callApi} from "../middleware/api";
 
 const aggregateAccounts = (data) => {
@@ -26,11 +26,7 @@ const aggregateAccounts = (data) => {
 
 export const loadAccounts = (from, to) => {
     let sustainability_url;
-    if (to) {
-        sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_FROM}${from}&${PARAM_TO}${to}`;
-    } else {
-        sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_YEAR}${from}`;
-    }
+    sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_FROM}${from}&${PARAM_TO}${to}`;
 
     return (dispatch) => {
         dispatch({type: "ACCOUNTS_LOADING"});
@@ -48,17 +44,10 @@ export const loadAccounts = (from, to) => {
             })
             .then(result => {
                 if (result.status === 200) {
-                    // let accounts = to ? aggregateAccounts(result.data) : aggregateBudgets(data);
-                    let accounts;
-                    if (to) {
-                        accounts = aggregateAccounts(result.data);
-                        dispatch({type: 'ACCOUNTS_LOADED', accounts: accounts});
-                    } else {
-                        accounts = result.data;
-                        dispatch({type: 'BUDGETS_LOADED', budgets: accounts});
-                    }
+                    let accounts = aggregateAccounts(result.data);
+                    dispatch({type: 'ACCOUNTS_LOADED', accounts: accounts, budgets: result.data});
 
-                    return accounts;
+                    return result.data;
                 } else if (result.status >= 400 && result.status < 500) {
                     dispatch({type: "AUTHENTICATION_ERROR", data: result.data});
                     throw result.data;

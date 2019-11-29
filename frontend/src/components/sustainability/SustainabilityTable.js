@@ -80,7 +80,7 @@ const cell_hints = accounts =>
         <li>Non-cell hours = hours logged on a task not belonging to the current cell</li>
         <li>Cell hours = billable cell hours + non-billable cell hours</li>
         <li>% non-billable = non-billable cell hours / cell hours</li>
-        <li>Total non-billable hours (non-billable hours + non-billable cell hours): {Math.round(accounts.non_billable_total)}</li>
+        <li>Total non-billable hours (non-cell hours + non-billable cell hours): {Math.round(accounts.non_billable_total)}</li>
     </>;
 
 const SustainabilityTable = ({accounts, view}) =>

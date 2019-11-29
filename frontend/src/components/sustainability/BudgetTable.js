@@ -2,8 +2,8 @@ import React from 'react';
 import '../Table.css';
 import {ACCOUNT_STRIP_NAMES} from "../../constants";
 
-const nameColumn = {width: '35%'};  // 1 cells -> 35 total
-const timeColumn = {width: '9%'};  // 5 cells -> 45% total
+const nameColumn = {width: '35%'};  // 1 cells -> 35% total
+const timeColumn = {width: '7.5%'};  // 6 cells -> 45% total
 const categoryColumn = {width: '20%'};  // 1 cells -> 20% total
 
 const statusClass = (remaining, optional = 0) => Math.round(remaining - optional) >= 0 ? 'on-track' : 'overtime';
@@ -34,7 +34,7 @@ const BudgetTable = ({accounts, view}) =>
                     </abbr>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Goal from the beginning of the first year within the selected period and the end of the next sprint.">
+                    <abbr title="Goal from the beginning of the first year within the selected period to the end of the next sprint.">
                         YTD Goal
                     </abbr>
                 </td>

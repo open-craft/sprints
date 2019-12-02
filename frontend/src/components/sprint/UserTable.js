@@ -39,7 +39,9 @@ const UserTable = ({list, username}) =>
                 <td style={timeColumn}>
                     {
                         item.assignee === username
-                            ? "Assignee"
+                            ? item.reviewer_1 === username
+                                ? "Both"
+                                : "Assignee"
                             : "Reviewer"
                     }
                 </td>
@@ -49,7 +51,9 @@ const UserTable = ({list, username}) =>
                 <td style={timeColumn}>
                     {
                         item.assignee === username
-                            ? Math.round(item.assignee_time / 3600)
+                            ? item.reviewer_1 === username
+                                ? Math.round((item.assignee_time + item.review_time) / 3600)
+                                : Math.round(item.assignee_time / 3600)
                             : Math.round(item.review_time / 3600)
                     }
                 </td>

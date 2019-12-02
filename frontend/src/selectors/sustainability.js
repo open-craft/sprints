@@ -49,7 +49,7 @@ export const getAccounts = createSelector(
                 let entry = account;
                 if (account_type.startsWith('billable')) {
                     entry.category = 'Billable';
-                    overhead += Math.max(account.overall - account.ytd_goal, 0)
+                    overhead += Math.max(account.ytd_overall - account.ytd_goal, 0)
                 } else if (account_type.includes('responsible')) {
                     entry.category = 'Non-billable cell';
                 } else {
@@ -67,18 +67,20 @@ export const getAccounts = createSelector(
         Object.values(boards).forEach(board => calculateSprintTime(board, data, true));
 
         Object.values(data).forEach(account => {
-            account.remaining_next_sprint = account.next_sprint_goal - account.overall - account.overall_left_this_sprint - account.overall_planned_next_sprint;
+            account.remaining_next_sprint = account.next_sprint_goal - account.ytd_overall - account.overall_left_this_sprint - account.overall_planned_next_sprint;
         });
 
         if (range === 'board' && Object.keys(boards).length) {
             const cell_members = Object.values(boards[id].rows).map(x => x.name);
             Object.values(data).forEach(account => {
                 account.overall = cell_members.reduce((total, member) => total + (account.by_person[member] || 0), 0);
+                account.ytd_overall = cell_members.reduce((total, member) => total + (account.ytd_by_person[member] || 0), 0);
             });
 
             calculateSprintTime(boards[id], data, false);
         } else if (range === 'user_board' && Object.keys(boards).length) {
             Object.values(data).forEach(account => account.overall = account.by_person[id] || 0);
+            Object.values(data).forEach(account => account.ytd_overall = account.ytd_by_person[id] || 0);
             Object.values(boards).forEach(board => calculateSprintTime(board, data, false, id));
         } else {
             Object.values(data).forEach(account => {
@@ -89,6 +91,7 @@ export const getAccounts = createSelector(
 
         data['Overhead'] = {
             name: 'Overhead',
+            ytd_overall: overhead,
             overall: overhead,
             ytd_goal: 0,
             overall_left_this_sprint: 0,

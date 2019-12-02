@@ -30,7 +30,9 @@ class SprintActionButton extends Component {
     };
 
     componentDidMount() {
-        this.props.checkPermissions(this.props.action, this.props.url, this.props.board_id);
+        if (this.props.is_restricted) {
+            this.props.checkPermissions(this.props.action, this.props.url, this.props.board_id);
+        }
     }
 
     render() {
@@ -47,7 +49,7 @@ class SprintActionButton extends Component {
                 className={this.props.is_restricted ? (canUseButton ? "btn-danger" : "" ) : "btn-warning"}
                 disabled={this.props.is_restricted ? (canUseButton ? "" : "disabled") : ""}
                 onClick={this.sprintAction}
-                title={this.props.sprints.canCloseSprint}
+                title={this.props.sprints.button_messages[this.props.action]}
                 ref={btn => {
                     this.btn = btn;
                 }}

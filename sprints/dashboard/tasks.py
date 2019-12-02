@@ -118,7 +118,6 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 
         fields = {
             'project': cell['key'],
-            jira_fields['Account']: settings.JIRA_CELL_ROLE_ACCOUNT,  # This needs to be string.
             jira_fields['Issue Type']: 'Story',
             jira_fields['Sprint']: sprint_id,
             jira_fields['Epic Link']: epic.key,
@@ -136,6 +135,8 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
                         jira_fields['Summary']:
                             f"Sprint {sprint_number}{string.ascii_lowercase[sprint_part]} {subrole['name']}",
                         jira_fields['Story Points']: subrole['story_points'],
+                        # This needs to be string.
+                        jira_fields['Account']: str(subrole.get('account', settings.JIRA_CELL_ROLE_ACCOUNT)),
                         # This requires special dict structure.
                         'timetracking': {'originalEstimate': f"{subrole['hours']}h"},
                     })

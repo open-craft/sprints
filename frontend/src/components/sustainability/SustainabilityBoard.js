@@ -3,7 +3,11 @@ import DatePicker from "react-datepicker";
 import SustainabilityTable from "./SustainabilityTable";
 import {connect} from "react-redux";
 import {auth, sustainability} from "../../actions";
-import {MAX_NON_BILLABLE_TO_BILLABLE_RATIO} from "../../constants";
+import {
+    COMPANY_NAME,
+    MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO,
+    MAX_NON_BILLABLE_TO_BILLABLE_RATIO
+} from "../../constants";
 
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -44,20 +48,32 @@ class SustainabilityBoard extends Component {
                 // Cell's board not loaded.
             }
         } else if (range === 'user_board') {
-            data.billable = accounts.billable_accounts.by_person[id];
-            data.non_billable = accounts.non_billable_accounts.by_person[id];
-            data.non_billable_responsible = accounts.non_billable_responsible_accounts.by_person[id];
+            data.billable = accounts.billable_accounts.by_person[id] || 0;
+            data.non_billable = accounts.non_billable_accounts.by_person[id] || 0;
+            data.non_billable_responsible = accounts.non_billable_responsible_accounts.by_person[id] || 0;
         } else {
-            data.billable = accounts.billable_accounts.overall;
-            data.non_billable = accounts.non_billable_accounts.overall;
-            data.non_billable_responsible = accounts.non_billable_responsible_accounts.overall;
+            data.billable = accounts.billable_accounts.overall || 0;
+            data.non_billable = accounts.non_billable_accounts.overall || 0;
+            data.non_billable_responsible = accounts.non_billable_responsible_accounts.overall || 0;
         }
         data.non_billable_total = data.non_billable + data.non_billable_responsible;
-        data.responsible_ratio = data.non_billable_responsible / data.billable * 100;
-        data.total_ratio = data.non_billable_total / data.billable * 100;
-        data.remaining = data.billable * MAX_NON_BILLABLE_TO_BILLABLE_RATIO - data.non_billable_responsible;
+        data.total = data.billable + data.non_billable_total;
+        data.total_ratio = data.non_billable_total / data.total * 100;
+        data.remaining = data.billable * MAX_NON_BILLABLE_TO_BILLABLE_RATIO / (1 - MAX_NON_BILLABLE_TO_BILLABLE_RATIO) - data.non_billable_total;
+        data.cell_hours = data.billable + data.non_billable_responsible;
+        data.responsible_ratio = data.non_billable_responsible / data.cell_hours * 100;
+        data.remaining_responsible = data.billable * MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO / (1 - MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO) - data.non_billable_responsible;
 
         return data;
+    }
+
+    viewName(range, id) {
+        if (range === 'board') {
+            return this.props.sprints.cells[id];
+        } else if (range === 'user_board') {
+            return id;
+        }
+        return COMPANY_NAME;
     }
 
     handleStartDateChange = date => {
@@ -79,17 +95,18 @@ class SustainabilityBoard extends Component {
         const {name, id} = view;
         const {accountsLoading, accounts} = this.props.sustainability;
         const data = this.prepareData(accounts, name, id);
+        const view_name = this.viewName(name, id);
 
         return (
             <div className='sustainability'>
-                <h2>Sustainability</h2>
+                <h2>Sustainability of {view_name}</h2>
                 From: &nbsp;
                 <DatePicker
                     selected={this.state.startDate}
                     startDate={this.state.startDate}
                     endDate={this.state.endDate}
                     selectsStart
-                    dateFormat="dd/MM/yyyy"
+                    dateFormat="yyyy/MM/dd"
                     onChange={this.handleStartDateChange}
                 /> &ensp;
                 To: &nbsp;
@@ -98,7 +115,7 @@ class SustainabilityBoard extends Component {
                     startDate={this.state.startDate}
                     endDate={this.state.endDate}
                     selectsEnd
-                    dateFormat="dd/MM/yyyy"
+                    dateFormat="yyyy/MM/dd"
                     onChange={this.handleEndDateChange}
                 />
 
@@ -114,7 +131,7 @@ class SustainabilityBoard extends Component {
                                     </div>
                                     : <div/>
                             }
-                            <SustainabilityTable accounts={data}/>
+                            <SustainabilityTable accounts={data} view={name}/>
                         </div>
                         : <div>
                             <div className="spinner-border"/>

@@ -36,6 +36,8 @@ class SustainabilityAccount:
         self.name = name
         self.overall: float = 0
         self.by_person: Dict[str, float] = {}
+        self.ytd_overall: float = 0
+        self.ytd_by_person: Dict[str, float] = {}
 
     def __add__(self, other):
         result = SustainabilityAccount(self.name)
@@ -93,7 +95,7 @@ class SustainabilityAccount:
         # Calculate available budget for the next sprint.
         daily_budget: Dict[int, float] = {
             now.month: self.calculate_workday_budget(year, now.month, self.budgets[now.month - 1]),
-            now.month + 1: self.calculate_workday_budget(year, now.month + 1, self.budgets[now.month]),
+            now.month + 1: self.calculate_workday_budget(year, (now.month + 1) % 12, self.budgets[now.month % 12]),
         }
         self.next_sprint_goal = self.ytd_goal + self._calculate_partial_budget_for_workdays(now, end_date, daily_budget)
 
@@ -145,14 +147,21 @@ class SustainabilityDashboard:
         self.from_ = from_
         self.to = to
 
+        self.ytd_from = parse(from_).replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
+        today = datetime.today()
+        last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+        current_end_date = today.replace(day=last_day_of_month)
+        self.ytd_to = min(current_end_date, parse(to).replace(month=12, day=31)).strftime(settings.JIRA_API_DATE_FORMAT)
+
         self.billable_accounts: Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
         self.non_billable_accounts: Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
         self.non_billable_responsible_accounts: \
             Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
 
-        self.fetch_accounts()
+        self.fetch_accounts(self.from_, self.to)
+        self.fetch_accounts(self.ytd_from, self.ytd_to, generate_ytd=True)
 
-    def fetch_accounts(self):
+    def fetch_accounts(self, from_: str, to: str, generate_ytd: bool = False) -> None:
         """
         Fetches aggregated worklogs in an async way.
         FIXME: The exceptions here are logged, but they are not being captured by `p.get()` for some reason.
@@ -163,29 +172,45 @@ class SustainabilityDashboard:
                 args + (settings.CACHE_WORKLOG_TIMEOUT_ONE_TIME,),
                 error_callback=on_error,
             )
-                for args in generate_month_range(self.from_, self.to)
+                for args in generate_month_range(from_, to)
             ]
             output = [p.get(settings.MULTIPROCESSING_TIMEOUT) for p in results]
 
-        for chunk in output:
-            for category, accounts in chunk.items():
-                try:
-                    result_accounts = getattr(self, settings.TEMPO_ACCOUNT_TRANSLATE[category])
-                    for account_name, account in accounts.items():
-                        result_accounts[account_name] = result_accounts.get(account_name, None) + account
-                except KeyError:
-                    # Ignore non-existing categories
-                    pass
+        # Calculate desired range.
+        if not generate_ytd:
+            for chunk in output:
+                for category, accounts in chunk.items():
+                    try:
+                        result_accounts = getattr(self, settings.TEMPO_ACCOUNT_TRANSLATE[category])
+                        for account_name, account in accounts.items():
+                            result_accounts[account_name] = result_accounts.get(account_name, None) + account
+                    except KeyError:
+                        # Ignore non-existing categories
+                        pass
 
-        for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
-            setattr(self, category, getattr(self, category).values())
+            for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
+                setattr(self, category, getattr(self, category).values())
 
-            if self.generate_budgets:
                 end_date = get_current_sprint_end_date('future')
 
                 accounts = getattr(self, category)
                 for account in accounts:
-                    account.calculate_budgets(parse(self.from_), parse(end_date))
+                    account.calculate_budgets(parse(self.ytd_from), parse(end_date))
+
+        # Generate year-to-date values.
+        else:
+            ytd_results: Dict[str, SustainabilityAccount] = {}
+            for chunk in output:
+                for accounts in chunk.values():
+                    for account_name, account in accounts.items():
+                        ytd_results[account_name] = ytd_results.get(account_name, None) + account
+
+            for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
+                for account in getattr(self, category):
+                    ytd_account = ytd_results.get(account.name)
+                    if ytd_account:
+                        account.ytd_overall = ytd_account.overall
+                        account.ytd_by_person = ytd_account.by_person
 
     @staticmethod
     def fetch_accounts_chunk(from_: str, to: str, cache_timeout=0, force=False) -> Dict[str, Dict]:

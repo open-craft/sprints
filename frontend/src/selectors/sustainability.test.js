@@ -19,10 +19,15 @@ test("getAccounts returns empty array if boards aren't loaded", () => {
             budgets: {
                 'billable_accounts': [{
                     name: 'Billable1',
+                    ytd_overall: 3.1415,
                     overall: 3.1415,
                     ytd_goal: 5,
                     next_sprint_goal: 10,
                     budgets: [5, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+                    ytd_by_person: {
+                        Member1: 3,
+                        Member2: .1415,
+                    },
                     by_person: {
                         Member1: 3,
                         Member2: .1415,
@@ -42,10 +47,15 @@ const valid_state = {
         budgets: {
             'billable_accounts': [{
                 name: 'Billable1',
+                ytd_overall: 3.1415,
                 overall: 3.1415,
                 ytd_goal: 5,
                 next_sprint_goal: 10,
                 budgets: [5, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+                ytd_by_person: {
+                    Member1: 3,
+                    Member2: .1415,
+                },
                 by_person: {
                     Member1: 3,
                     Member2: .1415,
@@ -119,7 +129,7 @@ test("getAccounts properly computes cell's data", () => {
     };
     const result = getAccounts(state);
     expect(result[0].name).toEqual('Billable1');
-    expect(result[0].overall).toEqual(3);
+    expect(result[0].ytd_overall).toEqual(3);
     expect(result[0].left_this_sprint).toEqual(3);
     expect(result[0].planned_next_sprint).toEqual(2);
 });
@@ -132,7 +142,7 @@ test("getAccounts properly computes user's data", () => {
     };
     const result = getAccounts(state);
     expect(result[0].name).toEqual('Billable1');
-    expect(result[0].overall).toEqual(0.1415);
+    expect(result[0].ytd_overall).toEqual(0.1415);
     expect(result[0].left_this_sprint).toEqual(0.1415);
     expect(result[0].planned_next_sprint).toEqual(0.7182);
 });

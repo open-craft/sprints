@@ -95,7 +95,7 @@ class SustainabilityAccount:
         # Calculate available budget for the next sprint.
         daily_budget: Dict[int, float] = {
             now.month: self.calculate_workday_budget(year, now.month, self.budgets[now.month - 1]),
-            now.month + 1: self.calculate_workday_budget(year, now.month + 1, self.budgets[now.month]),
+            now.month + 1: self.calculate_workday_budget(year, (now.month + 1) % 12, self.budgets[now.month % 12]),
         }
         self.next_sprint_goal = self.ytd_goal + self._calculate_partial_budget_for_workdays(now, end_date, daily_budget)
 

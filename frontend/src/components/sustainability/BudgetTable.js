@@ -72,7 +72,13 @@ const BudgetTable = ({accounts, view}) =>
                         </abbr>
                     </td>
                     <td style={timeColumn} className={view === "cells" ? statusClass(item.ytd_goal, item.ytd_overall) : ''}>
-                        {item.ytd_overall >= 1 ? Math.round(item.ytd_overall) : item.ytd_overall.toFixed(1)}
+                        {
+                            item.ytd_overall >= 1
+                                ? Math.round(item.ytd_overall)
+                                : item.ytd_overall  // FIXME: Backwards-compatible check, can be removed later.
+                                    ? item.ytd_overall.toFixed(1)
+                                    : ''
+                        }
                     </td>
                     <td style={timeColumn}>
                         {Math.round(item.ytd_goal)}

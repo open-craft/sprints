@@ -241,6 +241,10 @@ X_FRAME_OPTIONS = "DENY"
 EMAIL_BACKEND = env(
     "DJANGO_EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
 )
+# https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
+DEFAULT_FROM_EMAIL = env(
+    "DJANGO_DEFAULT_FROM_EMAIL", default="Sprints <noreply@sprints.opencraft.com>"
+)
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -317,6 +321,14 @@ CELERY_BEAT_SCHEDULE = {
             "long_term": True,
             "force_regenerate": True,
         },
+    },
+    "Send budget email alerts once per week.": {
+        "task": "sprints.sustainability.tasks.send_email_alerts",
+        "schedule": crontab(
+            minute=0,
+            hour=16,
+            day_of_week='sun',
+        ),
     },
 }
 
@@ -572,6 +584,12 @@ CACHE_SPRINT_END_LOCK = "sprint_end_lock-"
 CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS = SECONDS_IN_HOUR * HOURS_IN_DAY
 CACHE_SUSTAINABILITY_PREFIX = "sustainability-"
 CACHE_SUSTAINABILITY_DATE_FORMAT = "%Y-%m"
+CACHE_WORKLOGS_KEY = "worklogs"
+CACHE_WORKLOGS_KEY_LONG_TERM = "worklogs_lt"
+CACHE_ISSUES_KEY = "issues"
+CACHE_ISSUES_KEY_LONG_TERM = "issues_lt"
+CACHE_ISSUES_TIMEOUT_SHOT_TERM = SECONDS_IN_HOUR * HOURS_IN_DAY * 2
+CACHE_ISSUES_LOCK = "issues_lock"
 
 # Dict for local account naming.
 TEMPO_ACCOUNT_TRANSLATE = {
@@ -582,6 +600,10 @@ TEMPO_ACCOUNT_TRANSLATE = {
 
 # Base TEMPO Team ID
 TEMPO_TEAM_ID = env.int("TEMPO_TEAM_ID", 1)
+
+# Email addresses that will receive all notifications about budget overheads and cell sustainability problems.
+NOTIFICATIONS_SUSTAINABILITY_EMAILS = env.list("NOTIFICATIONS_SUSTAINABILITY_EMAILS", default=[])
+SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO = env.float("SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO", .3)
 
 # Pool size for making parallel API requests
 MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 32)

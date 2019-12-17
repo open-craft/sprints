@@ -1,6 +1,9 @@
+import json
 from contextlib import contextmanager
 from typing import (
+    Dict,
     Iterator,
+    List,
 )
 
 from django.conf import settings
@@ -9,6 +12,7 @@ from jira.client import ResultList
 from jira.resources import (
     GreenHopperResource,
     Resource,
+    Worklog,
 )
 
 
@@ -57,6 +61,7 @@ class Report(Resource):
 
 class CustomJira(JIRA):
     """Custom Jira class for using greenhopper and Tempo APIs."""
+    API_V2 = '{server}/rest/api/2/{path}'
     GREENHOPPER_BASE_URL = '{server}/rest/greenhopper/1.0/{path}'
     TEMPO_CORE_URL = '{server}/rest/tempo-core/1/{path}'
     TEMPO_ACCOUNTS_URL = '{server}/rest/tempo-accounts/1/{path}'
@@ -107,6 +112,25 @@ class CustomJira(JIRA):
         report = Report(self._options, self._session, r_json)
         return report
 
+    def worklog_list(self, worklogs: List[int]) -> List[Worklog]:
+        """
+        Retrieves list of worklogs with IDs provided in the request's body.
+
+        Limited to 1000 worklogs. Source:
+        https://developer.atlassian.com/cloud/jira/platform/rest/v3/?utm_source=%2Fcloud%2Fjira%2Fplatform%2Frest%2F&utm_medium=302#api-rest-api-3-worklog-list-post
+        """
+        aggregated_worklogs: List[Dict] = []
+        for chunk in chunks(worklogs, 1000):
+            r_json = self._session.post(
+                url=self._get_url('worklog/list', self.API_V2),
+                data=json.dumps({'ids': chunk}),
+            )
+            aggregated_worklogs.extend(json.loads(r_json.text))
+
+        worklogs = [Worklog(self._options, self._session, raw_worklog_json)
+                    for raw_worklog_json in aggregated_worklogs]
+        return worklogs
+
 
 @contextmanager
 def connect_to_jira() -> Iterator[CustomJira]:
@@ -118,3 +142,9 @@ def connect_to_jira() -> Iterator[CustomJira]:
     )
     yield conn
     conn.close()
+
+
+def chunks(lst: List, n: int) -> Iterator[List]:
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]

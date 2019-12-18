@@ -20,7 +20,7 @@ class BudgetAdmin(admin.ModelAdmin):
 
 
 @admin.register(Account)
-class CellAdmin(admin.ModelAdmin):
+class AccountAdmin(admin.ModelAdmin):
     pass
 
 

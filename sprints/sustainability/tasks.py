@@ -111,7 +111,7 @@ def send_email_alerts() -> bool:
         Account,
     )
 
-    return dashboard
+    return True
 
 
 def _send_email_alert(
@@ -131,7 +131,7 @@ def _send_email_alert(
             if emails:
                 send_mail(
                     title,
-                    message.substitute(entity=key, ratio=round(value, 2)),
+                    message.substitute(entity=key, ratio=str(round(value, 2))),
                     settings.DEFAULT_FROM_EMAIL,
                     emails
                 )

@@ -13,7 +13,10 @@ from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.core.cache import cache
-from jira import JIRAError
+from jira import (
+    JIRAError,
+    Worklog,
+)
 
 from sprints.dashboard.libs.jira import (
     Account,
@@ -52,7 +55,7 @@ def generate_month_range(start: str, end: str) -> Generator[Tuple[datetime, date
 
 def _get_cached_dicts_from_keys(keys: Iterable) -> Dict:
     """Helper function for retrieving aggregated cache results."""
-    result = {}
+    result: Dict = {}
     for key in keys:
         cached_chunk = cache.get(key, {})
         result.update(cached_chunk)
@@ -79,7 +82,7 @@ def cache_worklogs_and_issues(required_worklogs: Set[str], long_term: bool) -> D
 
     if missing_worklogs := required_worklogs - worklogs.keys():
         with connect_to_jira() as conn:
-            retrieved_worklogs = conn.worklog_list(list(missing_worklogs))
+            retrieved_worklogs: List[Worklog] = conn.worklog_list(list(missing_worklogs))  # type: ignore
             for worklog in retrieved_worklogs:
                 required_issues.add(worklog.issueId)
 

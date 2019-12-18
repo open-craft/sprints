@@ -6,7 +6,7 @@ import {auth, sustainability} from "../../actions";
 import {
     COMPANY_NAME,
     MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO,
-    MAX_NON_BILLABLE_TO_BILLABLE_RATIO
+    MAX_NON_BILLABLE_TO_BILLABLE_RATIO, SUSTAINABILITY_DASHBOARD_DOCS
 } from "../../constants";
 
 import "react-datepicker/dist/react-datepicker.css";
@@ -99,7 +99,11 @@ class SustainabilityBoard extends Component {
 
         return (
             <div className='sustainability'>
-                <h2>Sustainability of {view_name}</h2>
+                <h2>
+                    <a href={SUSTAINABILITY_DASHBOARD_DOCS} target='_blank' ref='noopener noreferrer'>
+                        Sustainability
+                    </a> of {view_name}
+                </h2>
                 From: &nbsp;
                 <DatePicker
                     selected={this.state.startDate}

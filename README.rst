@@ -17,6 +17,7 @@ Sprint Planning Dashboard
 
 Listing cells
 ^^^^^^^^^^^^^
+
 On the main view there is the list of the cells. They are retrieved by looking for Jira boards with `JIRA_SPRINT_BOARD_PREFIX` prefix.
 
 Cell's dashboard
@@ -83,32 +84,32 @@ The main idea behind this is that sprints are not shared by cells - you need to 
 
     a) Ticket
         The key of the ticket.
-    b) Status
+    a) Status
         The status of the ticket at the moment of ending the sprint.
-    c) Sprint
+    a) Sprint
         The active sprint (the one that is currently being ended).
-    d) Assignee
+    a) Assignee
         The assignee, for whom the spillover is being counted.
-    e) Reviewer 1
-    f) Reviewer 2
-    g) Reporter
-    h) Story Points
-    i) Estimated time
+    a) Reviewer 1
+    a) Reviewer 2
+    a) Reporter
+    a) Story Points
+    a) Estimated time
         The initial estimation of the ticket (in hours).
-    j) Remaining time
+    a) Remaining time
         The remaining time for the ticket (in hours).
-    k) Reason for the spillover
+    a) Reason for the spillover
         The reason of the spillover is retrieved from the comments made within the active sprint. The assignees should provide it with a comment matching the following regexp: ```[~{JIRA_BOT_USERNAME}\]: <spillover>(.*)<\/spillover>```. In case of multiple occurrences of comments matching this regexp, only the last one is taken into account. In case of no occurrences of such comments, the Jira bot will create a comment defined in `SPILLOVER_REMINDER_MESSAGE`.
 
     If the team members have achieved a clean sprint (without spillovers), they can post some hints on the ticket with the `SPRINT_MEETINGS_TICKET` name by adding a comment matching the spillover reason regexp (provided above). In case of no such comment, they will be reminded on the ticket with `SPILLOVER_CLEAN_HINTS_MESSAGE` comment. It's possible to disable the pings for specific users by adding them to `SPILLOVER_CLEAN_SPRINT_IGNORED_USERS` (this can be useful for people that are members of multiple cells, as they will be pinged on each cell-specific ticket).
-2. Upload commitments.
+1. Upload commitments.
     The `goal` of each user from the dashboard is uploaded to the cell-specific commitments sheet of the `GOOGLE_SPILLOVER_SPREADSHEET`.
-3. Move archived issues out of the active sprint.
+1. Move archived issues out of the active sprint.
     There has been a bug before that disallowed completing the sprint if it had archived issues, so we're moving all of them out of the active sprint.
-4. Close the active sprint.
-5. Move issues from the closed sprint to the next one.
-6. Open the next sprint.
-7. Create role-specific tasks for the sprint after next.
+1. Close the active sprint.
+1. Move issues from the closed sprint to the next one.
+1. Open the next sprint.
+1. Create role-specific tasks for the sprint after next.
     The assignees for these tickets are retrieved from the `GOOGLE_ROTATIONS_RANGE` defined within `GOOGLE_ROTATIONS_SPREADSHEET`. The format of this document is the following:
 
     a) First column contains sprint number (you can create multiple role tasks for one week by dividing sprint into parts, e.g. `Sprint 100a, Sprint 100b` - each in a separate row).
@@ -119,18 +120,77 @@ The main idea behind this is that sprints are not shared by cells - you need to 
 
 
 Sustainability
-^^^^^^^^^^^^^^
+--------------
 The Sustainability Dashboard and Budget Dashboard (both described below) are aware of the sprint board’s current view (whether it’s showing cells/cell’s board/person’s board). Therefore, when you click on the cell’s name, the sustainability dashboard recalculates its data for displaying cell/person-related data only.
 
-**TODO**: there is a rework of the columns planned for the next sprint, so this section will be expanded.
+Sustainability Dashboard
+^^^^^^^^^^^^^^^^^^^^^^^^
+This view allows you to verify the assumptions described in `the "Cell Budgets" chapter of our handbook`_.
+The key information here is the ratio of non-billable cell hours to billable cell hours. It is calculated in the following way:
+
+    each cell ensures that it doesn't exceed a budget of 1h of internal/unbilled budget for every 2.5h the cell bills to clients.
+
+.. _`the "Cell Budgets" chapter of our handbook`: https://handbook.opencraft.com/en/latest/cell_budgets/#cell-budgets
+
+
+Overall sustainability
+~~~~~~~~~~~~~~~~~~~~~~
+Here we can view the sustainability combined for all existing projects. We are listing:
+
+1. Total hours
+    non-cell hours + cell hours
+1. Billable hours
+1. Total non-billable hours
+    non-billable cell hours + non-billable non-cell hours
+1. Percent of non-billable hours
+    total non-billable hours / total hours
+
+Cell's/User's sustainability
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Here we can view the sustainability logged for a specific project or by a specific user. We are listing:
+
+1. Total hours
+1. Non-cell hours
+    hours logged on non-billable non-cell tickets
+1. Billable cell hours
+1. Non-billable cell hours
+    hours logged on non-billable cell-responsible tickets
+1. Percent of non-billable hours
+    ::
+
+      non-billable_cell_hours / (billable_cell_hours + non-billable_cell_hours)
+1. Remaining non-billable hours
+    ::
+
+      billable_cell_hours * MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO / (1 - MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO) - non-billable_cell_hours
+
+Budget Dashboard
+^^^^^^^^^^^^^^^^
+This presents a list of all active accounts and the time spent on them from the beginning of the current year and the goal, based on the budget stored in the DB (see `Setting up budgets`_ for setup instructions). For each budget we are listing:
+
+1. Account name with the prefix stripped for better readability.
+1. Time spent from the beginning of the first year within the selected period.
+    For `Overall` view the cell has green background when budget is on track and turns red when it's exceeded. This behavior is disabled on cell's and user's dashboards to reduce confusion.
+1. Goal from the beginning of the first year within the selected period to the end of the next sprint.
+    This field remains the same for all views, because budgets cannot be divided between cells.
+1. Time spent during the selected period.
+1. Time scheduled for the incomplete tickets in the current sprint.
+1. Time scheduled for the tickets in the next sprint.
+1. Time that can still be assigned for the next sprint. This value is the same for all views. Turns green if there are some hours.
+    This field remains the same for all views, because any cell can use the remaining budget. The cell's background is green when remaining time is greater or equal 0, turns red when it's lower.
+1. One of the following categories:
+    a) Billable,
+    a) Non-billable cell,
+    a) Non-billable non-cell.
+
 
 Setting up budgets
 ~~~~~~~~~~~~~~~~~~
 To set up the budgets for the accounts you need to:
 
 1. Log into the backend admin (by default it's http://localhost:8000/admin) with your superuser account.
-2. Go to `Sustainability/Budgets`.
-3. Add a new budget for the account.
+1. Go to `Sustainability/Budgets`.
+1. Add a new budget for the account.
 
 The budgets are rolling, so these entries are perceived as *changes* of the budgets. It means that the budget for the account with the specified `name` will be `hours` (per month) up to the next change or current date.
 
@@ -154,19 +214,33 @@ The budgets are rolling, so these entries are perceived as *changes* of the budg
 
     Side note: the `date` is a `DateField`, but the example is using simplified representation for brevity.
 
+Setting up alerts
+~~~~~~~~~~~~~~~~~
+The alerts are defined in settings to be triggered with Celerybeat. It's possible to subscribe to specific cell or account alerts via Django admin.
 
-Sustainability Dashboard
-~~~~~~~~~~~~~~~~~~~~~~~~
-This view allows you to verify the assumptions described in `the "Cell Budgets" chapter of our handbook`_.
-The key information here is the ratio of non-billable cell hours to billable cell hours. It is calculated in the following way:
+It's also possible to specify addresses that will receive alerts for all existing cells and accounts. To do this, add email address to `NOTIFICATIONS_SUSTAINABILITY_EMAILS` environment variable.
 
-    each cell ensures that it doesn't exceed a budget of 1h of internal/unbilled budget for every 2.5h the cell bills to clients.
+For sustainability
+******************
+Alerts are sent when the ratio of non-billable cell hours to billable hours exceeds `MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO`.
 
-.. _`the "Cell Budgets" chapter of our handbook`: https://handbook.opencraft.com/en/latest/cell_budgets/#cell-budgets
+By default these alerts are not being sent. To enable them:
 
-Budget Dashboard
-~~~~~~~~~~~~~~~~~~~~~~~~
-This presents a list of all active accounts and the time spent on them from the beginning of the current year and the goal, based on the budget stored in the DB.
+1. Log into the backend admin (by default it's http://localhost:8000/admin) with your superuser account.
+1. Go to `Sustainability/Cells`.
+1. Add new cell.
+1. Optionally add comma-separated email addresses that will receive alerts.
+
+For budgets
+***********
+Alerts are sent when time spent from the beginning of the first year within the selected period is greater than the goal from the beginning of the current year to the end of the next sprint.
+
+Alerts are sent by default to emails specified in `MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO`. To subscribe only to specific accounts:
+
+1. Log into the backend admin (by default it's http://localhost:8000/admin) with your superuser account.
+1. Go to `Sustainability/Accounts`.
+1. Add new account.
+1. Specify comma-separated email addresses that will receive alerts.
 
 Settings
 --------
@@ -290,6 +364,3 @@ Docker
 See detailed `cookiecutter-django Docker documentation`_.
 
 .. _`cookiecutter-django Docker documentation`: http://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html
-
-
-

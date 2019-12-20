@@ -1,4 +1,5 @@
 import calendar
+from collections import defaultdict
 from datetime import (
     datetime,
     timedelta,
@@ -283,15 +284,14 @@ class SustainabilityDashboard:
         for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
             for account in getattr(self, category):
                 for project, hours in account.by_project.items():
-                    aggregated_projects.setdefault(project, {})
-                    aggregated_projects[project][category] = aggregated_projects[project].get(category, 0) + hours
+                    aggregated_projects.setdefault(project, defaultdict(float))
+                    aggregated_projects[project][category] += hours
 
         sustainability: Dict[str, float] = {}
         for project, data in aggregated_projects.items():
-            billable_hours = data.get(settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_BILLABLE_ACCOUNT_NAME], 0)
-            non_billable_reponsible_hours = data.get(
-                settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME], 0
-            )
+            billable_hours = data[settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_BILLABLE_ACCOUNT_NAME]]
+            non_billable_reponsible_hours = \
+                data[settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME]]
             cell_hours = billable_hours + non_billable_reponsible_hours
             try:
                 responsible_hours = non_billable_reponsible_hours / cell_hours * 100
@@ -303,10 +303,10 @@ class SustainabilityDashboard:
 
     def get_accounts_remaining_time(self) -> Dict[str, float]:
         """Retrieve time left of all fetched accounts."""
-        accounts: Dict[str, float] = {}
+        accounts: Dict[str, float] = defaultdict(float)
         for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
             for account in getattr(self, category):
-                accounts[account.name] = accounts.get(account.name, 0) + account.ytd_overall - account.ytd_goal
+                accounts[account.name] += account.ytd_goal - account.ytd_overall
 
         return accounts
 

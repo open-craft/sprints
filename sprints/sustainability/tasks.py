@@ -2,7 +2,6 @@ import calendar
 from datetime import datetime
 from string import Template
 from typing import (
-    Callable,
     Dict,
 )
 
@@ -90,23 +89,31 @@ def send_email_alerts() -> bool:
 
     # Send alerts for cells.
     max_percentage_ratio = settings.SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO * 100
+    unsustainable_cells: Dict[str, float] = {}
+    for cell, ratio in dashboard.get_projects_sustainability().items():
+        if ratio >= max_percentage_ratio and Cell.objects.filter(name=cell).exists():  # Ignore non-set projects.
+            unsustainable_cells[cell] = ratio
+
     _send_email_alert(
-        dashboard.get_projects_sustainability(),
-        lambda k, v: v >= max_percentage_ratio and Cell.objects.filter(name=k).exists(),  # Ignore non-set projects.
+        unsustainable_cells,
         "Cell sustainability problem.",
         Template(
-            f"The '% non-billable cell' of $entity is currently $ratio. It should be lower than {max_percentage_ratio}."
+            f"The sustainability of $entity is currently $ratio%. It should be lower than {max_percentage_ratio}%."
         ),
         Cell,
     )
 
     # Send alerts for budgets.
+    exceeded_budgets: Dict[str, float] = {}
+    for account, remaining in dashboard.get_accounts_remaining_time().items():
+        if remaining < 0:
+            exceeded_budgets[account] = -remaining
+
     _send_email_alert(
-        dashboard.get_accounts_remaining_time(),
-        lambda _, v: v < 0,
+        exceeded_budgets,
         "Budget problem.",
         Template(
-            f"There is currently $ratio hours left for $entity."
+            f"The $entity account's budget is exceeded by $ratio."
         ),
         Account,
     )
@@ -114,24 +121,21 @@ def send_email_alerts() -> bool:
     return True
 
 
-def _send_email_alert(
-    budgets: Dict[str, float], condition: Callable, title: str, message: Template, model: models.Model
-) -> None:
+def _send_email_alert(budgets: Dict[str, float], title: str, message: Template, model: models.Model) -> None:
     """
     Helper method for sending emails for Cells or Accounts.
     """
     for key, value in budgets.items():
-        if condition(key, value):
-            emails = settings.NOTIFICATIONS_SUSTAINABILITY_EMAILS
-            try:
-                emails.extend(model.objects.get(name=key).alert_emails)
-            except (model.DoesNotExist, AttributeError):  # Emails not defined in the DB.
-                pass
+        emails = settings.NOTIFICATIONS_SUSTAINABILITY_EMAILS
+        try:
+            emails.extend(model.objects.get(name=key).alert_emails)
+        except (model.DoesNotExist, AttributeError):  # Emails not defined in the DB.
+            pass
 
-            if emails:
-                send_mail(
-                    title,
-                    message.substitute(entity=key, ratio=str(round(value, 2))),
-                    settings.DEFAULT_FROM_EMAIL,
-                    emails
-                )
+        if emails:
+            send_mail(
+                title,
+                message.substitute(entity=key, ratio=str(round(value, 2))),
+                settings.DEFAULT_FROM_EMAIL,
+                emails
+            )

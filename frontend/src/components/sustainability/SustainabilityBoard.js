@@ -100,7 +100,7 @@ class SustainabilityBoard extends Component {
         return (
             <div className='sustainability'>
                 <h2>
-                    <a href={SUSTAINABILITY_DASHBOARD_DOCS} target='_blank' ref='noopener noreferrer'>
+                    <a href={SUSTAINABILITY_DASHBOARD_DOCS} target='_blank' rel='noopener noreferrer'>
                         Sustainability
                     </a> of {view_name}
                 </h2>

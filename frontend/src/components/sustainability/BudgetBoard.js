@@ -27,7 +27,7 @@ class BudgetBoard extends Component {
         return (
             <div className='sustainability'>
                 <h2>
-                    <a href={BUDGET_DASHBOARD_DOCS} target='_blank' ref='noopener noreferrer'>
+                    <a href={BUDGET_DASHBOARD_DOCS} target='_blank' rel='noopener noreferrer'>
                         Budget
                     </a>
                 </h2>

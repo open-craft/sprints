@@ -68,7 +68,7 @@ class RootContainerComponent extends Component {
                     }
                 </div>
                 <h1>
-                    OpenCraft <a href={SPRINTS_DOCS} target='_blank' ref='noopener noreferrer'>
+                    OpenCraft <a href={SPRINTS_DOCS} target='_blank' rel='noopener noreferrer'>
                         Sprint Planning Report
                     </a>
                 </h1>

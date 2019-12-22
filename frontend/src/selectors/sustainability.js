@@ -28,11 +28,12 @@ const calculateSprintTime = (board, data, overall, user_id) => {
 
 const getBudgets = state => state.sustainability.budgets;
 const getBoards = state => state.sprints.boards;
+const getCells = state => state.sprints.cells;
 const getView = state => state.view || JSON.parse(sessionStorage.getItem("view")) || {'name': 'cells'};
 
 export const getAccounts = createSelector(
-    [getBudgets, getView, getBoards],
-    (accounts, view, boards) => {
+    [getBudgets, getView, getBoards, getCells],
+    (accounts, view, boards, cells) => {
         const {name: range, id} = view;
         if (!accounts || !Object.keys(accounts).length || !boards || (range === 'board' && !boards[id])) {
             return [];
@@ -71,11 +72,10 @@ export const getAccounts = createSelector(
         });
 
         if (range === 'board' && Object.keys(boards).length) {
-            const cell_members = Object.values(boards[id].rows).map(x => x.name);
-            Object.values(data).forEach(account => {
-                account.overall = cell_members.reduce((total, member) => total + (account.by_person[member] || 0), 0);
-                account.ytd_overall = cell_members.reduce((total, member) => total + (account.ytd_by_person[member] || 0), 0);
-            });
+            const cell_name = cells[id];
+            Object.values(data).forEach(account => account.overall = account.by_project[cell_name] || 0);
+            Object.values(data).forEach(account => account.ytd_overall = account.ytd_by_project[cell_name] || 0);
+            Object.values(boards).forEach(board => calculateSprintTime(board, data, false, cell_name));
 
             calculateSprintTime(boards[id], data, false);
         } else if (range === 'user_board' && Object.keys(boards).length) {

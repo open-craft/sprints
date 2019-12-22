@@ -24,6 +24,14 @@ test("getAccounts returns empty array if boards aren't loaded", () => {
                     ytd_goal: 5,
                     next_sprint_goal: 10,
                     budgets: [5, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+                    ytd_by_project: {
+                        Project1: 3,
+                        Project2: .1415,
+                    },
+                    by_project: {
+                        Project1: 3,
+                        Project2: .1415,
+                    },
                     ytd_by_person: {
                         Member1: 3,
                         Member2: .1415,
@@ -52,6 +60,14 @@ const valid_state = {
                 ytd_goal: 5,
                 next_sprint_goal: 10,
                 budgets: [5, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+                ytd_by_project: {
+                    Project1: 3,
+                    Project2: .1415,
+                },
+                by_project: {
+                    Project1: 3,
+                    Project2: .1415,
+                },
                 ytd_by_person: {
                     Member1: 3,
                     Member2: .1415,
@@ -109,7 +125,11 @@ const valid_state = {
                     current_sprint: false,
                 }]
             },
-        }
+        },
+        cells: {
+            1: "Project1",
+            2: "Project2",
+        },
     },
 };
 

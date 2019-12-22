@@ -16,6 +16,7 @@ import Board from "./components/sprint/Board";
 import UserBoard from "./components/sprint/UserBoard";
 import SustainabilityBoard from "./components/sustainability/SustainabilityBoard";
 import BudgetBoard from "./components/sustainability/BudgetBoard";
+import {SPRINTS_DOCS} from "./constants";
 
 let store = createStore(reducer, applyMiddleware(thunk));
 
@@ -66,7 +67,11 @@ class RootContainerComponent extends Component {
                             : <div/>
                     }
                 </div>
-                <h1>OpenCraft Sprint Planning Report</h1>
+                <h1>
+                    OpenCraft <a href={SPRINTS_DOCS} target='_blank' ref='noopener noreferrer'>
+                        Sprint Planning Report
+                    </a>
+                </h1>
 
                 <BrowserRouter>
                     <Switch>

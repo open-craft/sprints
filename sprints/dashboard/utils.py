@@ -349,7 +349,7 @@ def get_meetings_issue(conn: CustomJira, project: str, issue_fields: Dict[str, s
             return issue
 
 
-def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, board_id: int) -> None:
+def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, board_id: int) -> Sprint:
     """Creates next sprint for the desired cell."""
     sprints = filter_sprints_by_cell(sprints, cell_key)
     last_sprint = sprints[-1]
@@ -358,7 +358,7 @@ def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, b
     future_next_sprint_number = get_sprint_number(last_sprint) + 1
     future_name_date = (end_date + timedelta(days=1)).strftime(settings.JIRA_API_DATE_FORMAT)
     future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
-    conn.create_sprint(
+    return conn.create_sprint(
         name=f'{cell_key}.{future_next_sprint_number} ({future_name_date})',
         board_id=board_id,
         startDate=end_date.isoformat(),

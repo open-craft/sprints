@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.db import models
 
-from sprints.sustainability.models import Budget
+from sprints.sustainability.models import (
+    Budget,
+    Cell,
+    Account,
+)
 from sprints.sustainability.widgets import MonthYearWidget
 
 
@@ -13,3 +17,13 @@ class BudgetAdmin(admin.ModelAdmin):
     }
     list_filter = ('name', 'date')
     search_fields = ('name',)
+
+
+@admin.register(Account)
+class AccountAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(Cell)
+class CellAdmin(admin.ModelAdmin):
+    pass

@@ -7,12 +7,18 @@ const aggregateAccounts = (data) => {
     Object.entries(data).forEach(([account_type, accounts]) => {
         result[account_type] = {
             'overall': 0,
+            'by_project': {},
             'by_person': {},
         };
 
         accounts.forEach(account => {
             // Calculate overall.
             result[account_type].overall = (result[account_type].overall || 0) + account.overall;
+
+            // Calculate for each cell.
+            Object.entries(account.by_project).forEach(([project, hours]) => {
+                result[account_type].by_project[project] = (result[account_type].by_project[project] || 0) + hours;
+            });
 
             // Calculate for each person.
             Object.entries(account.by_person).forEach(([person, hours]) => {

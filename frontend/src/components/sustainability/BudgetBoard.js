@@ -5,6 +5,7 @@ import {auth} from "../../actions";
 import "react-datepicker/dist/react-datepicker.css";
 import BudgetTable from "./BudgetTable";
 import {getAccounts} from "../../selectors/sustainability";
+import {BUDGET_DASHBOARD_DOCS} from "../../constants";
 
 class BudgetBoard extends Component {
     constructor(props) {
@@ -25,7 +26,11 @@ class BudgetBoard extends Component {
 
         return (
             <div className='sustainability'>
-                <h2>Budget</h2>
+                <h2>
+                    <a href={BUDGET_DASHBOARD_DOCS} target='_blank' ref='noopener noreferrer'>
+                        Budget
+                    </a>
+                </h2>
                 {
                     // Is data present + logical implication for checking whether the cell is loaded.
                     Object.keys(data).length && (name !== 'board' || boards[id])

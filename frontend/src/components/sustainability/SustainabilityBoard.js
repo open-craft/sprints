@@ -6,7 +6,7 @@ import {auth, sustainability} from "../../actions";
 import {
     COMPANY_NAME,
     MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO,
-    MAX_NON_BILLABLE_TO_BILLABLE_RATIO
+    MAX_NON_BILLABLE_TO_BILLABLE_RATIO, SUSTAINABILITY_DASHBOARD_DOCS
 } from "../../constants";
 
 import "react-datepicker/dist/react-datepicker.css";
@@ -39,10 +39,10 @@ class SustainabilityBoard extends Component {
 
         if (range === 'board') {
             try {
-                const cell_members = Object.values(this.props.sprints.boards[id].rows).map(x => x.name);
-                data.billable = cell_members.reduce((total, member) => total + (accounts.billable_accounts.by_person[member] || 0), 0);
-                data.non_billable = cell_members.reduce((total, member) => total + (accounts.non_billable_accounts.by_person[member] || 0), 0);
-                data.non_billable_responsible = cell_members.reduce((total, member) => total + (accounts.non_billable_responsible_accounts.by_person[member] || 0), 0);
+                const project_name = this.viewName(range, id);
+                data.billable = accounts.billable_accounts.by_project[project_name] || 0;
+                data.non_billable = accounts.non_billable_accounts.by_project[project_name] || 0;
+                data.non_billable_responsible = accounts.non_billable_responsible_accounts.by_project[project_name] || 0;
             }
             catch (e) {
                 // Cell's board not loaded.
@@ -99,7 +99,11 @@ class SustainabilityBoard extends Component {
 
         return (
             <div className='sustainability'>
-                <h2>Sustainability of {view_name}</h2>
+                <h2>
+                    <a href={SUSTAINABILITY_DASHBOARD_DOCS} target='_blank' ref='noopener noreferrer'>
+                        Sustainability
+                    </a> of {view_name}
+                </h2>
                 From: &nbsp;
                 <DatePicker
                     selected={this.state.startDate}

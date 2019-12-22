@@ -92,14 +92,15 @@ def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str, clean
 
 
 @celery_app.task(ignore_result=True)
-def create_next_sprint_task(board_id: int) -> None:
+def create_next_sprint_task(board_id: int) -> int:
     """A task for creating the next sprint for the specified cell."""
     with connect_to_jira() as conn:
         cells = get_cells(conn)
         cell = next(c for c in cells if c.board_id == board_id)
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)
 
-        create_next_sprint(conn, sprints, cell.key, board_id)
+        next_sprint = create_next_sprint(conn, sprints, cell.key, board_id)
+    return get_sprint_number(next_sprint)
 
 
 @celery_app.task(ignore_result=True)
@@ -237,17 +238,18 @@ def complete_sprint_task(board_id: int) -> None:
             )
 
             # Ensure that the next sprint exists. If it doesn't exist, create it.
-            future_next_sprint = get_next_sprint(sprints, next_sprint)
-            if not future_next_sprint:
-                create_next_sprint_task(board_id)
-                future_next_sprint = get_next_sprint(sprints, next_sprint)
+            # Get next sprint number for creating role tasks there.
+            if future_next_sprint := get_next_sprint(sprints, next_sprint):
+                future_next_sprint_number = get_sprint_number(future_next_sprint)
+            else:
+                future_next_sprint_number = create_next_sprint_task(board_id)
 
             cell_dict = {
                 'key': cell.key,
                 'name': cell.name,
                 'board_id': cell.board_id,
             }
-            create_role_issues_task.delay(cell_dict, future_next_sprint.id, get_sprint_number(future_next_sprint))
+            create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")

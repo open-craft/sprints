@@ -189,6 +189,10 @@ Here we can view the sustainability logged for a specific project or by a specif
 
         <div id="column-percent-of-non-billable-hours"></div>
 5. Percent of non-billable hours
+    .. raw:: html
+
+        <div id="column-remaining-non-billable-hours"></div>
+
     ::
 
       non-billable_cell_hours / (billable_cell_hours + non-billable_cell_hours)

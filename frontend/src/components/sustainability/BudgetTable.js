@@ -1,6 +1,6 @@
 import React from 'react';
 import '../Table.css';
-import {ACCOUNT_STRIP_NAMES} from "../../constants";
+import {ACCOUNT_STRIP_NAMES, DOCS} from "../../constants";
 
 const nameColumn = {width: '35%'};  // 1 cells -> 35% total
 const timeColumn = {width: '7.5%'};  // 6 cells -> 45% total
@@ -24,42 +24,44 @@ const BudgetTable = ({accounts, view}) =>
             <thead>
             <tr className="table-header">
                 <td style={nameColumn}>
-                    <abbr title="Account name with the prefix stripped for better readability.">
+                    <a href={`${DOCS}#column-budget`} title="Account name with the prefix stripped for better readability." target='_blank' rel='noopener noreferrer'>
                         Budget
-                    </abbr>
+                    </a>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Time spent from the beginning of the first year within the selected period.">
+                    <a href={`${DOCS}#column-ytd-spent`} title="Time spent from the beginning of the first year within the selected period." target='_blank' rel='noopener noreferrer'>
                         YTD Spent
-                    </abbr>
+                    </a>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Goal from the beginning of the first year within the selected period to the end of the next sprint.">
+                    <a href={`${DOCS}#column-ytd-goal`} title="Goal from the beginning of the first year within the selected period to the end of the next sprint." target='_blank' rel='noopener noreferrer'>
                         YTD Goal
-                    </abbr>
+                    </a>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Time spent during the selected period.">
+                    <a href={`${DOCS}#column-period-sprint`} title="Time spent during the selected period." target='_blank' rel='noopener noreferrer'>
                         Period Spent
-                    </abbr>
+                    </a>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Time scheduled for the incomplete tickets in the current sprint.">
+                    <a href={`${DOCS}#column-left-this-sprint`} title="Time scheduled for the incomplete tickets in the current sprint." target='_blank' rel='noopener noreferrer'>
                         Left this sprint
-                    </abbr>
+                    </a>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Time scheduled for the tickets in the next sprint.">
+                    <a href={`${DOCS}#column-next-sprint`} title="Time scheduled for the tickets in the next sprint." target='_blank' rel='noopener noreferrer'>
                         Next sprint
-                    </abbr>
+                    </a>
                 </td>
                 <td style={timeColumn}>
-                    <abbr title="Time that can still be assigned for the next sprint. This value is the same for all views.">
+                    <a href={`${DOCS}#column-remaining-for-next-sprint`} title="Time that can still be assigned for the next sprint. This value is the same for all views." target='_blank' rel='noopener noreferrer'>
                         Remaining for next sprint
-                    </abbr>
+                    </a>
                 </td>
                 <td style={categoryColumn}>
-                    Category
+                    <a href={`${DOCS}#column-category`} target='_blank' rel='noopener noreferrer'>
+                        Category
+                    </a>
                 </td>
             </tr>
             </thead>

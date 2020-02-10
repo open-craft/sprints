@@ -33,6 +33,7 @@ export const MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO = parseFloat(process.env.RE
 export const ACCOUNT_STRIP_NAMES = JSON.parse(process.env.REACT_APP_ACCOUNT_STRIP_NAMES);
 
 // Docs
-export const SPRINTS_DOCS = process.env.REACT_APP_SPRINTS_DOCS;
-export const SUSTAINABILITY_DASHBOARD_DOCS = process.env.REACT_APP_SUSTAINABILITY_DASHBOARD_DOCS;
-export const BUDGET_DASHBOARD_DOCS = process.env.REACT_APP_BUDGET_DASHBOARD_DOCS;
+export const DOCS = process.env.REACT_APP_DOCS;
+export const SPRINTS_DOCS =`${DOCS}#sprints`;
+export const SUSTAINABILITY_DASHBOARD_DOCS =`${DOCS}#sustainability-dashboard`;
+export const BUDGET_DASHBOARD_DOCS =`${DOCS}#budget-dashboard`;

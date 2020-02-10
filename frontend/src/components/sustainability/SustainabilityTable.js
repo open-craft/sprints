@@ -1,19 +1,32 @@
 import React from 'react';
 import '../Table.css';
-import {MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO, MAX_NON_BILLABLE_TO_BILLABLE_RATIO} from "../../constants";
+import {DOCS, MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO, MAX_NON_BILLABLE_TO_BILLABLE_RATIO} from "../../constants";
 
 const statusClass = (remaining) => Math.round(remaining) >= 0 ? 'on-track' : 'overtime';
 
 const overall_headers =
     <>
         <td>
-            Billable hours
+            <a href={`${DOCS}#column-overall-total-hours`} target='_blank' rel='noopener noreferrer'>
+                Total hours
+            </a>
+
         </td>
         <td>
-            Total non-billable hours
+            <a href={`${DOCS}#column-overall-billable-hours`} target='_blank' rel='noopener noreferrer'>
+                Billable hours
+            </a>
+
         </td>
         <td>
-            % non-billable
+            <a href={`${DOCS}#column-overall-non-billable-hours`} target='_blank' rel='noopener noreferrer'>
+                Total non-billable hours
+            </a>
+        </td>
+        <td>
+            <a href={`${DOCS}#column-overall-percent-of-non-billable-hours`} target='_blank' rel='noopener noreferrer'>
+                % non-billable
+            </a>
         </td>
     </>;
 
@@ -39,19 +52,34 @@ const overall_hints =
 const cell_headers =
     <>
         <td>
-            Non-cell hours
+            <a href={`${DOCS}#column-total-hours`} target='_blank' rel='noopener noreferrer'>
+                Total hours
+            </a>
         </td>
         <td>
-            Billable cell hours
+            <a href={`${DOCS}#column-non-cell-hours`} target='_blank' rel='noopener noreferrer'>
+                Non-cell hours
+            </a>
         </td>
         <td>
-            Non-billable cell hours
+            <a href={`${DOCS}#column-billable-cell-hours`} target='_blank' rel='noopener noreferrer'>
+                Billable cell hours
+            </a>
         </td>
         <td>
-            % non-billable cell
+            <a href={`${DOCS}#column-non-billable-cell-hours`} target='_blank' rel='noopener noreferrer'>
+                Non-billable cell hours
+            </a>
         </td>
         <td>
-            Remaining non-billable hours
+            <a href={`${DOCS}#column-percent-of-non-billable-hours`} target='_blank' rel='noopener noreferrer'>
+                % non-billable cell
+            </a>
+        </td>
+        <td>
+            <a href={`${DOCS}#column-remaining-non-billable-hours`} target='_blank' rel='noopener noreferrer'>
+                Remaining non-billable hours
+            </a>
         </td>
     </>;
 
@@ -88,9 +116,6 @@ const SustainabilityTable = ({accounts, view}) =>
         <table className="table sustainability-table">
             <thead>
             <tr className="table-header">
-                <td>
-                    Total hours
-                </td>
                 {
                     view === "cells"
                         ? overall_headers

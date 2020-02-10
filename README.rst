@@ -137,11 +137,26 @@ Overall sustainability
 ~~~~~~~~~~~~~~~~~~~~~~
 Here we can view the sustainability combined for all existing projects. We are listing:
 
+.. raw:: html
+
+    <div id="column-overall-total-hours"></div>
+
 1. Total hours
     non-cell hours + cell hours
+
+    .. raw:: html
+
+        <div id="column-overall-billable-hours"></div>
 2. Billable hours
+    .. raw:: html
+
+        <div id="column-overall-non-billable-hours"></div>
 3. Total non-billable hours
     non-billable cell hours + non-billable non-cell hours
+
+    .. raw:: html
+
+        <div id="column-overall-percent-of-non-billable-hours"></div>
 4. Percent of non-billable hours
     total non-billable hours / total hours
 
@@ -149,12 +164,30 @@ Cell's/User's sustainability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Here we can view the sustainability logged for a specific project or by a specific user. We are listing:
 
+.. raw:: html
+
+    <div id="column-total-hours"></div>
+
 1. Total hours
+    .. raw:: html
+
+        <div id="column-non-cell-hours"></div>
 2. Non-cell hours
     hours logged on non-billable non-cell tickets
+
+    .. raw:: html
+
+        <div id="column-billable-cell-hours"></div>
 3. Billable cell hours
+    .. raw:: html
+
+        <div id="column-non-billable-cell-hours"></div>
 4. Non-billable cell hours
     hours logged on non-billable cell-responsible tickets
+
+    .. raw:: html
+
+        <div id="column-percent-of-non-billable-hours"></div>
 5. Percent of non-billable hours
     ::
 
@@ -168,16 +201,45 @@ Budget Dashboard
 ^^^^^^^^^^^^^^^^
 This presents a list of all active accounts and the time spent on them from the beginning of the current year and the goal, based on the budget stored in the DB (see `Setting up budgets`_ for setup instructions). For each budget we are listing:
 
+.. raw:: html
+
+        <div id="column-budget"></div>
+
 1. Account name with the prefix stripped for better readability.
+
+    .. raw:: html
+
+        <div id="column-ytd-spent"></div>
 2. Time spent from the beginning of the first year within the selected period.
     For `Overall` view the cell has green background when budget is on track and turns red when it's exceeded. This behavior is disabled on cell's and user's dashboards to reduce confusion.
+
+    .. raw:: html
+
+        <div id="column-ytd-goal"></div>
 3. Goal from the beginning of the first year within the selected period to the end of the next sprint.
     This field remains the same for all views, because budgets cannot be divided between cells.
+
+    .. raw:: html
+
+        <div id="column-period-sprint"></div>
 4. Time spent during the selected period.
+    .. raw:: html
+
+        <div id="column-left-this-sprint"></div>
 5. Time scheduled for the incomplete tickets in the current sprint.
+    .. raw:: html
+
+        <div id="column-next-sprint"></div>
 6. Time scheduled for the tickets in the next sprint.
+    .. raw:: html
+
+        <div id="column-remaining-for-next-sprint"></div>
 7. Time that can still be assigned for the next sprint. This value is the same for all views. Turns green if there are some hours.
     This field remains the same for all views, because any cell can use the remaining budget. The cell's background is green when remaining time is greater or equal 0, turns red when it's lower.
+
+    .. raw:: html
+
+        <div id="column-category"></div>
 8. One of the following categories:
     a) Billable,
     b) Non-billable cell,

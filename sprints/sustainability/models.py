@@ -1,9 +1,6 @@
 import calendar
+import datetime
 from collections import defaultdict
-from datetime import (
-    datetime,
-    timedelta,
-)
 from multiprocessing.pool import ThreadPool
 from typing import (
     Dict,
@@ -13,19 +10,76 @@ from typing import (
 )
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.db import models
 from jira.resources import PropertyHolder
+from more_itertools import pairwise
 
 from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.dashboard.utils import get_current_sprint_end_date
 from sprints.sustainability.utils import (
     cache_worklogs_and_issues,
+    diff_month,
     generate_month_range,
     on_error,
 )
+
+
+class Budget(models.Model):
+    """
+    Stores monthly budgets for accounts.
+    If the budget for the specific month is not present, the last existing one is used.
+    """
+
+    name = models.CharField(max_length=255, help_text="Account's name.")
+    date = models.DateField(
+        help_text="Year and month of the budget. If not specified, the last month's budget is applied."
+    )
+    hours = models.IntegerField(help_text="Number of available hours for this month.")
+
+    def __str__(self):
+        return f"{self.name}: {self.date.strftime('%Y-%m')}"
+
+
+class Account(models.Model):
+    """
+    Stores email addresses for sending notifications about problems with the budgets of the account.
+    """
+
+    name = models.CharField(max_length=255, help_text="Account's name.")
+    alert_emails = ArrayField(
+        models.CharField(max_length=255),
+        default=list,
+        blank=True,
+        help_text="List of comma-separated (`,`) email addresses that will be periodically notified about budget "
+                  "overhead.",
+    )
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class Cell(models.Model):
+    """
+    Stores email addresses for notifications about problems with the sustainability of the project.
+
+    If the project is not added, notifications will not be sent for it.
+    """
+
+    name = models.CharField(max_length=255, help_text="Cell's name.")
+    alert_emails = ArrayField(
+        models.CharField(max_length=255),
+        default=list,
+        blank=True,
+        help_text="List of comma-separated (`,`) email addresses that will be periodically notified about cell "
+                  "sustainability problems.",
+    )
+
+    def __str__(self):
+        return f"{self.name}"
 
 
 class SustainabilityAccount:
@@ -45,6 +99,7 @@ class SustainabilityAccount:
         self.ytd_overall: float = 0
         self.ytd_by_project: Dict[str, float] = {}
         self.ytd_by_person: Dict[str, float] = {}
+        self.budgets: Dict[str, int] = {}
 
     def __add__(self, other):
         result = SustainabilityAccount(self.name)
@@ -74,82 +129,81 @@ class SustainabilityAccount:
             self.by_project[project] = self.by_project.get(project, 0) + hours
             self.by_person[username] = self.by_person.get(username, 0) + hours
 
-    def calculate_budgets(self, start_date: datetime, end_date: datetime) -> None:
+    def calculate_budgets(
+        self, ytd_start: datetime.date, start: datetime.date, end_sprint: datetime.date, end: datetime.date
+    ) -> None:
         """
         Calculates budgets for the account.
         Retrieves account's budgets from the DB.
         """
-        year = start_date.year
-        now = datetime.now()
-        present_month = now.month if now.year == year else 13  # Hack for checking previous years.
-        present_day = now.day
-        budgets = Budget.objects.filter(name=self.name).order_by('date')
-        self.budgets: List[int] = []
-        self.ytd_goal = 0.
 
-        current_month = 1
-        current_budget = 0
-        # Calculate budgets provided in the DB.
-        for budget in budgets:
-            if budget.date.year != year:
-                current_budget = budget.hours
+        self.budgets = {}  # TODO: remove later. For now we need to do this to avoid dealing with cache invalidation.
+        budgets = list(Budget.objects.filter(name=self.name).order_by('date'))
+        self.next_sprint_goal = self._calculate_budgets(ytd_start, end_sprint, budgets)
+        self.ytd_goal = self._calculate_budgets(ytd_start, datetime.date.today(), budgets)
+        self.period_goal = self._calculate_budgets(start, end, budgets)
 
-            else:
-                previous_month = current_month
-                previous_budget = current_budget
-                current_month = budget.date.month
-                current_budget = budget.hours
-                for month in range(previous_month, current_month):
-                    self._process_budget(year, month, present_month, previous_budget)
+    def _calculate_budgets(self, start_date: datetime.date, end_date: datetime.date, budgets: List[Budget]) -> float:
+        """
+        Inner method for calculating budgets for the account.
 
-        # Calculate remaining budgets.
-        for month in range(len(self.budgets) + 1, 13):
-            self._process_budget(year, month, present_month, current_budget)
+        It uses `pairwise` to process chronological pairs of existing budgets.
+        The list of budgets is extended by `None` to have a clear indication which budget is the last one.
+        """
+        goal = 0
+        current_start = start_date  # Local range
 
-        # Calculate available budget for the next sprint.
-        daily_budget: Dict[int, float] = {
-            now.month: self.calculate_workday_budget(year, now.month, self.budgets[now.month - 1]),
-            (now.month + 1) % 12:
-                self.calculate_workday_budget(year, (now.month + 1) % 12, self.budgets[now.month % 12]),
-        }
-        self.next_sprint_goal = self.ytd_goal + self._calculate_partial_budget_for_workdays(now, end_date, daily_budget)
+        # noinspection PyTypeChecker
+        for start_budget, end_budget in pairwise(budgets + [None]):  # type: Budget
+            current_start = max(current_start, start_budget.date)
+            current_end = end_date
+            if end_budget:
+                current_end = min(current_end, end_budget.date + relativedelta(months=-1, day=31))
 
-    def _process_budget(self, year, month, present_month, budget) -> None:
+            if current_start <= current_end:
+                goal += self._calculate_budget(current_start, current_end, start_budget.hours)
+                self._add_budget(start_budget, current_start, current_end)
+                current_start = current_end
+
+        return goal
+
+    @classmethod
+    def _calculate_budget(cls, start: datetime.date, end: datetime.date, hours: int) -> float:
         """Processes monthly budget (full or partial)."""
-        if month < present_month:
-            self.ytd_goal += budget
-        elif month == present_month:
-            # Calculate partial budget for the current month.
-            now = datetime.now()
-            start = now.replace(day=1)
-            daily_budget = {now.month: self.calculate_workday_budget(year, now.month, budget)}
+        end_last_day_of_month = calendar.monthrange(end.year, end.month)[1]
+        partial_hours = 0
 
-            self.ytd_goal += self._calculate_partial_budget_for_workdays(start, now, daily_budget)
+        # First edge case - the start day is not the first day of the month.
+        if start.day != 1:
+            partial_end = min(start + relativedelta(day=31), end)  # Partial end cannot exceed the real end.
+            partial_hours += cls._calculate_partial_budget(start, partial_end, hours)
+            start = start + relativedelta(months=+1, day=1)
 
-        self.budgets.append(budget)
+        # Second edge case - the end day is not the last day of the month.
+        # If calculated during the first edge case, do not calculate it again.
+        if end.day != end_last_day_of_month and start <= end:
+            partial_start = end.replace(day=1)
+            partial_hours += cls._calculate_partial_budget(partial_start, end, hours)
+            end = end + relativedelta(months=-1, day=31)
 
-    @staticmethod
-    def _calculate_partial_budget_for_workdays(start: datetime, end: datetime, daily_budget: Dict[int, float]) -> float:
+        monthly_hours = diff_month(start, end) * hours if start <= end else 0  # Calculate months between edge cases.
+        return monthly_hours + partial_hours
+
+    @classmethod
+    def _calculate_partial_budget(cls, start: datetime.date, end: datetime.date, hours: int) -> float:
+        """Calculate budget for a part of one month."""
+        if start.month != end.month:
+            raise AttributeError("`start` and `end` must be in the same month.")
+
+        days_in_month = calendar.monthrange(start.year, start.month)[1]
+        return hours / days_in_month * ((end - start).days + 1)
+
+    def _add_budget(self, budget: Budget, start: datetime.date, end: datetime.date) -> None:
         """
-        Calculates budget for the workdays from `start` to `end` using the `daily_budget` per workday.
+        Add each month of the processed budget to the list. The end result is a per-month list of budget hours.
         """
-        partial_budget = 0.
-        for n in range(int((end - start).days)):
-            date = (start + timedelta(n))
-            if date.weekday() < 5:  # Do not count weekends.
-                partial_budget += daily_budget[date.month]
-
-        return partial_budget
-
-    @staticmethod
-    def calculate_workday_budget(year: int, month: int, monthly_budget: int) -> float:
-        """
-        Returns daily budget basing only on the working days.
-        Useful for precise estimations for the sprint planning.
-        """
-        cal = calendar.Calendar()
-        working_days = len([x for x in cal.itermonthdays2(year, month) if x[0] != 0 and x[1] < 5])
-        return monthly_budget / working_days
+        for month, _ in generate_month_range(str(start), str(end)):
+            self.budgets[month.strftime('%B %Y')] = budget.hours
 
 
 class SustainabilityDashboard:
@@ -163,7 +217,7 @@ class SustainabilityDashboard:
         self.to = to
 
         self.ytd_from = parse(from_).replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
-        today = datetime.today()
+        today = datetime.datetime.today()
         last_day_of_month = calendar.monthrange(today.year, today.month)[1]
         current_end_date = today.replace(day=last_day_of_month)
         self.ytd_to = min(current_end_date, parse(to).replace(month=12, day=31)).strftime(settings.JIRA_API_DATE_FORMAT)
@@ -206,11 +260,12 @@ class SustainabilityDashboard:
             for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
                 setattr(self, category, getattr(self, category).values())
 
-                end_date = get_current_sprint_end_date('future')
+                end_sprint_date = get_current_sprint_end_date('future')
 
                 accounts = getattr(self, category)
                 for account in accounts:
-                    account.calculate_budgets(parse(self.ytd_from), parse(end_date))
+                    args = map(lambda d: parse(d).date(), [self.ytd_from, from_, end_sprint_date, to])
+                    account.calculate_budgets(*args)
 
         # Generate year-to-date values.
         else:
@@ -309,54 +364,3 @@ class SustainabilityDashboard:
                 accounts[account.name] += account.ytd_goal - account.ytd_overall
 
         return accounts
-
-
-class Budget(models.Model):
-    """
-    Stores monthly budgets for accounts.
-    If the budget for the specific month is not present, the last existing one is used.
-    """
-    name = models.CharField(max_length=255, help_text="Account's name.")
-    date = models.DateField(
-        help_text="Year and month of the budget. If not specified, the last month's budget is applied."
-    )
-    hours = models.IntegerField(help_text="Number of available hours for this month.")
-
-    def __str__(self):
-        return f"{self.name}: {self.date.strftime('%Y-%m')}"
-
-
-class Account(models.Model):
-    """
-    Stores email addresses for sending notifications about problems with the budgets of the account.
-    """
-    name = models.CharField(max_length=255, help_text="Account's name.")
-    alert_emails = ArrayField(
-        models.CharField(max_length=255),
-        default=list,
-        blank=True,
-        help_text="List of comma-separated (`,`) email addresses that will be periodically notified about budget "
-                  "overhead.",
-    )
-
-    def __str__(self):
-        return f"{self.name}"
-
-
-class Cell(models.Model):
-    """
-    Stores email addresses for notifications about problems with the sustainability of the project.
-
-    If the project is not added, notifications will not be sent for it.
-    """
-    name = models.CharField(max_length=255, help_text="Cell's name.")
-    alert_emails = ArrayField(
-        models.CharField(max_length=255),
-        default=list,
-        blank=True,
-        help_text="List of comma-separated (`,`) email addresses that will be periodically notified about cell "
-                  "sustainability problems.",
-    )
-
-    def __str__(self):
-        return f"{self.name}"

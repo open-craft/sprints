@@ -30,6 +30,26 @@ const aggregateAccounts = (data) => {
     return result;
 };
 
+const add_overhead = (accounts, budgets) => {
+    budgets.billable_accounts.forEach(account => {
+        // Calculate overall.
+        accounts.billable_accounts.overall -= Math.max(account.overall - account.period_goal, 0);
+        accounts.non_billable_responsible_accounts.overall += Math.max(account.overall - account.period_goal, 0);
+
+        // Calculate for each cell.
+        Object.entries(account.by_project).forEach(([project, hours]) => {
+            accounts.billable_accounts.by_project[project] -= Math.max(account.by_project[project] - account.period_goal, 0);
+            accounts.non_billable_responsible_accounts.by_project[project] += Math.max(account.by_project[project] - account.period_goal, 0);
+        });
+
+        // Calculate for each person.
+        Object.entries(account.by_person).forEach(([person, hours]) => {
+            accounts.billable_accounts.by_person[person] -= Math.max(account.by_person[person] - account.period_goal, 0);
+            accounts.non_billable_responsible_accounts.by_person[person] += Math.max(account.by_person[person] - account.period_goal, 0);
+        });
+    })
+};
+
 export const loadAccounts = (from, to) => {
     let sustainability_url;
     sustainability_url = `${PATH_SUSTAINABILITY_DASHBOARD}?${PARAM_FROM}${from}&${PARAM_TO}${to}`;
@@ -51,6 +71,7 @@ export const loadAccounts = (from, to) => {
             .then(result => {
                 if (result.status === 200) {
                     let accounts = aggregateAccounts(result.data);
+                    add_overhead(accounts, result.data);
                     dispatch({type: 'ACCOUNTS_LOADED', accounts: accounts, budgets: result.data});
 
                     return result.data;

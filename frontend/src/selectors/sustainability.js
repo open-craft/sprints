@@ -43,14 +43,12 @@ export const getAccounts = createSelector(
         accounts = JSON.parse(JSON.stringify(accounts));
 
         const data = {};
-        let overhead = 0;  // Calculate the overhead of the billable budgets.
 
         Object.entries(accounts).forEach(([account_type, accounts]) => {
             accounts.forEach(account => {
                 let entry = account;
                 if (account_type.startsWith('billable')) {
                     entry.category = 'Billable';
-                    overhead += Math.max(account.ytd_overall - account.ytd_goal, 0)
                 } else if (account_type.includes('responsible')) {
                     entry.category = 'Non-billable cell';
                 } else {
@@ -73,14 +71,18 @@ export const getAccounts = createSelector(
 
         if (range === 'board' && Object.keys(boards).length) {
             const cell_name = cells[id];
-            Object.values(data).forEach(account => account.overall = account.by_project[cell_name] || 0);
-            Object.values(data).forEach(account => account.ytd_overall = account.ytd_by_project[cell_name] || 0);
+            Object.values(data).forEach(account => {
+                account.overall = account.by_project[cell_name] || 0;
+                account.ytd_overall = account.ytd_by_project[cell_name] || 0;
+            });
             Object.values(boards).forEach(board => calculateSprintTime(board, data, false, cell_name));
 
             calculateSprintTime(boards[id], data, false);
         } else if (range === 'user_board' && Object.keys(boards).length) {
-            Object.values(data).forEach(account => account.overall = account.by_person[id] || 0);
-            Object.values(data).forEach(account => account.ytd_overall = account.ytd_by_person[id] || 0);
+             Object.values(data).forEach(account => {
+                account.overall = account.by_person[id] || 0;
+                account.ytd_overall = account.ytd_by_person[id] || 0;
+            });
             Object.values(boards).forEach(board => calculateSprintTime(board, data, false, id));
         } else {
             Object.values(data).forEach(account => {
@@ -89,16 +91,28 @@ export const getAccounts = createSelector(
             });
         }
 
+        // Calculate the overhead of the billable budgets.
+        let ytd_overhead = 0;
+        let period_overhead = 0;
+        Object.values(data).forEach(account => {
+            if (account.category === 'Billable') {
+                ytd_overhead += Math.max(account.ytd_overall - account.ytd_goal, 0);
+                period_overhead += Math.max(account.overall - account.period_goal, 0);
+            }
+        });
+
         data['Overhead'] = {
             name: 'Overhead',
-            ytd_overall: overhead,
-            overall: overhead,
+            ytd_overall: ytd_overhead,
+            overall: period_overhead,
             ytd_goal: 0,
+            period_goal: 0,
             overall_left_this_sprint: 0,
             overall_planned_next_sprint: 0,
             left_this_sprint: 0,
             planned_next_sprint: 0,
-            remaining_next_sprint: -overhead,
+            remaining_next_sprint: -ytd_overhead,
+            category: 'Non-billable cell',
         };
 
         return Object.values(data);

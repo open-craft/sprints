@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime
+import datetime
 from typing import (
     Dict,
     Generator,
@@ -40,17 +40,26 @@ def split_accounts_into_categories(accounts: List[Account]) -> Dict[str, List[Ac
     return result
 
 
-def generate_month_range(start: str, end: str) -> Generator[Tuple[datetime, datetime], None, None]:
+def generate_month_range(start: str, end: str) -> Generator[Tuple[datetime.date, datetime.date], None, None]:
     """Generates months between `start` and `end` dates."""
     start_date = parse(start)
     end_date = parse(end)
 
     current_date = start_date.replace(day=1)  # First day of each month
-    while current_date < end_date:
-        last_day_of_month = calendar.monthrange(current_date.year, current_date.month)[1]
-        last_date_of_month = current_date.replace(day=last_day_of_month)
+    while current_date <= end_date:
+        last_date_of_month = current_date + relativedelta(day=31)
         yield max(current_date, start_date), min(last_date_of_month, end_date)
-        current_date += relativedelta(months=1)
+        current_date += relativedelta(months=+1)
+
+
+def diff_month(start: datetime.date, end: datetime.date) -> int:
+    """
+    Returns how many months are between two dates.
+    The result is rounded up, which means that there is always one month between dates within the same month.
+    """
+    if start > end:
+        raise AttributeError("The start cannot be after the end.")
+    return (end.year - start.year) * 12 + end.month - start.month + 1
 
 
 def _get_cached_dicts_from_keys(keys: Iterable) -> Dict:

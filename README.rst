@@ -225,26 +225,32 @@ This presents a list of all active accounts and the time spent on them from the 
 
     .. raw:: html
 
-        <div id="column-period-sprint"></div>
+        <div id="column-period-spent"></div>
 4. Time spent during the selected period.
     .. raw:: html
 
+        <div id="column-period-goal"></div>
+5. Goal for the selected period.
+    This field remains the same for all views, because budgets cannot be divided between cells.
+
+    .. raw:: html
+
         <div id="column-left-this-sprint"></div>
-5. Time scheduled for the incomplete tickets in the current sprint.
+6. Time scheduled for the incomplete tickets in the current sprint.
     .. raw:: html
 
         <div id="column-next-sprint"></div>
-6. Time scheduled for the tickets in the next sprint.
+7. Time scheduled for the tickets in the next sprint.
     .. raw:: html
 
         <div id="column-remaining-for-next-sprint"></div>
-7. Time that can still be assigned for the next sprint. This value is the same for all views. Turns green if there are some hours.
+8. Time that can still be assigned for the next sprint. This value is the same for all views. Turns green if there are some hours.
     This field remains the same for all views, because any cell can use the remaining budget. The cell's background is green when remaining time is greater or equal 0, turns red when it's lower.
 
     .. raw:: html
 
         <div id="column-category"></div>
-8. One of the following categories:
+9. One of the following categories:
     a) Billable,
     b) Non-billable cell,
     c) Non-billable non-cell.

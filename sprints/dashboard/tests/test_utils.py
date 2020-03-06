@@ -22,8 +22,6 @@ from sprints.dashboard.utils import (
     prepare_spillover_rows,
 )
 
-pytestmark = pytest.mark.django_db
-
 
 class MockItem:
     def __init__(self, **kwargs) -> None:

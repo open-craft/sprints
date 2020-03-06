@@ -539,7 +539,7 @@ GOOGLE_API_CREDENTIALS = {
 # By default we're using f"{name} off" format, which works fine with `name` being at least user's first name.
 # CAUTION: we're not checking for duplicated names, so in case we'll have two people with the same first name,
 #          both of them will need to provide the full name in the calendar.
-GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"(\w+) off")
+GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"^(?P<user>\w+)\s(?P<action>.*?)(?:(?P<hours>\d+)\s?h.*?)?$")
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
 GOOGLE_CONTACT_SPREADSHEET = env.str("GOOGLE_CONTACT_SPREADSHEET")
 GOOGLE_AVAILABILITY_RANGE = env.str("GOOGLE_AVAILABILITY_RANGE")
@@ -607,4 +607,4 @@ SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO = env.float("SUSTAINABILI
 
 # Pool size for making parallel API requests
 MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 32)
-MULTIPROCESSING_TIMEOUT = env.int("MULTIPROCESSING_TIMEOUT", 32)
+MULTIPROCESSING_TIMEOUT = env.int("MULTIPROCESSING_TIMEOUT", 128)

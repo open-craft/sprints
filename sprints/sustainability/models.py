@@ -150,11 +150,13 @@ class SustainabilityAccount:
         It uses `pairwise` to process chronological pairs of existing budgets.
         The list of budgets is extended by `None` to have a clear indication which budget is the last one.
         """
-        goal = 0
+        goal = 0.
         current_start = start_date  # Local range
 
+        start_budget: Budget
+        end_budget: Union[Budget, None]
         # noinspection PyTypeChecker
-        for start_budget, end_budget in pairwise(budgets + [None]):  # type: Budget
+        for start_budget, end_budget in pairwise(budgets + [None]):  # type: ignore
             current_start = max(current_start, start_budget.date)
             current_end = end_date
             if end_budget:
@@ -171,7 +173,7 @@ class SustainabilityAccount:
     def _calculate_budget(cls, start: datetime.date, end: datetime.date, hours: int) -> float:
         """Processes monthly budget (full or partial)."""
         end_last_day_of_month = calendar.monthrange(end.year, end.month)[1]
-        partial_hours = 0
+        partial_hours = 0.
 
         # First edge case - the start day is not the first day of the month.
         if start.day != 1:

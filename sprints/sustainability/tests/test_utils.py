@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from sustainability.utils import (
+from sprints.sustainability.utils import (
     diff_month,
     generate_month_range,
 )

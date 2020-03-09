@@ -21,7 +21,8 @@ test("getAccounts returns empty array if boards aren't loaded", () => {
                     name: 'Billable1',
                     ytd_overall: 3.1415,
                     overall: 3.1415,
-                    ytd_goal: 5,
+                    ytd_goal: 3,
+                    period_goal: 2,
                     next_sprint_goal: 10,
                     budgets: [5, 5, 0, 0, 0, 0, 0, 0, 0, 0],
                     ytd_by_project: {
@@ -57,7 +58,8 @@ const valid_state = {
                 name: 'Billable1',
                 ytd_overall: 3.1415,
                 overall: 3.1415,
-                ytd_goal: 5,
+                ytd_goal: 2,
+                period_goal: 3,
                 next_sprint_goal: 10,
                 budgets: [5, 5, 0, 0, 0, 0, 0, 0, 0, 0],
                 ytd_by_project: {
@@ -165,4 +167,13 @@ test("getAccounts properly computes user's data", () => {
     expect(result[0].ytd_overall).toEqual(0.1415);
     expect(result[0].left_this_sprint).toEqual(0.1415);
     expect(result[0].planned_next_sprint).toEqual(0.7182);
+});
+
+
+test("getAccounts creates Overhead account", () => {
+    const result = getAccounts(valid_state);
+    expect(result[result.length - 1].name).toEqual('Overhead');
+    expect(result[result.length - 1].category).toEqual('Non-billable cell');
+    expect(result[result.length - 1].ytd_overall).toBeCloseTo(1.1415);
+    expect(result[result.length - 1].overall).toBeCloseTo(0.1415);
 });

@@ -7,11 +7,10 @@ const timeColumn = {width: '7.5%'};  // 6 cells -> 45% total
 const categoryColumn = {width: '20%'};  // 1 cells -> 20% total
 
 const statusClass = (remaining, optional = 0) => Math.round(remaining - optional) >= 0 ? 'on-track' : 'overtime';
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const showBudget = budgets =>
     budgets
-        ? budgets.reduce((result, budget, index) =>
-            `${result}\n${monthNames[index]}: ${budget}`, '')
+        ? Object.entries(budgets).reduce((result, [key, value]) =>
+            `${result}\n${key}: ${value}`, '').trim()
         : '';
 const stripAccountName = name => {
     ACCOUNT_STRIP_NAMES.forEach(strip => name = name.replace(strip, ''));
@@ -39,8 +38,13 @@ const BudgetTable = ({accounts, view}) =>
                     </a>
                 </td>
                 <td style={timeColumn}>
-                    <a href={`${DOCS}#column-period-sprint`} title="Time spent during the selected period." target='_blank' rel='noopener noreferrer'>
+                    <a href={`${DOCS}#column-period-spent`} title="Time spent during the selected period." target='_blank' rel='noopener noreferrer'>
                         Period Spent
+                    </a>
+                </td>
+                <td style={timeColumn}>
+                    <a href={`${DOCS}#column-period-goal`} title="Goal for the selected period." target='_blank' rel='noopener noreferrer'>
+                        Period Goal
                     </a>
                 </td>
                 <td style={timeColumn}>
@@ -77,16 +81,17 @@ const BudgetTable = ({accounts, view}) =>
                         {
                             item.ytd_overall >= 1
                                 ? Math.round(item.ytd_overall)
-                                : item.ytd_overall  // FIXME: Backwards-compatible check, can be removed later.
-                                    ? item.ytd_overall.toFixed(1)
-                                    : ''
+                                : item.ytd_overall.toFixed(1)
                         }
                     </td>
                     <td style={timeColumn}>
                         {Math.round(item.ytd_goal)}
                     </td>
-                    <td style={timeColumn}>
+                    <td style={timeColumn} className={view === "cells" ? statusClass(item.period_goal, item.overall) : ''}>
                         {item.overall >= 1 ? Math.round(item.overall) : item.overall.toFixed(1)}
+                    </td>
+                    <td style={timeColumn}>
+                        {Math.round(item.period_goal)}
                     </td>
                     <td style={timeColumn}>
                         {Math.round(item.left_this_sprint)}

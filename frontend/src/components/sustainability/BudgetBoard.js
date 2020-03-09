@@ -22,7 +22,7 @@ class BudgetBoard extends Component {
         const {accountsLoading} = this.props.sustainability;
         const data = this.props.accounts;
         const {boards, boardLoading} = this.props.sprints;
-        const accounts = data.filter(account => account.overall);  // Hide unused accounts.
+        const accounts = data.filter(account => account.name === "Overhead" || account.overall);  // Hide unused accounts (except Overhead).
 
         return (
             <div className='sustainability'>

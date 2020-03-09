@@ -13,13 +13,13 @@ from jira import (
     Issue,
     User as JiraUser,
 )
-from jira.resources import (
-    Sprint,
-)
+from jira.resources import Sprint
 
-from sprints.dashboard.libs.google import (
-    get_vacations,
+from config.settings.base import (
+    SECONDS_IN_HOUR,
+    SECONDS_IN_MINUTE,
 )
+from sprints.dashboard.libs.google import get_vacations
 from sprints.dashboard.libs.jira import (
     CustomJira,
     QuickFilter,
@@ -34,10 +34,6 @@ from sprints.dashboard.utils import (
     get_sprint_meeting_day_division,
     get_sprint_start_date,
     prepare_jql_query,
-)
-from config.settings.base import (
-    SECONDS_IN_HOUR,
-    SECONDS_IN_MINUTE,
 )
 
 
@@ -241,14 +237,10 @@ class Dashboard:
 
     def get_sprints(self) -> None:
         """Retrieves current and future sprint for the board."""
-        sprints = get_all_sprints(self.jira_connection)
+        sprints = get_all_sprints(self.jira_connection, self.board_id)
         self.active_sprints = sprints['active']
         self.future_sprints = sprints['future']
-
-        for sprint in self.future_sprints:
-            if sprint.originBoardId == self.board_id:
-                self.cell_future_sprint = sprint
-                break
+        self.cell_future_sprint = sprints['cell'][1]
 
         self.future_sprint_start = get_sprint_start_date(self.cell_future_sprint)
         self.future_sprint_end = get_sprint_end_date(self.cell_future_sprint, sprints['all'])

@@ -106,7 +106,10 @@ def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[st
             if cell_key and sprint.name.startswith(cell_key):
                 result.setdefault('cell', []).append(sprint)
 
-    result['future'] = get_next_sprints(sprints, result['active'][0])
+    if board_id:
+        result['future'] = get_next_sprints(sprints, result['cell'][0])
+    else:
+        result['future'] = get_next_sprints(sprints, result['active'][0])
     return result
 
 

@@ -1,6 +1,7 @@
 """These are standard Python classes, not Django models. We don't store dashboard in the DB."""
 import functools
 import re
+import typing
 from typing import (
     Dict,
     List,
@@ -302,6 +303,7 @@ class Dashboard:
                 'days': {day.date: day.requiredSeconds for day in schedule.days}
             }
 
+    @typing.no_type_check
     def generate_rows(self) -> None:
         """Generates rows for all users and calculates their time stats."""
         for issue in self.issues:  # type: DashboardIssue
@@ -310,13 +312,13 @@ class Dashboard:
 
             # Calculate time for epic management
             if issue.is_epic:
-                assignee.future_epic_management_time += issue.epic_management_time  # type: ignore
+                assignee.future_epic_management_time += issue.epic_management_time
                 continue
 
             # Calculate hours for recurring tickets for the upcoming sprint.
             if issue.status == settings.SPRINT_STATUS_RECURRING:
-                assignee.future_assignee_time += issue.recurring_time  # type: ignore
-                reviewer_1.future_review_time += issue.review_time  # type: ignore
+                assignee.future_assignee_time += issue.recurring_time
+                reviewer_1.future_review_time += issue.review_time
                 continue
 
             # Check if the issue has any time left.
@@ -327,16 +329,16 @@ class Dashboard:
             if issue.current_sprint:
                 # Assume that no more review will be needed at this point.
                 if issue.status == settings.SPRINT_STATUS_EXTERNAL_REVIEW:
-                    assignee.current_remaining_upstream_time += issue.assignee_time  # type: ignore
+                    assignee.current_remaining_upstream_time += issue.assignee_time
 
                 else:
-                    reviewer_1.current_remaining_review_time += issue.review_time  # type: ignore
-                    assignee.current_remaining_assignee_time += issue.assignee_time  # type: ignore
+                    reviewer_1.current_remaining_review_time += issue.review_time
+                    assignee.current_remaining_assignee_time += issue.assignee_time
 
             # Calculations for the upcoming sprint.
             else:
-                assignee.future_assignee_time += issue.assignee_time  # type: ignore
-                reviewer_1.future_review_time += issue.review_time  # type: ignore
+                assignee.future_assignee_time += issue.assignee_time
+                reviewer_1.future_review_time += issue.review_time
 
         self.dashboard.pop(self.other_cell, None)
 
@@ -347,21 +349,21 @@ class Dashboard:
                 for vacation in self.vacations:
                     if row.user.displayName.startswith(vacation['user']):
                         for vacation_date in daterange(
-                            max(vacation['start']['date'], self.future_sprint_start),  # type: ignore
-                            min(vacation['end']['date'], self.future_sprint_end),  # type: ignore
+                            max(vacation['start']['date'], self.future_sprint_start),
+                            min(vacation['end']['date'], self.future_sprint_end),
                         ):
                             # Special cases for partial day when the sprint starts/ends.
                             if vacation_date == self.future_sprint_start:
                                 row.vacation_time += \
-                                    self.commitments[row.user.name]['days'][vacation_date] * \
+                                    (self.commitments[row.user.name]['days'][vacation_date] - vacation['seconds']) * \
                                     (1 - self.sprint_division[row.user.displayName])
                             elif vacation_date == self.future_sprint_end:
                                 row.vacation_time += \
-                                    self.commitments[row.user.name]['days'][vacation_date] * \
+                                    (self.commitments[row.user.name]['days'][vacation_date] - vacation['seconds']) * \
                                     self.sprint_division[row.user.displayName]
                             else:
                                 row.vacation_time += \
-                                    self.commitments[row.user.name]['days'][vacation_date]
+                                    (self.commitments[row.user.name]['days'][vacation_date] - vacation['seconds'])
                     elif row.user.displayName < vacation['user']:
                         # Small optimization, as users' vacations are sorted.
                         break

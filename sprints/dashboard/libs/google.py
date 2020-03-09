@@ -11,6 +11,8 @@ from django.conf import settings
 from google.oauth2 import service_account
 from googleapiclient import discovery
 
+from config.settings.base import SECONDS_IN_HOUR
+
 
 @contextmanager
 def connect_to_google(service: str) -> Iterator[discovery.Resource]:
@@ -31,8 +33,12 @@ def connect_to_google(service: str) -> Iterator[discovery.Resource]:
     yield service
 
 
-def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, str]]]]:
-    """Retrieves user's vacations from Google Calendar."""
+def get_vacations(from_: str, to: str) -> List[Dict[str, Union[int, str, Dict[str, str]]]]:
+    """
+    Retrieves user's vacations from Google Calendar.
+
+    The events contain `seconds` key, which indicates user's availability for the period specified in the event.
+    """
     with connect_to_google('calendar') as conn:
         calendars = [item['id'] for item in conn.calendarList().list(fields='items(id)').execute()['items']]
         vacations = []
@@ -46,13 +52,17 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[str, Dict[str, st
             ).execute()
 
             for event in events['items']:
-                user_search = re.match(settings.GOOGLE_CALENDAR_VACATION_REGEX, event['summary'], re.IGNORECASE)
-                # Only `All day` events are taken into account.
-                if user_search and {'start', 'end'} <= event.keys():
-                    user = user_search.group(1)
-                    del event['summary']
-                    event['user'] = user
-                    vacations.append(event)
+                try:
+                    regex = settings.GOOGLE_CALENDAR_VACATION_REGEX
+                    search = re.match(regex, event['summary'], re.IGNORECASE).groupdict()  # type: ignore
+                    # Only `All day` events are taken into account.
+                    if {'start', 'end'} <= event.keys():
+                        user = search.get('user')
+                        event['user'] = user
+                        event['seconds'] = int(search.get('hours', 0) or 0) * SECONDS_IN_HOUR
+                        vacations.append(event)
+                except (AttributeError, TypeError):  # The event doesn't relate to vacations.
+                    pass
 
         vacations.sort(key=lambda x: x['user'])  # Small optimization for searching
         return vacations

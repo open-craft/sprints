@@ -536,9 +536,10 @@ GOOGLE_API_CREDENTIALS = {
   "token_uri": env.str("GOOGLE_API_TOKEN_URI", "https://oauth2.googleapis.com/token"),
 }
 # Regex for retrieving users' vacations from Google Calendar. This one is case-insensitive.
-# By default we're using f"{name} off" format, which works fine with `name` being at least user's first name.
-# CAUTION: we're not checking for duplicated names, so in case we'll have two people with the same first name,
-#          both of them will need to provide the full name in the calendar.
+# It supports two basic cases:
+# - `{name} off`, `{name} away`, etc. for full vacation.
+# - `{name} available 4 hours/day`, `{name} 3h`, etc. for reduced availability.
+# FIXME: It doesn't currently support people with the same name, so, if needed, we'll need to change it.
 GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"^(?P<user>\w+)\s(?P<action>.*?)(?:(?P<hours>\d+)\s?h.*?)?$")
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
 GOOGLE_CONTACT_SPREADSHEET = env.str("GOOGLE_CONTACT_SPREADSHEET")

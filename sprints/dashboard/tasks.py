@@ -253,4 +253,5 @@ def complete_sprint_task(board_id: int) -> None:
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")
+    cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}cell{board_id}")
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}future")

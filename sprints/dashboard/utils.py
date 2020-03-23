@@ -204,21 +204,21 @@ def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
     return (parse(date) - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
-def get_current_sprint_end_date(sprint_type='active') -> str:
+def get_current_sprint_end_date(sprint_type='active', board_id: str = '') -> str:
     """Retrieves the cached end of sprint date for speeding up more frequent requests."""
-    if not (result := cache.get(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}")):
+    if not (result := cache.get(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}{board_id}")):
         result = cache.get_or_set(
-            f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}",
-            _get_current_sprint_end_date(sprint_type),
+            f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}{board_id}",
+            _get_current_sprint_end_date(sprint_type, int(board_id) if board_id else None),
             settings.CACHE_SPRINT_END_DATE_TIMEOUT_SECONDS
         )
     return result
 
 
-def _get_current_sprint_end_date(type_: str) -> str:
+def _get_current_sprint_end_date(type_: str, board_id: int = None) -> str:
     """Retrieves the end of sprint date. `type_` can be set to `active` or `future`."""
     with connect_to_jira() as conn:
-        sprints = get_all_sprints(conn)[type_]
+        sprints = get_all_sprints(conn, board_id)[type_]
 
     sprint = sprints[0]
     return get_sprint_end_date(sprint, sprints)

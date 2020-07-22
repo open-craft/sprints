@@ -243,6 +243,7 @@ def complete_sprint_task(board_id: int) -> None:
                 future_next_sprint_number = get_sprint_number(future_next_sprint)
             else:
                 future_next_sprint_number = create_next_sprint_task(board_id)
+                future_next_sprint = get_next_sprint(sprints, next_sprint)
 
             cell_dict = {
                 'key': cell.key,

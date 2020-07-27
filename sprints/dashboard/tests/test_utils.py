@@ -193,12 +193,12 @@ def test_extract_sprint_id_from_str():
 def test_prepare_jql_query_active_sprint_tickets():
     expected_fields = ['id']
     expected_result = {
-        'jql_str': 'Sprint IN openSprints() AND status IN ("Backlog","In progress","Need Review","Merged")',
+        'jql_str': 'Sprint IN openSprints() AND status IN ("Backlog","Refined","In progress","Need Review","Merged")',
         'fields': expected_fields,
     }
     result = prepare_jql_query_active_sprint_tickets(
         expected_fields,
-        ("Backlog", "In progress", "Need Review", "Merged"),
+        ("Backlog", "Refined", "In progress", "Need Review", "Merged"),
     )
     assert result == expected_result
 
@@ -218,12 +218,12 @@ def test_extract_sprint_start_date_from_sprint_name(test_input, expected, raises
 def test_prepare_jql_query_active_sprint_tickets_for_project():
     expected_fields = ['id']
     expected_result = {
-        'jql_str': 'project = TEST AND Sprint IN openSprints() AND status IN ("Backlog","In progress")',
+        'jql_str': 'project = TEST AND Sprint IN openSprints() AND status IN ("Backlog","Refined","In progress")',
         'fields': expected_fields,
     }
     result = prepare_jql_query_active_sprint_tickets(
         expected_fields,
-        ("Backlog", "In progress"),
+        ("Backlog", "Refined", "In progress"),
         project="TEST",
     )
     assert result == expected_result

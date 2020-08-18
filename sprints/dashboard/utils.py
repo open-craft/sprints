@@ -535,7 +535,7 @@ def _get_sprint_meeting_day_division_for_member(hours: str) -> float:
     Helper method for determining at which point of the member's working day is the sprint meeting.
     It handles the "minus" and "plus" timezones by adding the `-` at the end of the availability string.
 
-    For invalid time format, 0 (before the working day) is assumed, but the error is logged to Sentry.
+    For invalid time format, 0 (before the working day) is assumed.
     """
     hours = hours.replace('*', '').replace(' ', '')  # Strip unnecessary characters
     minus_timezone = hours.endswith('-')
@@ -548,9 +548,8 @@ def _get_sprint_meeting_day_division_for_member(hours: str) -> float:
         if end_hour == 0:
             end_hour = 24
     except (AttributeError, TypeError, ValueError) as e:
-        # Log exception to Sentry if the format is invalid, but do not break the server.
-        from sentry_sdk import capture_exception
-        capture_exception(e)
+        # Hack: Assume that the end of the sprint is before the working day.
+        #  This is a temporary change before the async sprint conversion to avoid depleting Sentry quota.
         return 0
 
     if end_hour < start_hour:  # Special case

@@ -28,6 +28,7 @@ from sprints.dashboard.utils import (
     daterange,
     extract_sprint_id_from_str,
     get_all_sprints,
+    get_cell_key,
     get_cell_members,
     get_issue_fields,
     get_sprint_end_date,
@@ -49,15 +50,16 @@ class DashboardIssue:
         unassigned_user: JiraUser,
         other_cell: JiraUser,
         issue_fields: Dict[str, str],
+        cell_key: str,
     ) -> None:
         self.key = issue.key
         # It should be present, but that's not enforced by the library, so it's better to specify default value.
         self.assignee: JiraUser = getattr(issue.fields, issue_fields['Assignee'], None)
-        if not self.assignee:
-            self.assignee = unassigned_user
         # We don't want to treat commitments from the other cell as "Unassigned".
-        elif self.assignee.name not in cell_members:
+        if not self.key.startswith(cell_key):
             self.assignee = other_cell
+        elif not self.assignee:
+            self.assignee = unassigned_user
 
         self.summary = getattr(issue.fields, issue_fields['Summary'], '')
         self.description = getattr(issue.fields, issue_fields['Description'], '')
@@ -88,6 +90,8 @@ class DashboardIssue:
         # We don't want to treat commitments from the other cell as "Unassigned".
         elif self.reviewer_1.name not in cell_members:
             self.reviewer_1 = other_cell
+
+        self.is_relevant = self._is_relevant_for_current_cell(cell_key, cell_members)
 
     def get_bot_directive(self, pattern) -> int:
         """
@@ -159,6 +163,18 @@ class DashboardIssue:
         except ValueError:
             return settings.SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 
+    def _is_relevant_for_current_cell(self, cell_key: str, cell_members: List[str]) -> bool:
+        """
+        Helper method for determining whether the issue is "relevant" for the current cell.
+        The issue is "relevant" when it matches one of the following conditions:
+        - Belongs to the project related to the cell (i.e. has the cell-specific prefix). When this condition is met,
+          Jira restricts the assignees to the members of the cell. Therefore we don't need to check assignees.
+        - Has the reviewer 1 from the current cell.
+
+        Note: currently we don't consider reviewer 2 role in Sprints.
+        """
+        return self.key.startswith(cell_key) or self.reviewer_1.name in cell_members
+
 
 class DashboardRow:
     """Represents single dashboard row (user)."""
@@ -172,8 +188,8 @@ class DashboardRow:
         self.future_review_time = 0
         self.future_epic_management_time = 0
         self.goal_time = 0
-        self.current_unestimated: List[str] = []
-        self.future_unestimated: List[str] = []
+        self.current_unestimated: List[DashboardIssue] = []
+        self.future_unestimated: List[DashboardIssue] = []
         self.vacation_time = 0.
         # self.issues: List[DashboardIssue] = []
 
@@ -202,9 +218,9 @@ class DashboardRow:
     def add_unestimated_issue(self, issue: DashboardIssue) -> None:
         """Add non-estimated issue to the list of unestimated issues."""
         if issue.current_sprint:
-            self.current_unestimated.append(issue.key)
+            self.current_unestimated.append(issue)
         else:
-            self.future_unestimated.append(issue.key)
+            self.future_unestimated.append(issue)
 
 
 class Dashboard:
@@ -218,6 +234,7 @@ class Dashboard:
         self.members: List[str]
         self.commitments: Dict[str, Dict[str, Dict[str, int]]] = {}
         self.board_id = board_id
+        self.cell_key: str
         self.active_sprints: List[Sprint]
         self.cell_future_sprint: Sprint
         self.future_sprints: List[Sprint]
@@ -225,6 +242,7 @@ class Dashboard:
         self.future_sprint_end: str
 
         # Retrieve data from Jira.
+        self.cell_key = get_cell_key(conn, board_id)
         self.get_sprints()
         self.create_mock_users()
         self.vacations = get_vacations(self.future_sprint_start, self.future_sprint_end)
@@ -281,9 +299,17 @@ class Dashboard:
 
         active_sprint_ids = {sprint.id for sprint in self.active_sprints}
         for issue in issues:
-            self.issues.append(
-                DashboardIssue(issue, active_sprint_ids, self.members, self.unassigned_user, self.other_cell,
-                               self.issue_fields))
+            dashboard_issue = DashboardIssue(
+                issue,
+                active_sprint_ids,
+                self.members,
+                self.unassigned_user,
+                self.other_cell,
+                self.issue_fields,
+                self.cell_key,
+            )
+            if dashboard_issue.is_relevant:
+                self.issues.append(dashboard_issue)
 
         for member in self.members:
             schedule = self.jira_connection.user_schedule(
@@ -315,7 +341,7 @@ class Dashboard:
                 continue
 
             # Check if the issue has any time left.
-            if issue.time_estimate == 0 and issue.assignee not in (self.unassigned_user, self.other_cell):
+            if issue.time_estimate == 0:
                 assignee.add_unestimated_issue(issue)
 
             # Calculations for the current sprint.

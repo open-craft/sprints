@@ -8,6 +8,13 @@ const spilloverColumn = {width: '28%'};   // 1 cell
 const newWorkColumn = {width: '52%'};   // 1 cell
 const timeColumn = {width: '6%'};  // 10 cells -> 60% total
 const unestimatedColumn = {width: '10%'};  // 2 cells -> 20% total
+const totalRowPlaceholder = {width: '62%'};  // 100% - nameColumn - 3 * timeColumn
+
+const statusClass = (remaining) => Math.round(remaining) >= 0 ? '' : 'overcommitted';
+const accumulateTime = (list, property) => {
+    const accumulatedTime = list.reduce((acc, item) => acc + item[property], 0);
+    return Math.round(accumulatedTime / 3600);
+}
 
 const Table = ({list, url}) =>
     <table className="table">
@@ -81,7 +88,7 @@ const Table = ({list, url}) =>
                 <td style={unestimatedColumn}>
                     {item.current_unestimated.map(ticket =>
                         <li key={ticket}>
-                            <a href={PATH_JIRA_ISSUE + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
+                            <a href={PATH_JIRA_ISSUE + ticket.key} title={ticket.summary} target="_blank" rel="noopener noreferrer">{ticket.key}</a>
                         </li>
                     )}
                 </td>
@@ -97,7 +104,7 @@ const Table = ({list, url}) =>
                 <td style={unestimatedColumn}>
                     {item.future_unestimated.map(ticket =>
                         <li key={ticket}>
-                            <a href={PATH_JIRA_ISSUE + ticket} target="_blank" rel="noopener noreferrer">{ticket}</a>
+                            <a href={PATH_JIRA_ISSUE + ticket.key} title={ticket.summary} target="_blank" rel="noopener noreferrer">{ticket.key}</a>
                         </li>
                     )}
                 </td>
@@ -110,11 +117,28 @@ const Table = ({list, url}) =>
                 <td style={timeColumn}>
                     {Math.round(item.goal_time / 3600)}
                 </td>
-                <td style={timeColumn}>
+                <td style={timeColumn} className={statusClass(item.remaining_time)}>
                     {Math.round(item.remaining_time / 3600)}
                 </td>
             </tr>,
         )}
+        <tr className="table-row">
+            <td style={nameColumn}>
+                <abbr title="Note that these might not be the accurate sums of the values above, because the calculations are performed on seconds and then they are rounded to hours.">
+                    <b>Total</b>
+                </abbr>
+            </td>
+            <td style={totalRowPlaceholder}/>
+            <td style={timeColumn}>
+                {accumulateTime(list, 'committed_time')}
+            </td>
+            <td style={timeColumn}>
+                {accumulateTime(list, 'goal_time')}
+            </td>
+            <td style={timeColumn}>
+                {accumulateTime(list, 'remaining_time')}
+            </td>
+        </tr>
         </tbody>
     </table>;
 

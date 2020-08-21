@@ -74,6 +74,11 @@ tr:hover td {
   font-size: smaller;
 }
 
+.table .overcommitted {
+  color: #FF0000;
+  font-weight: bold;
+}
+
 .sustainability-table td {
   width: 25%;
 }

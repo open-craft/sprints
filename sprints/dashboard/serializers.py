@@ -54,8 +54,8 @@ class DashboardRowSerializer(serializers.Serializer):
     future_epic_management_time = serializers.IntegerField()
     committed_time = serializers.IntegerField()
     goal_time = serializers.IntegerField()
-    current_unestimated = serializers.ListField()
-    future_unestimated = serializers.ListField()
+    current_unestimated = DashboardIssueSerializer(many=True)
+    future_unestimated = DashboardIssueSerializer(many=True)
     remaining_time = serializers.IntegerField()
     vacation_time = serializers.IntegerField()
 

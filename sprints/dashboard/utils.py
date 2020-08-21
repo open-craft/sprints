@@ -66,6 +66,17 @@ def get_projects_dict(conn: CustomJira) -> Dict[str, Project]:
     return {p.name: p for p in projects}
 
 
+def get_cell_key(conn: CustomJira, board_id: int) -> str:
+    """
+    Retrieves the key of the cell owning the sprint board.
+    :raises ValueError if the cell was not found (this can happen when the board is not a sprint board)
+    """
+    for cell in get_cells(conn):
+        if cell.board_id == board_id:
+            return cell.key
+    raise ValueError("Cell not found.")
+
+
 def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
     """Extracts the cell members' usernames from quickfilters."""
     members = []

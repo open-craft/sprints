@@ -11,6 +11,7 @@ from sprints.dashboard.utils import (
     extract_sprint_name_from_str,
     extract_sprint_start_date_from_sprint_name,
     get_all_sprints,
+    get_cell_key,
     get_cell_members,
     get_cells,
     get_issue_fields,
@@ -112,6 +113,19 @@ def test_get_cells():
     assert cells[1].name == 'Test2'
     assert cells[1].board_id == 2
     assert cells[1].key == 'T2'
+
+
+@pytest.mark.parametrize(
+    "test_input, expected, raises", [
+        (1, 'T1', does_not_raise()),
+        (2, 'T2', does_not_raise()),
+        (3, 'T3', pytest.raises(ValueError)),
+    ],
+)
+def test_get_cell_key(test_input, expected, raises):
+    with raises:
+        # noinspection PyTypeChecker
+        assert get_cell_key(MockJiraConnection(), test_input) == expected
 
 
 def test_get_cell_members():
@@ -274,17 +288,16 @@ def test_prepare_spillover_rows():
 
 
 @pytest.mark.parametrize(
-    "test_input, expected, raises", [
-        ('12pm-9pm*', .44, does_not_raise()),
-        ('3pm-12am-', .11, does_not_raise()),
-        ('9am - 5pm*', .88, does_not_raise()),
-        ('6pm-1am*-', 0., does_not_raise()),
-        ('11pm-8am*', 1., does_not_raise()),
-        ('2pm-5:30pm', .67, does_not_raise()),
-        ('8am-4pm', 1., does_not_raise()),
-        ('invalid', 0., pytest.raises(ModuleNotFoundError)),
+    "test_input, expected", [
+        ('12pm-9pm*', .44),
+        ('3pm-12am-', .11),
+        ('9am - 5pm*', .88),
+        ('6pm-1am*-', 0.),
+        ('11pm-8am*', 1.),
+        ('2pm-5:30pm', .67),
+        ('8am-4pm', 1.),
+        ('invalid', 0.),
     ],
 )
-def test_get_sprint_meeting_day_division_for_member(test_input, expected, raises):
-    with raises:
-        assert _get_sprint_meeting_day_division_for_member(test_input) == pytest.approx(expected, 0.1)
+def test_get_sprint_meeting_day_division_for_member(test_input, expected):
+    assert _get_sprint_meeting_day_division_for_member(test_input) == pytest.approx(expected, 0.1)

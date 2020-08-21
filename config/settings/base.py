@@ -432,7 +432,7 @@ JIRA_INTEGER_FIELDS = {
     "Story Points",
 } | JIRA_TIME_FIELDS
 # A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
-JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = (\w+).* or .*\1.*\1")
+JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = ([\w-]+).* or .*\1.*\1")
 # Jira default account for assigning cell-role-related tickets.
 JIRA_CELL_ROLE_ACCOUNT = env.str("JIRA_CELL_ROLE_ACCOUNT")
 # Jira epic name for cell-role tickets.

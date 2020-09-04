@@ -6,6 +6,7 @@ from django.test import override_settings
 
 from sprints.dashboard.tests.helpers import does_not_raise
 from sprints.dashboard.utils import (
+    _column_number_to_excel,
     _get_sprint_meeting_day_division_for_member,
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
@@ -285,6 +286,24 @@ def test_prepare_spillover_rows():
     ]
     # noinspection PyTypeChecker
     assert prepare_spillover_rows(test_issues, issue_fields, {}) == expected_result
+
+
+@pytest.mark.parametrize(
+    "test_input, expected", [
+        (1, 'A'),
+        (26, 'Z'),
+        (27, 'AA'),
+        (52, 'AZ'),
+        (53, 'BA'),
+        (702, 'ZZ'),
+        (703, 'AAA'),
+        (18278, 'ZZZ'),
+        (18279, 'AAAA'),
+        (214570915, 'RANDOM'),
+    ],
+)
+def test_column_number_to_excel(test_input, expected):
+    assert _column_number_to_excel(test_input) == expected
 
 
 @pytest.mark.parametrize(

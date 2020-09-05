@@ -532,13 +532,17 @@ def prepare_commitment_spreadsheet(dashboard, spreadsheet: List[List[str]]) -> T
 
 def get_commitment_range(spreadsheet: List[List[str]], cell_name: str) -> str:
     """Retrieve the proper range for the spreadsheet, depending on the cell and number of currently stored sprints."""
-    column_number = base_10_to_n(len(spreadsheet), len(string.ascii_uppercase))
+    column_number = _column_number_to_excel(len(spreadsheet) + 1)
     return f"'{cell_name} Commitments'!{column_number}3"
 
 
-def base_10_to_n(num: int, b: int, numerals: str = string.ascii_uppercase) -> str:
-    """Convert `num` to the desired base `b` with selected `numerals`"""
-    return ((num == 0) and numerals[0]) or (base_10_to_n(num // b, b, numerals).lstrip(numerals[0]) + numerals[num % b])
+def _column_number_to_excel(column: int) -> str:
+    """Convert column number to Excel-style cell name."""
+    result: List[str] = []
+    while column:
+        column, reminder = divmod(column - 1, len(string.ascii_uppercase))
+        result[:0] = string.ascii_uppercase[reminder]
+    return ''.join(result)
 
 
 def _get_sprint_meeting_day_division_for_member(hours: str) -> float:

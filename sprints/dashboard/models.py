@@ -361,6 +361,11 @@ class Dashboard:
 
         self.dashboard.pop(self.other_cell, None)
 
+        # Hide users that are not included in the Sprint board's quickfilters.
+        for user in list(self.dashboard.keys()):
+            if user != self.unassigned_user and user.name not in self.members:
+                self.dashboard.pop(user)
+
         # Calculate commitments for each user.
         for row in self.rows:
             if row.user != self.unassigned_user:

@@ -31,7 +31,7 @@ const UserTable = ({list, username}) =>
         </thead>
         <tbody>
         {list.map(item =>
-            <tr key={item.key} className={"table-row"}>
+            <tr key={item.key} className={"table-row" + (item.is_flagged ? ' flagged' : '')}>
                 <td style={timeColumn}>
                     <a href={PATH_JIRA_ISSUE + item.key} title={item.summary} target="_blank"
                        rel="noopener noreferrer">{item.key}</a>

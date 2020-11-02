@@ -92,6 +92,7 @@ class DashboardIssue:
             self.reviewer_1 = other_cell
 
         self.is_relevant = self._is_relevant_for_current_cell(cell_key, cell_members)
+        self.is_flagged = self._is_flagged(issue, issue_fields)
 
     def get_bot_directive(self, pattern) -> int:
         """
@@ -175,6 +176,11 @@ class DashboardIssue:
         """
         return self.key.startswith(cell_key) or self.reviewer_1.name in cell_members
 
+    @staticmethod
+    def _is_flagged(issue: Issue, issue_fields: Dict[str, str]) -> bool:
+        """Check whether the ticket has been flagged as "Impediment"."""
+        return any(filter(lambda x: x.value == 'Impediment', getattr(issue.fields, issue_fields['Flagged']) or []))
+
 
 class DashboardRow:
     """Represents single dashboard row (user)."""
@@ -188,6 +194,7 @@ class DashboardRow:
         self.future_review_time = 0
         self.future_epic_management_time = 0
         self.goal_time = 0
+        self.flagged_time = 0
         self.current_unestimated: List[DashboardIssue] = []
         self.future_unestimated: List[DashboardIssue] = []
         self.vacation_time = 0.
@@ -358,6 +365,10 @@ class Dashboard:
             else:
                 assignee.future_assignee_time += issue.assignee_time
                 reviewer_1.future_review_time += issue.review_time
+
+                if issue.is_flagged:
+                    assignee.flagged_time += issue.assignee_time
+                    reviewer_1.flagged_time += issue.review_time
 
         self.dashboard.pop(self.other_cell, None)
 

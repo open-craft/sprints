@@ -79,6 +79,10 @@ tr:hover td {
   font-weight: bold;
 }
 
+.table .flagged > td {
+  background: yellow;
+}
+
 .sustainability-table td {
   width: 25%;
 }

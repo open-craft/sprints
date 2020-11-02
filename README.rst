@@ -53,6 +53,11 @@ For each member of the cell this view displays:
 4. Committed time, which is the sum of all estimation hours.
 5. Goal for the next sprint, which is calculated by summing up user's commitments for each day of the sprint and subtracting `SPRINT_HOURS_RESERVED_FOR_MEETINGS` and `Vacation` hours from it.
 6. Remaining time, which is the result of `Goal` - `Committed`.
+7. Toggles:
+    a) Ongoing work. Default: true.
+        This is useful to for planning the next sprint upfront by making an assumption that all work from the current sprint will be completed on time.
+    b) Accepted (flagged) tickets. Default: false.
+        If tickets are preassigned and flagged, then the assignees can use this option to determine whether they need to pass on some tickets.
 
 User's dashboard
 ~~~~~~~~~~~~~~~~
@@ -64,6 +69,8 @@ This view shows all assigned (as `Assignee` or `Reviewer 1`) tickets of the user
 4. Remaining time for the current user
 5. Sprint indicator (active or future one)
 6. Epic/Story indicator
+
+Note: if a ticket is flagged, then its row's background will be yellow.
 
 Caching
 ~~~~~~~

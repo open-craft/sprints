@@ -407,6 +407,7 @@ JIRA_REQUIRED_FIELDS = (
     "Reviewer 1",
     "Account",
     "Epic Link",
+    "Flagged",
 )
 # Fields required for documenting spillovers.
 SPILLOVER_REQUIRED_FIELDS = (

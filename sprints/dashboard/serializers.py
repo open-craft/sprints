@@ -27,6 +27,7 @@ class DashboardIssueSerializer(serializers.Serializer):
     status = serializers.CharField()
     assignee_time = serializers.SerializerMethodField()
     review_time = serializers.IntegerField()
+    is_flagged = serializers.BooleanField()
 
     # noinspection PyMethodMayBeStatic
     def get_assignee(self, obj: DashboardIssue):
@@ -54,6 +55,7 @@ class DashboardRowSerializer(serializers.Serializer):
     future_epic_management_time = serializers.IntegerField()
     committed_time = serializers.IntegerField()
     goal_time = serializers.IntegerField()
+    flagged_time = serializers.IntegerField()
     current_unestimated = DashboardIssueSerializer(many=True)
     future_unestimated = DashboardIssueSerializer(many=True)
     remaining_time = serializers.IntegerField()

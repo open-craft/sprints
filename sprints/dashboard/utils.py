@@ -1,11 +1,12 @@
 import re
 import string
-import time
+from collections import defaultdict
 from datetime import (
     datetime,
     timedelta,
 )
 from typing import (
+    DefaultDict,
     Dict,
     Generator,
     Iterable,
@@ -15,10 +16,14 @@ from typing import (
     Union,
 )
 
-from dateutil.parser import parse
+# noinspection PyUnresolvedReferences,PyPackageRequirements
+from dateutil.parser import (  # type: ignore
+    ParserError,
+    parse,
+)
 from django.conf import settings
-# noinspection PyProtectedMember
 from django.core.cache import cache
+# noinspection PyProtectedMember
 from jira.resources import (
     Board,
     Comment,
@@ -94,7 +99,7 @@ def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str,
 
 
 def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[str, List[Sprint]]:
-    """We need to retrieve all sprints to handle cross-cell tickets."""
+    """Retrieves all sprints (used for handling cross-cell tickets)."""
     cells = get_cells(conn)
     sprints = {}
     cell_key: Optional[str] = None
@@ -198,21 +203,13 @@ def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=Fa
 
 def get_sprint_start_date(sprint: Sprint) -> str:
     """Returns start date of the sprint."""
-    if getattr(sprint, 'startDate', None):
-        return sprint.startDate.split('T')[0]
-
     return extract_sprint_start_date_from_sprint_name(sprint.name)
 
 
-def get_sprint_end_date(sprint: Sprint, sprints: List[Sprint]) -> str:
-    """Returns end date of the sprint -1 day, because that's when the new sprint starts."""
-    if getattr(sprint, 'endDate', None):
-        date = sprint.endDate.split('T')[0]
-    else:
-        future_sprint = get_next_sprint(sprints, sprint)
-        date = get_sprint_start_date(future_sprint)
-
-    return (parse(date) - timedelta(days=1)).strftime("%Y-%m-%d")
+def get_sprint_end_date(sprint: Sprint) -> str:
+    """Returns the last day of the sprint."""
+    date = get_sprint_start_date(sprint)
+    return (parse(date) + timedelta(days=settings.SPRINT_DURATION_DAYS - 1)).strftime(settings.JIRA_API_DATE_FORMAT)
 
 
 def get_current_sprint_end_date(sprint_type='active', board_id: str = '') -> str:
@@ -232,7 +229,7 @@ def _get_current_sprint_end_date(type_: str, board_id: int = None) -> str:
         sprints = get_all_sprints(conn, board_id)[type_]
 
     sprint = sprints[0]
-    return get_sprint_end_date(sprint, sprints)
+    return get_sprint_end_date(sprint)
 
 
 def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:
@@ -320,7 +317,7 @@ def daterange(start: str, end: str) -> Generator[str, None, None]:
     """Generates days from `start_date` to `end_date` (both inclusive)."""
     start_date = datetime.strptime(start, settings.JIRA_API_DATE_FORMAT)
     end_date = datetime.strptime(end, settings.JIRA_API_DATE_FORMAT)
-    for n in range(int((end_date - start_date).days)):
+    for n in range(int((end_date - start_date).days + 1)):
         yield (start_date + timedelta(n)).strftime(settings.JIRA_API_DATE_FORMAT)
 
 
@@ -545,55 +542,64 @@ def _column_number_to_excel(column: int) -> str:
     return ''.join(result)
 
 
-def _get_sprint_meeting_day_division_for_member(hours: str) -> float:
+def _get_sprint_meeting_day_division_for_member(hours: str, sprint_start: str) -> float:
     """
     Helper method for determining at which point of the member's working day is the sprint meeting.
-    It handles the "minus" and "plus" timezones by adding the `-` at the end of the availability string.
 
     For invalid time format, 0 (before the working day) is assumed.
     """
-    hours = hours.replace('*', '').replace(' ', '')  # Strip unnecessary characters
-    minus_timezone = hours.endswith('-')
-    search = re.search(settings.GOOGLE_AVAILABILITY_REGEX, hours)
+    found_hours = re.findall(settings.GOOGLE_AVAILABILITY_REGEX, hours)
     try:
-        start_str = f"{search.group(1)}{search.group(2)}"  # type: ignore
-        end_str = f"{search.group(3)}{search.group(4)}"  # type: ignore
-        start_hour = time.strptime(start_str, settings.GOOGLE_AVAILABILITY_TIME_FORMAT).tm_hour
-        end_hour = time.strptime(end_str, settings.GOOGLE_AVAILABILITY_TIME_FORMAT).tm_hour
-        if end_hour == 0:
-            end_hour = 24
-    except (AttributeError, TypeError, ValueError) as e:
-        # Hack: Assume that the end of the sprint is before the working day.
-        #  This is a temporary change before the async sprint conversion to avoid depleting Sentry quota.
+        start_date = parse(f"{sprint_start} {found_hours[0]}")
+        end_date = parse(f"{sprint_start} {found_hours[1]}")
+
+    except (IndexError, ParserError) as e:
+        # Log exception to Sentry if the format is invalid, but do not break the server.
+        if not settings.DEBUG:
+            # noinspection PyUnresolvedReferences
+            from sentry_sdk import capture_exception
+
+            capture_exception(e)
         return 0
 
-    if end_hour < start_hour:  # Special case
-        if minus_timezone:
-            end_hour = 24
-        else:
-            start_hour = 0
+    # If availability spans two days, then adjust one end to have a real time range.
+    if start_date > end_date:
+        start_date -= timedelta(days=1)
 
-    available_hours = end_hour - start_hour
-    meeting_relative = settings.SPRINT_MEETING_HOUR_UTC - start_hour
-    meeting_division = max(min(meeting_relative / available_hours, 1), 0)
-    return meeting_division
+    sprint_start_date = parse(f"{sprint_start} {settings.SPRINT_START_TIME_UTC}")
+    available_time = (end_date - start_date).total_seconds()
+
+    # Overlapping with sprint meeting time is going to affect the first or the last day of the sprint.
+    if start_date < sprint_start_date < end_date:
+        before_time = (sprint_start_date - start_date).total_seconds()
+        return before_time / available_time
+
+    return 0
 
 
-def get_sprint_meeting_day_division() -> Dict[str, float]:
+def get_sprint_meeting_day_division(sprint_start: str) -> DefaultDict[str, Tuple[float, bool]]:
     """
-    Returns how much of the members' days is before the sprint meeting.
+    Returns a DefaultDict - `name : tuples with the following values:
+    1. How much of the members' days is before the sprint start.
+    2. Whether the member is in the positive timezone.`
+    The default value is (0.0, True).
+
     Example:
-        - 1. means that the meeting is after the set working day,
-        - 0. means that the meeting is before the set working day,
-        - .75 means that the meeting is in the third quarter of the set working day
-          (e.g. the member is working from 12 to 20 and the meeting is at 18).
+    - 0. means that the meeting is before the user's working day,
+    - 0.9 means that the meeting is in the third quarter of the user's working day
+      (e.g. the member is working from 15 to 1 UTC and the meeting is at midnight).
     """
     spreadsheet = get_availability_spreadsheet()
-    result = {}
+    result: DefaultDict[str, Tuple[float, bool]] = defaultdict(lambda: (0.0, True))
 
     for row in spreadsheet[2:]:
         if row[0] and row[1]:
-            result[row[0]] = _get_sprint_meeting_day_division_for_member(row[1])
+            # This could check for "+" sign, but not all fields are filled, so it's safer to assume a more popular case.
+            positive_timezone = "-" not in row[2]
+            result[row[0]] = (
+                _get_sprint_meeting_day_division_for_member(row[1], sprint_start),
+                positive_timezone,
+            )
         else:
             # Ignore instructions and explanations added below the availability list.
             break

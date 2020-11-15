@@ -1,4 +1,5 @@
 import re
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -306,17 +307,18 @@ def test_column_number_to_excel(test_input, expected):
     assert _column_number_to_excel(test_input) == expected
 
 
+@override_settings(DEBUG=True)  # `sentry_sdk` does not capture exceptions in `DEBUG` mode.
 @pytest.mark.parametrize(
-    "test_input, expected", [
-        ('12pm-9pm*', .44),
-        ('3pm-12am-', .11),
-        ('9am - 5pm*', .88),
-        ('6pm-1am*-', 0.),
-        ('11pm-8am*', 1.),
-        ('2pm-5:30pm', .67),
-        ('8am-4pm', 1.),
-        ('invalid', 0.),
+    "hours, expected",
+    [
+        ("12pm-9pm*", 0),
+        ("3pm-12am", 0),
+        ("12am-2am", 0),
+        ("3pm - 1am", 0.9),
+        ("11:30pm-2am", 0.2),
+        ("invalid", 0),
     ],
 )
-def test_get_sprint_meeting_day_division_for_member(test_input, expected):
-    assert _get_sprint_meeting_day_division_for_member(test_input) == pytest.approx(expected, 0.1)
+def test_get_sprint_meeting_day_division_for_member(hours, expected):
+    sprint_start = "2020-01-01"
+    assert _get_sprint_meeting_day_division_for_member(hours, sprint_start) == pytest.approx(expected, 0.1)

@@ -518,8 +518,8 @@ SPRINT_DURATION_DAYS = env.int("SPRINT_DURATION_DAYS", 14)
 # Group 1. cell's key
 # Group 2. issue number
 SPRINT_ISSUE_REGEX = env.str("SPRINT_ISSUE_REGEX", r"(\w+)-(\d+)")
-# An UTC hour at which the sprint meeting starts.
-SPRINT_MEETING_HOUR_UTC = env.int("SPRINT_MEETING_HOUR_UTC", 16)
+# UTC time at which a new sprint starts (format: `%H:%M`).
+SPRINT_START_TIME_UTC = env.int("SPRINT_START_TIME_UTC", "00:00")
 # Exact name of the tickets for logging the clean sprint hints.
 SPRINT_MEETINGS_TICKET = env.str("SPRINT_MEETINGS_TICKET", "Meetings")
 
@@ -545,7 +545,8 @@ GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"^(?
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
 GOOGLE_CONTACT_SPREADSHEET = env.str("GOOGLE_CONTACT_SPREADSHEET")
 GOOGLE_AVAILABILITY_RANGE = env.str("GOOGLE_AVAILABILITY_RANGE")
-GOOGLE_AVAILABILITY_REGEX = env.str("GOOGLE_AVAILABILITY_REGEX", r"(\d+).*(pm|am)-(\d+).*(pm|am)")
+# Regex for retrieving users' availability from the "Contact" sheet.
+GOOGLE_AVAILABILITY_REGEX = env.str("GOOGLE_AVAILABILITY_REGEX", r"\d+(?::\d+)?.*?(?:pm|am)")
 GOOGLE_AVAILABILITY_TIME_FORMAT = env.str("GOOGLE_AVAILABILITY_TIME_FORMAT", "%I%p")
 GOOGLE_SPILLOVER_SPREADSHEET_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SPILLOVER_SPREADSHEET}"
 # Spreadsheet with the cell rotations.

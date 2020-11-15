@@ -2,12 +2,14 @@
 import functools
 import re
 import typing
+from datetime import timedelta
 from typing import (
     Dict,
     List,
     Set,
 )
 
+from dateutil.parser import parse
 from django.conf import settings
 from jira import (
     Issue,
@@ -31,11 +33,11 @@ from sprints.dashboard.utils import (
     get_cell_key,
     get_cell_members,
     get_issue_fields,
+    get_next_sprint,
     get_sprint_end_date,
     get_sprint_meeting_day_division,
     get_sprint_start_date,
     prepare_jql_query,
-    get_next_sprint,
 )
 
 
@@ -252,7 +254,7 @@ class Dashboard:
         self.cell_key = get_cell_key(conn, board_id)
         self.get_sprints()
         self.create_mock_users()
-        self.vacations = get_vacations(self.future_sprint_start, self.future_sprint_end)
+        self.vacations = get_vacations(self.before_future_sprint_start, self.after_future_sprint_end)
         self.get_issues()
         self.generate_rows()
 
@@ -269,7 +271,15 @@ class Dashboard:
         self.cell_future_sprint = get_next_sprint(sprints['cell'], sprints['cell'][0])
 
         self.future_sprint_start = get_sprint_start_date(self.cell_future_sprint)
-        self.future_sprint_end = get_sprint_end_date(self.cell_future_sprint, sprints['all'])
+        self.future_sprint_end = get_sprint_end_date(self.cell_future_sprint)
+
+        # Helper variables to retrieve more data for different timezones (one extra day on each end of the sprint).
+        self.before_future_sprint_start = (parse(self.future_sprint_start) - timedelta(days=1)).strftime(
+            settings.JIRA_API_DATE_FORMAT
+        )
+        self.after_future_sprint_end = (parse(self.future_sprint_end) + timedelta(days=1)).strftime(
+            settings.JIRA_API_DATE_FORMAT
+        )
 
     def create_mock_users(self):
         """Create mock users for handling unassigned and cross-cell tickets."""
@@ -301,7 +311,7 @@ class Dashboard:
         quickfilters: List[QuickFilter] = self.jira_connection.quickfilters(self.board_id)
 
         self.members = get_cell_members(quickfilters)
-        self.sprint_division = get_sprint_meeting_day_division()
+        self.sprint_division = get_sprint_meeting_day_division(self.future_sprint_start)
         self.issues = []
 
         active_sprint_ids = {sprint.id for sprint in self.active_sprints}
@@ -321,8 +331,8 @@ class Dashboard:
         for member in self.members:
             schedule = self.jira_connection.user_schedule(
                 member,
-                self.future_sprint_start,
-                self.future_sprint_end,
+                self.before_future_sprint_start,
+                self.after_future_sprint_end,
             )
             self.commitments[member] = {
                 'total': schedule.requiredSeconds,
@@ -377,31 +387,88 @@ class Dashboard:
             if user != self.unassigned_user and user.name not in self.members:
                 self.dashboard.pop(user)
 
-        # Calculate commitments for each user.
+        self._calculate_commitments()
+
+    @typing.no_type_check
+    def _calculate_commitments(self):
+        """
+        Calculates time commitments and vacations for each user.
+        """
         for row in self.rows:
             if row.user != self.unassigned_user:
                 # Calculate vacations
                 for vacation in self.vacations:
-                    if row.user.displayName.startswith(vacation['user']):
+                    if row.user.displayName.startswith(vacation["user"]):
                         for vacation_date in daterange(
-                            max(vacation['start']['date'], self.future_sprint_start),
-                            min(vacation['end']['date'], self.future_sprint_end),
+                            max(
+                                vacation["start"]["date"],
+                                (parse(self.future_sprint_start) - timedelta(days=1)).strftime(
+                                    settings.JIRA_API_DATE_FORMAT
+                                ),
+                            ),
+                            min(
+                                vacation["end"]["date"],
+                                (parse(self.future_sprint_end) + timedelta(days=1)).strftime(
+                                    settings.JIRA_API_DATE_FORMAT
+                                ),
+                            ),
                         ):
-                            # Special cases for partial day when the sprint starts/ends.
-                            if vacation_date == self.future_sprint_start:
-                                row.vacation_time += \
-                                    (self.commitments[row.user.name]['days'][vacation_date] - vacation['seconds']) * \
-                                    (1 - self.sprint_division[row.user.displayName])
-                            elif vacation_date == self.future_sprint_end:
-                                row.vacation_time += \
-                                    (self.commitments[row.user.name]['days'][vacation_date] - vacation['seconds']) * \
-                                    self.sprint_division[row.user.displayName]
-                            else:
-                                row.vacation_time += \
-                                    (self.commitments[row.user.name]['days'][vacation_date] - vacation['seconds'])
-                    elif row.user.displayName < vacation['user']:
+                            row.vacation_time += self._get_vacation_for_day(
+                                self.commitments[row.user.name]["days"][vacation_date],
+                                vacation_date,
+                                vacation["seconds"],
+                                row.user.displayName,
+                            )
+                    elif row.user.displayName < vacation["user"]:
                         # Small optimization, as users' vacations are sorted.
                         break
 
+                # Remove the "padding" from a day before and after the sprint.
                 # noinspection PyTypeChecker
-                row.set_goal_time(self.commitments[row.user.name]['total'] - row.vacation_time)
+                row.set_goal_time(
+                    self.commitments[row.user.name]["total"]
+                    - self.commitments[row.user.name]["days"][self.before_future_sprint_start]
+                    - self.commitments[row.user.name]["days"][self.after_future_sprint_end]
+                    - row.vacation_time
+                )
+
+    def _get_vacation_for_day(self, commitments: int, date: str, planned_commitments: int, username: str) -> float:
+        """
+        Returns vacation time for specific users during a day.
+
+        Because of the timezones we need to consider 4 edge cases. When vacations are scheduled:
+        1. For the last day of the active sprint, there are two subcases:
+            a. Positive timezone - this day is completely a part of the active sprint, so this time is ignored (0).
+            b. Negative timezone - this day can span the active and next sprint, because user can work after the sprint
+               ends. The ratio is represented by `1 - division`.
+        2. For the first day of the next sprint, there are two subcases:
+            a. Positive timezone - this day can span the active and next sprint, because user can work after the sprint
+               ends. The ratio is represented by `1 - division`.
+            b. Negative timezone - this day is completely a part of the next sprint, so it is counted as vacations.
+        3. For the last day of the next sprint, there are two subcases:
+            a. Positive timezone - this day is completely a part of the next sprint, so it is counted as vacations.
+            b. Negative timezone - this day can span the next and future next sprint, because user can work after
+               the sprint ends. The ratio is represented by `division`.
+        4. For the first day of the future next sprint, there are two subcases:
+            a. Positive timezone - this day can span the next and future next sprint, because user can work after
+               the sprint ends. The ratio is represented by `division`.
+            b. Negative timezone - this day is completely a part of the future next sprint, so this time is ignored (0).
+
+        `division` - a part of the user's availability before the start of the sprint.
+
+        TODO: Check whether this works correctly with other sprint start times than midnight UTC.
+              For these it can span 3 days, so we might have 6 (or even more) corner cases.
+        """
+        division, positive_timezone = self.sprint_division[username]
+        vacations = commitments - planned_commitments
+
+        if date < self.future_sprint_start:
+            return vacations * (1 - division) if not positive_timezone else 0
+        elif date == self.future_sprint_start:
+            return vacations * (1 - division) if positive_timezone else vacations
+        elif date == self.future_sprint_end:
+            return vacations * division if not positive_timezone else vacations
+        elif date > self.future_sprint_end:
+            return vacations * division if positive_timezone else 0
+
+        return vacations

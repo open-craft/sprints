@@ -47,7 +47,7 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[int, str, Dict[st
                 calendarId=calendar,
                 timeZone='Europe/London',
                 timeMin=f'{from_}T00:00:00Z',
-                timeMax=f'{to}T00:00:00Z',
+                timeMax=f'{to}T23:59:59Z',
                 fields='items(end/date, start/date, summary)'
             ).execute()
 

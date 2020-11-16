@@ -1,5 +1,6 @@
 import re
 from contextlib import contextmanager
+from datetime import timedelta
 from typing import (
     Dict,
     Iterator,
@@ -7,6 +8,7 @@ from typing import (
     Union,
 )
 
+from dateutil.parser import parse
 from django.conf import settings
 from google.oauth2 import service_account
 from googleapiclient import discovery
@@ -57,6 +59,11 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[int, str, Dict[st
                     search = re.match(regex, event['summary'], re.IGNORECASE).groupdict()  # type: ignore
                     # Only `All day` events are taken into account.
                     if {'start', 'end'} <= event.keys():
+                        # The end date of the `All day` event includes a day after that event. The assumption is that we
+                        # want to count only inclusive dates, so this "subtracts" one day from the event.
+                        event["end"]["date"] = (parse(event["end"]["date"]) - timedelta(days=1)).strftime(
+                            settings.JIRA_API_DATE_FORMAT
+                        )
                         user = search.get('user')
                         event['user'] = user
                         event['seconds'] = int(search.get('hours', 0) or 0) * SECONDS_IN_HOUR

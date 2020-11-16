@@ -3,7 +3,7 @@
 -r ./base.txt
 
 gunicorn==20.0.4  # https://github.com/benoitc/gunicorn
-Collectfast==0.6.2  # https://github.com/antonagestam/collectfast
+Collectfast==2.2.0  # https://github.com/antonagestam/collectfast
 sentry-sdk==0.19.3  # https://github.com/getsentry/sentry-python
 
 # Django

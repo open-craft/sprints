@@ -441,17 +441,21 @@ class Dashboard:
             a. Positive timezone - this day is completely a part of the active sprint, so this time is ignored (0).
             b. Negative timezone - this day can span the active and next sprint, because user can work after the sprint
                ends. The ratio is represented by `1 - division`.
+               If it does not span, then it is treated as a part of the active sprint.
         2. For the first day of the next sprint, there are two subcases:
             a. Positive timezone - this day can span the active and next sprint, because user can work after the sprint
                ends. The ratio is represented by `1 - division`.
+               If it does not span, then it is treated as a part of the next sprint.
             b. Negative timezone - this day is completely a part of the next sprint, so it is counted as vacations.
         3. For the last day of the next sprint, there are two subcases:
             a. Positive timezone - this day is completely a part of the next sprint, so it is counted as vacations.
             b. Negative timezone - this day can span the next and future next sprint, because user can work after
                the sprint ends. The ratio is represented by `division`.
+               If it does not span, then it is treated as a part of the next sprint.
         4. For the first day of the future next sprint, there are two subcases:
             a. Positive timezone - this day can span the next and future next sprint, because user can work after
                the sprint ends. The ratio is represented by `division`.
+               If it does not span, then it is treated as a part of the future next sprint.
             b. Negative timezone - this day is completely a part of the future next sprint, so this time is ignored (0).
 
         `division` - a part of the user's availability before the start of the sprint.
@@ -461,6 +465,11 @@ class Dashboard:
         """
         division, positive_timezone = self.sprint_division[username]
         vacations = commitments - planned_commitments
+        # For negative timezones non-overlapping days are treated the same way as they are for the positive ones.
+        # I.e. if users are working from 9am to 5pm UTC, it will be the same day regardless of whether they are working
+        # within UTC-1 or UTC+1.
+        if not positive_timezone:
+            division = division or 1
 
         if date < self.future_sprint_start:
             return vacations * (1 - division) if not positive_timezone else 0

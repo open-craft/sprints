@@ -108,28 +108,64 @@ def test_get_bot_directive(test_description, test_directive, expected, raises):
 @pytest.mark.parametrize(
     "commitments, date, planned_commitments, username, division, expected",
     [
-        # For positive timezone the day before sprint starts is within the previous sprint, so division is ignored.
+        # 1. Day before the end of the sprint.
+        # ====================================
+        # a. Positive timezone.
+        # ---------------------
+        # It is within the previous sprint, so any division is ignored.
+        (28800, "2020-11-16", 28700, "x", {"x": (0, True)}, 0),
         (28800, "2020-11-16", 28700, "x", {"x": (0.6, True)}, 0),
-        # For negative timezone the day before sprint can span two sprints...
+        # b. Negative timezone.
+        # ---------------------
+        # It can span two sprints.
         (28800, "2020-11-16", 28700, "x", {"x": (0.4, False)}, 60),
-        # ...but it does not need to do so.
-        (28800, "2020-11-16", 28700, "x", {"x": (0, False)}, 100),
-        # For the positive timezone the first day of the sprint may span two sprints.
+        # Otherwise treat is as a part of the current sprint.
+        (28800, "2020-11-16", 28700, "x", {"x": (0, False)}, 0),
+        # 2. First day of the next sprint.
+        # ================================
+        # a. Positive timezone.
+        # ---------------------
+        # It can span two sprints.
         (28800, "2020-11-17", 28700, "x", {"x": (0.6, True)}, 40),
-        # For the negative timezone the first day of the sprint is only in a single sprint.
+        # Otherwise treat is as a part of the current sprint.
+        (28800, "2020-11-17", 28700, "x", {"x": (0, True)}, 100),
+        # b. Negative timezone.
+        # ---------------------
+        # It can be only in the next sprint.
+        (28800, "2020-11-17", 28700, "x", {"x": (0, False)}, 100),
         (28800, "2020-11-17", 28700, "x", {"x": (0.4, False)}, 100),
-        # For the positive timezone the last day of the sprint is only in a single sprint.
+        # 3. Last day of the next sprint.
+        # ===============================
+        # a. Positive timezone.
+        # ---------------------
+        # It can be only in the next sprint.
+        (28800, "2020-11-30", 28700, "x", {"x": (0, True)}, 100),
         (28800, "2020-11-30", 28700, "x", {"x": (0.6, True)}, 100),
-        # For the negative timezone the last day of the sprint can span two sprints.
+        # b. Negative timezone.
+        # ---------------------
+        # It can span two sprints.
         (28800, "2020-11-30", 28700, "x", {"x": (0.4, False)}, 40),
-        # For the positive timezone the day after last day of the sprint can span two sprints...
+        # Otherwise treat is as a part of the next sprint.
+        (28800, "2020-11-30", 28700, "x", {"x": (0, False)}, 100),
+        # 4. Day after the end of the sprint.
+        # ===================================
+        # a. Positive timezone.
+        # ---------------------
+        # It can span two sprints.
         (28800, "2020-12-1", 28700, "x", {"x": (0.6, True)}, 60),
-        # ... but it does not need to do so.
+        # Otherwise treat is as a part of the future next sprint.
         (28800, "2020-12-1", 28700, "x", {"x": (0, True)}, 0),
-        # For the negative timezone the last day of the sprint is only in a single sprint.
+        # b. Negative timezone.
+        # ---------------------
+        # It can be only in the future next sprint.
+        (28800, "2020-12-1", 28700, "x", {"x": (0, False)}, 0),
         (28800, "2020-12-1", 28700, "x", {"x": (0.4, False)}, 0),
-        # Standard cases - vacations scheduled in the middle of the sprint.
+        # 5. Standard cases.
+        # ==================
+        # Vacations scheduled in the middle of the sprint.
+        (28800, "2020-11-20", 28700, "x", {"x": (0, False)}, 100),
         (28800, "2020-11-20", 28700, "x", {"x": (0.4, False)}, 100),
+        (28800, "2020-11-20", 28700, "x", {"x": (0, True)}, 100),
         (28800, "2020-11-20", 28700, "x", {"x": (0.4, True)}, 100),
     ],
 )

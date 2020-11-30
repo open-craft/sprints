@@ -7,8 +7,7 @@ from sprints.dashboard.libs.mattermost import create_mattermost_post
 
 def side_effect_usernames_from_emails(emails):
     usernames = []
-    username_email_map = {'farhaan@example.com': 'farhaan',
-                          'piotr@example.com': 'piotr', 'demid@example.com': 'demid'}
+    username_email_map = {'farhaan@example.com': 'farhaan', 'piotr@example.com': 'piotr', 'demid@example.com': 'demid'}
     for email in emails:
         username = username_email_map.get(email)
         if username:

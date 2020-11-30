@@ -619,6 +619,9 @@ MATTERMOST_SERVER = env.str("MATTERMOST_SERVER")
 # Default is the https port but it can be configured
 MATTERMOST_PORT = env.int("MATTERMOST_PORT", 443)
 # Channel to ping
+# Name of the channel should always be in lowercase and if incase the channel name
+# has a space in between then it is replaced by a hyphen. For eg: "Sprint Planning"
+# changes to "sprint-planning"
 MATTERMOST_CHANNEL = env.str("MATTERMOST_CHANNEL")
 # Login Id
 MATTERMOST_LOGIN_ID = env.str("MATTERMOST_LOGIN_ID")

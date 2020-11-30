@@ -69,7 +69,8 @@ class Mattermost:
 
 def create_mattermost_post(message: str, emails: List[str]) -> None:
     """
-    Function that helps to send notification to specified channel in mattermost.
+    Function that helps to create post in specific channel tagging the users
+    in them.
 
     :param message: The message to be posted in mattermost.
     :param emails: Email ids of the users.

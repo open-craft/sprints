@@ -48,7 +48,7 @@ DATABASE_URL=postgres://postgres_user:postgres_password@postgres:5432/sprints
 # URL of the Mattermost server.
 MATTERMOST_SERVER=
 # Default is the https port but it can be configured
-MATTERMOST_PORT=
+# MATTERMOST_PORT=
 # Channel to ping
 MATTERMOST_CHANNEL=
 # Login Id

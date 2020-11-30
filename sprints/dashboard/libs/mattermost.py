@@ -22,7 +22,12 @@ class Mattermost:
         self.mattermost_connection = Driver(connection_parameters)
 
     def __enter__(self):
-        self.mattermost_connection.login()
+        try:
+            self.mattermost_connection.login()
+        except HTTPError as e:
+            # noinspection PyUnresolvedReferences
+            from sentry_sdk import capture_exception
+            capture_exception(e)
         return self
 
     def __exit__(self, *args):

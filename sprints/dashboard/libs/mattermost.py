@@ -9,10 +9,6 @@ class Mattermost:
     """Class that is responsible for connecting to mattermost bot."""
 
     def __init__(self):
-        """
-        :param username: Username of the mattermost bot.
-        :param access_token: Access token for the bot.
-        """
         connection_parameters = {
             'url': settings.MATTERMOST_SERVER,
             'port': settings.MATTERMOST_PORT,
@@ -25,9 +21,11 @@ class Mattermost:
         try:
             self.mattermost_connection.login()
         except HTTPError as e:
-            # noinspection PyUnresolvedReferences
-            from sentry_sdk import capture_exception
-            capture_exception(e)
+            # Log exception to Sentry if call fails, but do not break the server.
+            if not settings.DEBUG:
+                # noinspection PyUnresolvedReferences
+                from sentry_sdk import capture_exception
+                capture_exception(e)
         return self
 
     def __exit__(self, *args):
@@ -35,7 +33,7 @@ class Mattermost:
 
     def get_usernames_from_emails(self, emails: List[str]) -> List[str]:
         """
-        Function that helps to get mattermost usrenames
+        Function that helps to get mattermost usernames
         from emails.
 
         :param emails: Emails of the users.
@@ -44,13 +42,14 @@ class Mattermost:
         usernames = []
         for email in emails:
             try:
-                username = self.mattermost_connection.users.get_user_by_email(email=email).get('username')
-                if username:
-                    usernames.append(username)
+                username = self.mattermost_connection.users.get_user_by_email(email).get('username')
+                usernames.append(username)
             except HTTPError as e:
-                # noinspection PyUnresolvedReferences
-                from sentry_sdk import capture_exception
-                capture_exception(e)
+                # Log exception to Sentry if call fails, but do not break the server.
+                if not settings.DEBUG:
+                    # noinspection PyUnresolvedReferences
+                    from sentry_sdk import capture_exception
+                    capture_exception(e)
 
         return usernames
 
@@ -67,9 +66,11 @@ class Mattermost:
                 settings.MATTERMOST_TEAM_NAME, channel_name).get('id')
             self.mattermost_connection.posts.create_post({'channel_id': channel_id, 'message': message})
         except HTTPError as e:
-            # noinspection PyUnresolvedReferences
-            from sentry_sdk import capture_exception
-            capture_exception(e)
+            # Log exception to Sentry if call fails, but do not break the server.
+            if not settings.DEBUG:
+                # noinspection PyUnresolvedReferences
+                from sentry_sdk import capture_exception
+                capture_exception(e)
 
 
 def create_mattermost_post(message: str, emails: List[str]) -> None:
@@ -85,5 +86,5 @@ def create_mattermost_post(message: str, emails: List[str]) -> None:
                             for username in conn.get_usernames_from_emails(emails)]
         if tagged_usernames:
             usernames = ', '.join(tagged_usernames)
-            post = f'{usernames} : {message}'
+            post = f'{usernames}: {message}'
             conn.post_message_to_channel(settings.MATTERMOST_CHANNEL, post)

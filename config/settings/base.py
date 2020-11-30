@@ -611,3 +611,21 @@ SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO = env.float("SUSTAINABILI
 # Pool size for making parallel API requests
 MULTIPROCESSING_POOL_SIZE = env.int("MULTIPROCESSING_POOL_SIZE", 32)
 MULTIPROCESSING_TIMEOUT = env.int("MULTIPROCESSING_TIMEOUT", 128)
+
+# MATTERMOST
+# ------------------------------------------------------------------------------
+# URL of the Mattermost server.
+MATTERMOST_SERVER = env.str("MATTERMOST_SERVER")
+# Default is the https port but it can be configured
+MATTERMOST_PORT = env.int("MATTERMOST_PORT", 443)
+# Channel to ping
+# Name of the channel should always be in lowercase and if incase the channel name
+# has a space in between then it is replaced by a hyphen. For eg: "Sprint Planning"
+# changes to "sprint-planning"
+MATTERMOST_CHANNEL = env.str("MATTERMOST_CHANNEL")
+# Login Id
+MATTERMOST_LOGIN_ID = env.str("MATTERMOST_LOGIN_ID")
+# Access Token
+MATTERMOST_ACCESS_TOKEN = env.str("MATTERMOST_ACCESS_TOKEN")
+# Team Name
+MATTERMOST_TEAM_NAME = env.str("MATTERMOST_TEAM_NAME")

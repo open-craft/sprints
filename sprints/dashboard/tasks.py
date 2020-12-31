@@ -1,4 +1,6 @@
 import string
+import requests
+import json
 from datetime import (
     datetime,
     timedelta,
@@ -20,6 +22,7 @@ from jira.resources import (
 )
 
 from config import celery_app
+from config.settings.base import WEBHOOK_USERNAME, WEBHOOK_PASSWORD
 from sprints.dashboard.libs.google import (
     get_commitments_spreadsheet,
     get_rotations_users,
@@ -27,12 +30,13 @@ from sprints.dashboard.libs.google import (
     upload_spillovers,
 )
 from sprints.dashboard.libs.jira import connect_to_jira
-from sprints.dashboard.models import Dashboard
+from sprints.dashboard.models import Dashboard, Webhook, WebhookEvent
 from sprints.dashboard.utils import (
     create_next_sprint,
     filter_sprints_by_cell,
     get_all_sprints,
     get_cell_member_names,
+    get_cell_member_roles,
     get_cell_members,
     get_cells,
     get_commitment_range,
@@ -144,6 +148,63 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 
                     conn.create_issue(fields)
 
+@celery_app.task(ignore_result=True)
+def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_number: int, board_id: int):
+    """
+    1. Gather a dictionary mapping Name to E-Mail Address of members
+    2. Gather cell member roles
+    3. Map E-Mails to Cell member roles
+    4. Add rotations (DD, FF etc) to the Cell member roles array
+    5. Trigger webhooks
+
+    The webhook receivers identify users by E-Mail, but our spreadsheets & documentation identify them
+    by name, so we must map the two. It is important that the spelling of member names is consistent in
+    the documentation.
+    """
+    with connect_to_jira() as conn:
+        participants_payload: Dict[str, List[str]] = {}
+
+        # Create dictionary mapping names to E-Mails: {'John Doe': 'john@opencraft.com',...}
+        cell_member_emails = {
+            conn.user(member).displayName: conn.user(member).emailAddress
+            for member in get_cell_members(conn.quickfilters(board_id))
+        }
+
+        # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
+        cell_member_roles = get_cell_member_roles()
+
+        # Dictionary containing rotations: {'FF': ['John Doe',...],...}
+        rotations = get_rotations_users(str(sprint_number), cell['name'])
+        
+        for member_name, member_email in cell_member_emails.items():
+            participants_payload[member_email] = []
+
+            # Not all members have atleast one role assigned to them
+            if member_name in cell_member_roles:
+                participants_payload[member_email].extend(cell_member_roles[member_name])
+
+            # If member has rotation, specify which rotation
+            for duty, assignees in rotations.items():
+                for idx, assignee in enumerate(assignees):
+                    # The rotations sheet sometimes contains only the first name
+                    if member_name.startswith(assignee):
+                        participants_payload[member_email].append("%s-%d" % (duty, idx+1))
+
+        payload = {
+            'board_id': board_id,
+            'cell': cell['name'],
+            'sprint_number': sprint_number,
+            'sprint_name': sprint_name,
+            'participants': participants_payload,
+        }
+
+        webhooks = Webhook.objects.filter(events__name="new sprint")
+        for webhook in webhooks:
+            r = requests.post(
+                    webhook.payload_url,
+                    json=json.dumps(payload),
+                    auth=(WEBHOOK_USERNAME, WEBHOOK_PASSWORD),
+                )
 
 @celery_app.task(ignore_result=True)
 def complete_sprint_task(board_id: int) -> None:
@@ -155,8 +216,9 @@ def complete_sprint_task(board_id: int) -> None:
     5. Moves issues from the closed sprint to the next one.
     6. Opens the next sprint.
     7. Creates role tickets.
-    8. Releases the sprint completion lock.
-    9. Clears cache related to end of sprint date.
+    8. Trigger start of new sprint webhooks
+    9. Releases the sprint completion lock.
+    10. Clears cache related to end of sprint date.
     """
     with connect_to_jira() as conn:
         cells = get_cells(conn)
@@ -170,7 +232,8 @@ def complete_sprint_task(board_id: int) -> None:
         with allow_join_result():
             # FIXME: Use `apply_async`. Currently blocked because of `https://github.com/celery/celery/issues/4925`.
             #   CAUTION: if you change it, ensure that all tasks have finished successfully.
-            group(spreadsheet_tasks).apply().join()
+            #group(spreadsheet_tasks).apply().join() ## TEMP REMOVE THIS
+            pass
 
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)
         sprints = filter_sprints_by_cell(sprints, cell.key)
@@ -202,11 +265,22 @@ def complete_sprint_task(board_id: int) -> None:
         )
         issue_keys = [issue.key for issue in issues]
 
+        cell_dict = {
+            'key': cell.key,
+            'name': cell.name,
+            'board_id': cell.board_id,
+        }
+
         # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
+
+        trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+            if False: #TODO: Add a test that verifies the sprint roles page in the handbook is viewable 
+                raise Exception("TODO: Add proper exception")
+
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
             for i in range(0, len(archived_issue_keys), batch_size):
                 batch = archived_issue_keys[i:i + batch_size]
@@ -245,11 +319,6 @@ def complete_sprint_task(board_id: int) -> None:
                 future_next_sprint_number = create_next_sprint_task(board_id)
                 future_next_sprint = get_next_sprint(sprints, next_sprint)
 
-            cell_dict = {
-                'key': cell.key,
-                'name': cell.name,
-                'board_id': cell.board_id,
-            }
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.

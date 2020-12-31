@@ -629,3 +629,12 @@ MATTERMOST_LOGIN_ID = env.str("MATTERMOST_LOGIN_ID")
 MATTERMOST_ACCESS_TOKEN = env.str("MATTERMOST_ACCESS_TOKEN")
 # Team Name
 MATTERMOST_TEAM_NAME = env.str("MATTERMOST_TEAM_NAME")
+
+# WEBHOOKS
+# ------------------------------------------------------------------------------
+# Webhook username (Used with basic auth)
+WEBHOOK_USERNAME = env.str("WEBHOOK_USERNAME")
+# Webhook password (Used with basic auth)
+WEBHOOK_PASSWORD = env.str("WEBHOOK_PASSWORD")
+# Handbook roles page URL
+HANDBOOK_ROLES_PAGE = env.str("HANDBOOK_ROLES_PAGE")

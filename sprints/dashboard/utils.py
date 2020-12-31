@@ -1,5 +1,6 @@
 import re
 import string
+import requests
 from collections import defaultdict
 from datetime import (
     datetime,
@@ -32,7 +33,7 @@ from jira.resources import (
     Sprint,
 )
 
-from config.settings.base import SECONDS_IN_HOUR
+from config.settings.base import SECONDS_IN_HOUR, HANDBOOK_ROLES_PAGE
 from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
@@ -96,6 +97,32 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
 def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str, str]:
     """Returns cell members with their names."""
     return {conn.user(member).displayName: member for member in members}
+
+
+def get_cell_member_roles() -> Dict[str, List[str]]:
+    """Return a dictionary of cell members and their associated roles.
+    Example return: {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}.
+
+    Note: We have room for error here if member names are spelled differently, hence we must
+    be careful that the handbook & Jira have consistent naming.
+    """
+    
+    # Example HTML: <li><a href="../roles/#cell-manager-recruitment">Recruitment manager</a>: John Doe</li>
+    ROLES_REGEX = r"<li>.*roles.*>([A-Za-z ]+).*: ([A-Za-z ]+)<\/li>"
+
+    r = requests.get(HANDBOOK_ROLES_PAGE)
+
+    # roles = [('Recruitment manager', 'John Doe'),('Sprint Planning Manager', 'John Doe'),...]
+    roles = re.findall(ROLES_REGEX, r.text)
+
+    # roles_dict = {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}
+    roles_dict = {}
+    for role, member in roles:
+        if member not in roles_dict:
+            roles_dict[member] = [role]
+        else:
+            roles_dict[member].append(role)
+    return roles_dict
 
 
 def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[str, List[Sprint]]:

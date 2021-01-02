@@ -64,8 +64,8 @@ MATTERMOST_TEAM_NAME=
 # WEBHOOKS
 # -----------------------------------------------------------------------------
 # Webhook username (Used with basic auth)
-WEBHOOK_USERNAME =
+WEBHOOK_USERNAME=
 # Webhook password (Used with basic auth)
-WEBHOOK_PASSWORD =
+WEBHOOK_PASSWORD=
 # Handbook roles page URL
-HANDBOOK_ROLES_PAGE =
+HANDBOOK_ROLES_PAGE=

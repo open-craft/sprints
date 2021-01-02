@@ -171,7 +171,7 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
         }
 
         # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
-        cell_member_roles = get_cell_member_roles()
+        cell_member_roles = get_cell_member_roles(raise_exception=True)
 
         # Dictionary containing rotations: {'FF': ['John Doe',...],...}
         rotations = get_rotations_users(str(sprint_number), cell['name'])
@@ -232,8 +232,7 @@ def complete_sprint_task(board_id: int) -> None:
         with allow_join_result():
             # FIXME: Use `apply_async`. Currently blocked because of `https://github.com/celery/celery/issues/4925`.
             #   CAUTION: if you change it, ensure that all tasks have finished successfully.
-            #group(spreadsheet_tasks).apply().join() ## TEMP REMOVE THIS
-            pass
+            group(spreadsheet_tasks).apply().join()
 
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)
         sprints = filter_sprints_by_cell(sprints, cell.key)
@@ -276,10 +275,11 @@ def complete_sprint_task(board_id: int) -> None:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
 
-        trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            if False: #TODO: Add a test that verifies the sprint roles page in the handbook is viewable 
-                raise Exception("TODO: Add proper exception")
+            
+            # Raise error if we can't read roles from the handbook
+            get_cell_member_roles(raise_exception=True)
+            trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)
 
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
             for i in range(0, len(archived_issue_keys), batch_size):

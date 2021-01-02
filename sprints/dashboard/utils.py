@@ -41,6 +41,8 @@ from sprints.dashboard.libs.jira import (
     connect_to_jira,
 )
 
+class InsufficientRolesReadError(Exception):
+    pass
 
 class Cell:
     """
@@ -98,17 +100,16 @@ def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str,
     """Returns cell members with their names."""
     return {conn.user(member).displayName: member for member in members}
 
-
-def get_cell_member_roles() -> Dict[str, List[str]]:
+def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]:
     """Return a dictionary of cell members and their associated roles.
     Example return: {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}.
 
     Note: We have room for error here if member names are spelled differently, hence we must
     be careful that the handbook & Jira have consistent naming.
     """
-    
+
     # Example HTML: <li><a href="../roles/#cell-manager-recruitment">Recruitment manager</a>: John Doe</li>
-    ROLES_REGEX = r"<li>.*roles.*>([A-Za-z ]+).*: ([A-Za-z ]+)<\/li>"
+    ROLES_REGEX = r"<li>.*roles.*>([A-Za-z ]+).*: (.+)<\/li>"
 
     r = requests.get(HANDBOOK_ROLES_PAGE)
 
@@ -122,6 +123,12 @@ def get_cell_member_roles() -> Dict[str, List[str]]:
             roles_dict[member] = [role]
         else:
             roles_dict[member].append(role)
+
+    # It's difficult to know whether we have read all roles
+    # So we assume that if we've read roles for less than 12 members, something's probably wrong
+    if raise_exception and len(roles_dict) < 12:
+        raise InsufficientRolesReadError()
+
     return roles_dict
 
 

@@ -275,9 +275,7 @@ def complete_sprint_task(board_id: int) -> None:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
-
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            
             # Raise error if we can't read roles from the handbook
             get_cell_member_roles(raise_exception=True)
             trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)

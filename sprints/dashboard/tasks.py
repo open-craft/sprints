@@ -212,12 +212,12 @@ def complete_sprint_task(board_id: int) -> None:
     """
     1. Uploads spillovers.
     2. Uploads commitments.
-    3. Moves archived issues out of the active sprint.
-    4. Closes the active sprint.
-    5. Moves issues from the closed sprint to the next one.
-    6. Opens the next sprint.
-    7. Creates role tickets.
-    8. Trigger start of new sprint webhooks
+    3. Trigger start of new sprint webhooks
+    4. Moves archived issues out of the active sprint.
+    5. Closes the active sprint.
+    6. Moves issues from the closed sprint to the next one.
+    7. Opens the next sprint.
+    8. Creates role tickets.
     9. Releases the sprint completion lock.
     10. Clears cache related to end of sprint date.
     """

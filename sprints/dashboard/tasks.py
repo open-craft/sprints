@@ -196,6 +196,7 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
             'sprint_number': sprint_number,
             'sprint_name': sprint_name,
             'participants': participants_payload,
+            'event_name': "new sprint",
         }
 
         webhooks = Webhook.objects.filter(events__name="new sprint")

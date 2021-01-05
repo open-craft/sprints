@@ -22,7 +22,6 @@ from jira.resources import (
 )
 
 from config import celery_app
-from config.settings.base import WEBHOOK_USERNAME, WEBHOOK_PASSWORD
 from sprints.dashboard.libs.google import (
     get_commitments_spreadsheet,
     get_rotations_users,
@@ -171,7 +170,7 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
         }
 
         # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
-        cell_member_roles = get_cell_member_roles(raise_exception=True)
+        cell_member_roles = get_cell_member_roles()
 
         # Dictionary containing rotations: {'FF': ['John Doe',...],...}
         rotations = get_rotations_users(str(sprint_number), cell['name'])
@@ -204,7 +203,6 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
             r = requests.post(
                     webhook.payload_url,
                     json=json.dumps(payload),
-                    auth=(WEBHOOK_USERNAME, WEBHOOK_PASSWORD),
                 )
 
 @celery_app.task(ignore_result=True)
@@ -212,7 +210,7 @@ def complete_sprint_task(board_id: int) -> None:
     """
     1. Uploads spillovers.
     2. Uploads commitments.
-    3. Trigger start of new sprint webhooks
+    3. Trigger start of new sprint webhooks #TODO: Update order
     4. Moves archived issues out of the active sprint.
     5. Closes the active sprint.
     6. Moves issues from the closed sprint to the next one.
@@ -233,7 +231,8 @@ def complete_sprint_task(board_id: int) -> None:
         with allow_join_result():
             # FIXME: Use `apply_async`. Currently blocked because of `https://github.com/celery/celery/issues/4925`.
             #   CAUTION: if you change it, ensure that all tasks have finished successfully.
-            group(spreadsheet_tasks).apply().join()
+            #group(spreadsheet_tasks).apply().join()
+            pass #TODO: REMOVE
 
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)
         sprints = filter_sprints_by_cell(sprints, cell.key)
@@ -275,10 +274,11 @@ def complete_sprint_task(board_id: int) -> None:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
+        trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id) #TODO: REMOVE
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
-            # Raise error if we can't read roles from the handbook
-            get_cell_member_roles(raise_exception=True)
-            trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)
+            if settings.FEATURE_CELL_ROLES:
+                # Raise error if we can't read roles from the handbook
+                get_cell_member_roles(raise_exception=True)
 
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
             for i in range(0, len(archived_issue_keys), batch_size):
@@ -319,6 +319,8 @@ def complete_sprint_task(board_id: int) -> None:
                 future_next_sprint = get_next_sprint(sprints, next_sprint)
 
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
+
+            trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")

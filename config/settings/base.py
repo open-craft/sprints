@@ -632,9 +632,6 @@ MATTERMOST_TEAM_NAME = env.str("MATTERMOST_TEAM_NAME")
 
 # WEBHOOKS
 # ------------------------------------------------------------------------------
-# Webhook username (Used with basic auth)
-WEBHOOK_USERNAME = env.str("WEBHOOK_USERNAME")
-# Webhook password (Used with basic auth)
-WEBHOOK_PASSWORD = env.str("WEBHOOK_PASSWORD")
 # Handbook roles page URL
-HANDBOOK_ROLES_PAGE = env.str("HANDBOOK_ROLES_PAGE")
+HANDBOOK_ROLES_PAGE = env.str("HANDBOOK_ROLES_PAGE", None)
+FEATURE_CELL_ROLES = env.bool("FEATURE_CELL_ROLES", False)

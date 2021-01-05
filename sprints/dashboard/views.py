@@ -95,13 +95,14 @@ class CompleteSprintViewSet(viewsets.ViewSet):
         Acquire a lock for a day, if `acquire_lock` specified.
         """
         end_date = parse(get_current_sprint_end_date('cell', str(board_id)))
-        if datetime.now() < end_date:
+        if datetime.now() < end_date and False: #TODO: REMOVE
             return False, "The current day is not the last day of the current sprint."
 
-        try:
-            get_cell_member_roles(raise_exception=True)
-        except InsufficientRolesReadError:
-            return False, "Unable to read roles from the handbook."
+        if settings.FEATURE_CELL_ROLES:
+            try:
+                get_cell_member_roles(raise_exception=True)
+            except InsufficientRolesReadError as msg:
+                return False, str(msg)
 
         if (acquire_lock and not cache.add(
             f'{settings.CACHE_SPRINT_END_LOCK}{board_id}', True, settings.CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS

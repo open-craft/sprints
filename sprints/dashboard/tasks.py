@@ -1,6 +1,4 @@
 import string
-import requests
-import json
 from datetime import (
     datetime,
     timedelta,
@@ -29,7 +27,8 @@ from sprints.dashboard.libs.google import (
     upload_spillovers,
 )
 from sprints.dashboard.libs.jira import connect_to_jira
-from sprints.dashboard.models import Dashboard, Webhook, WebhookEvent
+from sprints.dashboard.models import Dashboard
+from sprints.webhooks.models import Webhook, WebhookEvent
 from sprints.dashboard.utils import (
     create_next_sprint,
     filter_sprints_by_cell,
@@ -164,10 +163,10 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
         participants_payload: Dict[str, List[str]] = {}
 
         # Create dictionary mapping names to E-Mails: {'John Doe': 'john@opencraft.com',...}
-        cell_member_emails = {
-            conn.user(member).displayName: conn.user(member).emailAddress
-            for member in get_cell_members(conn.quickfilters(board_id))
-        }
+        cell_member_emails = {}
+        for member in get_cell_members(conn.quickfilters(board_id)):
+            user = conn.user(member)
+            cell_member_emails[user.displayName] = user.emailAddress
 
         # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
         cell_member_roles = get_cell_member_roles()
@@ -200,10 +199,7 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
 
         webhooks = Webhook.objects.filter(events__name="new sprint")
         for webhook in webhooks:
-            r = requests.post(
-                    webhook.payload_url,
-                    json=json.dumps(payload),
-                )
+            webhook.trigger(payload=payload)
 
 @celery_app.task(ignore_result=True)
 def complete_sprint_task(board_id: int) -> None:

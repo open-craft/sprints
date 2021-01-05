@@ -30,7 +30,7 @@ from sprints.dashboard.utils import (
     get_cells,
     get_current_sprint_end_date,
     get_cell_member_roles,
-    InsufficientRolesReadError,
+    NoRolesFoundException,
 )
 
 _cache_param = openapi.Parameter(
@@ -101,7 +101,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
         if settings.FEATURE_CELL_ROLES:
             try:
                 get_cell_member_roles(raise_exception=True)
-            except InsufficientRolesReadError as msg:
+            except NoRolesFoundException as msg:
                 return False, str(msg)
 
         if (acquire_lock and not cache.add(

@@ -41,7 +41,7 @@ from sprints.dashboard.libs.jira import (
     connect_to_jira,
 )
 
-class InsufficientRolesReadError(Exception):
+class NoRolesFoundException(Exception):
     pass
 
 class Cell:
@@ -117,17 +117,14 @@ def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]
     roles = re.findall(ROLES_REGEX, r.text)
 
     # roles_dict = {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}
-    roles_dict = {}
+    roles_dict = defaultdict(list)
     for role, member in roles:
-        if member not in roles_dict:
-            roles_dict[member] = [role]
-        else:
-            roles_dict[member].append(role)
+        roles_dict[member].append(role)
 
     # It's difficult to know whether we have read all roles
     # So we assume that if we've read roles for less than 12 members, something's probably wrong
-    if raise_exception and len(roles_dict) < 12:
-        raise InsufficientRolesReadError()
+    if raise_exception and len(roles_dict) == 0:
+        raise NoRolesFoundException("No roles were found at the handbook page: %s" % HANDBOOK_ROLES_PAGE)
 
     return roles_dict
 

@@ -40,21 +40,6 @@ from sprints.dashboard.utils import (
     prepare_jql_query,
 )
 
-from django.db import models
-
-class WebhookEvent(models.Model):
-    name = models.TextField()
-
-    def __str__(self):
-        return self.name
-
-class Webhook(models.Model):
-    payload_url = models.URLField()
-    active = models.BooleanField()
-    events = models.ManyToManyField(WebhookEvent)
-
-    def __str__(self):
-        return self.payload_url
 
 class DashboardIssue:
     """Parses Jira Issue for easier access."""

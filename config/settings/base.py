@@ -88,6 +88,7 @@ LOCAL_APPS = [
     "sprints.users.apps.UsersConfig",
     "sprints.dashboard.apps.DashboardConfig",
     "sprints.sustainability.apps.SustainabilityConfig",
+    "sprints.webhooks.apps.WebhooksConfig",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

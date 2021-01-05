@@ -1,4 +1,4 @@
-"""These are mostly standard Python classes, not Django models. Only Webhook info is stored in the DB."""
+"""These are standard Python classes, not Django models. We don't store dashboard in the DB."""
 import functools
 import re
 import typing

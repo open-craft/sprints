@@ -97,9 +97,8 @@ MATTERMOST_TEAM_NAME=
 
 # WEBHOOKS
 # -----------------------------------------------------------------------------
-# Webhook username (Used with basic auth)
-WEBHOOK_USERNAME =
-# Webhook password (Used with basic auth)
-WEBHOOK_PASSWORD =
 # Handbook roles page URL
-HANDBOOK_ROLES_PAGE =
+# HANDBOOK_ROLES_PAGE=
+
+# Enable cell roles (Disabled by default)
+# FEATURE_CELL_ROLES=

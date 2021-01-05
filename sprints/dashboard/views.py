@@ -95,7 +95,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
         Acquire a lock for a day, if `acquire_lock` specified.
         """
         end_date = parse(get_current_sprint_end_date('cell', str(board_id)))
-        if datetime.now() < end_date and False: #TODO: REMOVE
+        if datetime.now() < end_date:
             return False, "The current day is not the last day of the current sprint."
 
         if settings.FEATURE_CELL_ROLES:

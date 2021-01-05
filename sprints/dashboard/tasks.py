@@ -206,12 +206,12 @@ def complete_sprint_task(board_id: int) -> None:
     """
     1. Uploads spillovers.
     2. Uploads commitments.
-    3. Trigger start of new sprint webhooks #TODO: Update order
-    4. Moves archived issues out of the active sprint.
-    5. Closes the active sprint.
-    6. Moves issues from the closed sprint to the next one.
-    7. Opens the next sprint.
-    8. Creates role tickets.
+    3. Moves archived issues out of the active sprint.
+    4. Closes the active sprint.
+    5. Moves issues from the closed sprint to the next one.
+    6. Opens the next sprint.
+    7. Creates role tickets.
+    8. Trigger start of new sprint webhooks
     9. Releases the sprint completion lock.
     10. Clears cache related to end of sprint date.
     """
@@ -227,8 +227,7 @@ def complete_sprint_task(board_id: int) -> None:
         with allow_join_result():
             # FIXME: Use `apply_async`. Currently blocked because of `https://github.com/celery/celery/issues/4925`.
             #   CAUTION: if you change it, ensure that all tasks have finished successfully.
-            #group(spreadsheet_tasks).apply().join()
-            pass #TODO: REMOVE
+            group(spreadsheet_tasks).apply().join()
 
         sprints: List[Sprint] = get_sprints(conn, cell.board_id)
         sprints = filter_sprints_by_cell(sprints, cell.key)
@@ -270,7 +269,6 @@ def complete_sprint_task(board_id: int) -> None:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
-        trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id) #TODO: REMOVE
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
             if settings.FEATURE_CELL_ROLES:
                 # Raise error if we can't read roles from the handbook

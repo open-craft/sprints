@@ -308,9 +308,8 @@ The sprints app supports triggering webhooks on certain events. Currently the fo
 In order to setup receivers you first need to setup webhook events, to do that follow these steps:
 
 1. Go to 'Webhook events' in your Django admin panel (http://your_site/admin/webhooks/webhookevent/)
-2. Click 'Add webhook event' and create events with the following name:
-     * 'new sprint'
-
+2. Click 'Add webhook event' and create events based on the above mentioned list of events
+    
 For now only the 'new sprint' event type is supported, more will be added in the future
 
 To create a new webhook receiver, follow these steps:

@@ -211,7 +211,7 @@ def complete_sprint_task(board_id: int) -> None:
     5. Moves issues from the closed sprint to the next one.
     6. Opens the next sprint.
     7. Creates role tickets.
-    8. Trigger start of new sprint webhooks
+    8. Triggers the start of new sprint webhooks
     9. Releases the sprint completion lock.
     10. Clears cache related to end of sprint date.
     """

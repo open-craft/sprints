@@ -299,6 +299,27 @@ The alerts are defined in settings to be triggered with Celerybeat. It's possibl
 
 It's also possible to specify addresses that will receive alerts for all existing cells and accounts. To do this, add email address to `NOTIFICATIONS_SUSTAINABILITY_EMAILS` environment variable.
 
+Setting up webhooks
+~~~~~~~~~~~~~~~~~
+The sprints app supports triggering webhooks on certain events. Currently the following events are supported:
+
+* 'new sprint' - Triggered at the end of the sprint completion process. It fires a webhook containing details of each member of the cell & their responsibilities in the new sprint. It reads permanent roles (Sprint Planning Manager etc) from the HANDBOOK_ROLES_PAGE & temporary roles (Firefighter, Discovery Duty etc) from the rotations spreadsheets. If the FEATURE_CELL_ROLES (Default: False) environment variable is set to True it will cause an error and prevent the sprint from being completed if the permanent roles cannot be read from the handbook.
+
+In order to setup receivers you first need to setup webhook events, to do that follow these steps:
+
+1. Go to 'Webhook events' in your Django admin panel (http://your_site/admin/webhooks/webhookevent/)
+2. Click 'Add webhook event' and create events with the following name:
+     * 'new sprint'
+
+For now only the 'new sprint' event type is supported, more will be added in the future
+
+To create a new webhook receiver, follow these steps:
+
+1. Make sure a 'Webhook Event' exists for your webhook (See following section for instructions)
+2. Go to 'Webhooks' in the Django admin panel (http://your_site/admin/webhooks/webhook/)
+3. Click add webhook, in Events select one or multiple events to link to the webhook & enter a payload URL. If you'd like to send any extra headers with the request, you can put them in the headers field in JSON format.
+
+
 For sustainability
 ******************
 Alerts are sent when the ratio of non-billable cell hours to billable hours exceeds `MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO`.
@@ -443,3 +464,4 @@ Docker
 See detailed `cookiecutter-django Docker documentation`_.
 
 .. _`cookiecutter-django Docker documentation`: http://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html
+

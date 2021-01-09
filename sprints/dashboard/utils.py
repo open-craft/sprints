@@ -131,7 +131,7 @@ def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]
 def compile_participants_roles(
     members: List[object],
     rotations: Dict[str, List[str]],
-    cell_member_roles:Dict[str, str]
+    cell_member_roles: Dict[str, List[str]]
 ) -> Dict[str, List[str]]:
     """Compile the final roles Dictionary from cell_member_roles and rotations data
     """

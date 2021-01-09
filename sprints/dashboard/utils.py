@@ -31,6 +31,7 @@ from jira.resources import (
     Issue,
     Project,
     Sprint,
+    User,
 )
 
 from config.settings.base import SECONDS_IN_HOUR, HANDBOOK_ROLES_PAGE
@@ -129,7 +130,7 @@ def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]
     return roles_dict
 
 def compile_participants_roles(
-    members: List[object],
+    members: List[User],
     rotations: Dict[str, List[str]],
     cell_member_roles: Dict[str, List[str]]
 ) -> Dict[str, List[str]]:

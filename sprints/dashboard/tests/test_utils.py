@@ -1,5 +1,6 @@
 import re
-from unittest.mock import patch
+from unittest import TestCase
+from unittest.mock import patch, Mock
 
 import pytest
 from django.conf import settings
@@ -7,6 +8,7 @@ from django.test import override_settings
 
 from sprints.dashboard.tests.helpers import does_not_raise
 from sprints.dashboard.utils import (
+    NoRolesFoundException,
     _column_number_to_excel,
     _get_sprint_meeting_day_division_for_member,
     extract_sprint_id_from_str,
@@ -23,6 +25,9 @@ from sprints.dashboard.utils import (
     prepare_jql_query,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
+    get_cell_member_roles,
+    get_rotations_roles_for_member,
+    compile_participants_roles,
 )
 
 
@@ -322,3 +327,70 @@ def test_column_number_to_excel(test_input, expected):
 def test_get_sprint_meeting_day_division_for_member(hours, expected):
     sprint_start = "2020-01-01"
     assert _get_sprint_meeting_day_division_for_member(hours, sprint_start) == pytest.approx(expected, 0.1)
+
+@patch("requests.get")
+def test_get_cell_member_roles(mock_get):
+    with open("sprints/dashboard/tests/data/handbook/dummy_cells.html", 'r') as f:
+        mock_get.return_value = Mock(text=f.read())
+        output = dict(get_cell_member_roles())
+        expected_output = {
+                            "Member Six": ["Recruitment manager"],
+                            "Member Seven": ["Sprint manager"],
+                            "Member Five": ["Sprint Planning Manager"],
+                            "Member Eight": ["Epic manager"],
+                            "Member Two": ["Sustainability manager"],
+                            "Member Four": ["OSPR Liaison", "Official forum moderator"],
+                            "Member One": ["DevOps Specialist"],
+                        }
+        TestCase().assertDictEqual(output, expected_output)
+
+@patch("requests.get")
+def test_get_cell_member_roles_corrupted(mock_get):
+    with open("sprints/dashboard/tests/data/handbook/dummy_cells_corrupted.html", 'r') as f:
+        mock_get.return_value = Mock(text=f.read())
+        with TestCase().assertRaises(NoRolesFoundException):
+            get_cell_member_roles(raise_exception=True)
+
+def test_get_rotations_roles_for_member():
+    # When the member is on FF duty
+    output = get_rotations_roles_for_member('John Doe', {'FF': ['Jake Doe', 'John Doe'], 'DD': ['Jane Doe', 'James Doe']})
+    assert len(output) == 1 and output[0] == 'FF-2'
+
+    # When member has no duty
+    output = get_rotations_roles_for_member('John Doe', {'FF': ['Jake Doe', 'James Doe'], 'DD': ['Jane Doe', 'James Doe']})
+    assert len(output) == 0
+
+    # When only partial name of the member is defined
+    output = get_rotations_roles_for_member('John Doe', {'FF': ['John Doe', 'Jake Doe'], 'DD': ['Jane Doe', 'James Doe']})
+    assert len(output) == 1 and output[0] == 'FF-1'
+
+def test_compile_participants_roles():
+    members_data_dummy = [
+        Mock(displayName='Jane Doe', emailAddress='janedoe@opencraft.com'),
+        Mock(displayName='Jack Doe', emailAddress='jackdoe@opencraft.com'),
+        Mock(displayName='John Doe', emailAddress='johndoe@opencraft.com'),
+        Mock(displayName='Jake Doe', emailAddress='jakedoe@opencraft.com'),
+    ]
+
+    rotations_data_dummy = {
+        'ff': ['John Doe', 'Jack'],
+        'dd': ['Jack Doe', 'Jake Doe'],
+    }
+
+    roles_data_dummy = {
+        'Jane Doe': [],
+        'Jack Doe': ['Sprint Planning Manager', 'DevOps Specialist'],
+        'John Doe': ['Sprint Manager'],
+        'Jake Doe': ['Recruitment Manager'],
+    }
+
+    output = compile_participants_roles(members_data_dummy, rotations_data_dummy, roles_data_dummy)
+
+    expected_output = {
+        'janedoe@opencraft.com': [],
+        'jackdoe@opencraft.com': ['Sprint Planning Manager', 'DevOps Specialist', 'ff-2', 'dd-1'],
+        'johndoe@opencraft.com': ['Sprint Manager', 'ff-1'],
+        'jakedoe@opencraft.com': ['Recruitment Manager', 'dd-2']
+    }
+
+    TestCase().assertDictEqual(output, expected_output)

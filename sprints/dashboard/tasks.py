@@ -3,9 +3,11 @@ from datetime import (
     datetime,
     timedelta,
 )
+from collections import defaultdict
 from typing import (
     Dict,
     List,
+    DefaultDict,
 )
 
 from celery import group
@@ -35,6 +37,7 @@ from sprints.dashboard.utils import (
     get_all_sprints,
     get_cell_member_names,
     get_cell_member_roles,
+    compile_participants_roles,
     get_cell_members,
     get_cells,
     get_commitment_range,
@@ -147,7 +150,7 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
                     conn.create_issue(fields)
 
 @celery_app.task(ignore_result=True)
-def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_number: int, board_id: int):
+def trigger_new_sprint_webhooks(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
     """
     1. Gathers a dictionary mapping Name to E-Mail Address of members
     2. Gathers cell member roles
@@ -160,40 +163,24 @@ def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_n
     the documentation.
     """
     with connect_to_jira() as conn:
-        participants_payload: Dict[str, List[str]] = {}
+        # Dictionary containing rotations: {'FF': ['John Doe',...],...}
+        rotations = get_rotations_users(str(sprint_number), cell_name)
 
-        # Create dictionary mapping names to E-Mails: {'John Doe': 'john@opencraft.com',...}
-        cell_member_emails = {}
-        for member in get_cell_members(conn.quickfilters(board_id)):
-            user = conn.user(member)
-            cell_member_emails[user.displayName] = user.emailAddress
+        # A list of jira usernames for a board: ['johndoe1', 'jane_doe_22', ...]
+        members = []
+        usernames = get_cell_members(conn.quickfilters(board_id))
+        for username in usernames:
+            members.append(conn.user(username))
 
         # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
         cell_member_roles = get_cell_member_roles()
-
-        # Dictionary containing rotations: {'FF': ['John Doe',...],...}
-        rotations = get_rotations_users(str(sprint_number), cell['name'])
         
-        for member_name, member_email in cell_member_emails.items():
-            participants_payload[member_email] = []
-
-            # Not all members have atleast one role assigned to them
-            if member_name in cell_member_roles:
-                participants_payload[member_email].extend(cell_member_roles[member_name])
-
-            # If member has rotation, specify which rotation
-            for duty, assignees in rotations.items():
-                for idx, assignee in enumerate(assignees):
-                    # The rotations sheet sometimes contains only the first name
-                    if member_name.startswith(assignee):
-                        participants_payload[member_email].append("%s-%d" % (duty, idx+1))
-
         payload = {
             'board_id': board_id,
-            'cell': cell['name'],
+            'cell': cell_name,
             'sprint_number': sprint_number,
             'sprint_name': sprint_name,
-            'participants': participants_payload,
+            'participants': compile_participants_roles(members, rotations, cell_member_roles),
             'event_name': "new sprint",
         }
 
@@ -314,7 +301,7 @@ def complete_sprint_task(board_id: int) -> None:
 
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
 
-            trigger_new_sprint_webhooks.delay(cell_dict, next_sprint.name, get_sprint_number(next_sprint), board_id)
+            trigger_new_sprint_webhooks.delay(cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id)
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")

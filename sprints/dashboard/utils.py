@@ -128,6 +128,39 @@ def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]
 
     return roles_dict
 
+def compile_participants_roles(
+    members: List[object],
+    rotations: Dict[str, List[str]],
+    cell_member_roles:Dict[str, str]
+) -> Dict[str, List[str]]:
+    """Compile the final roles Dictionary from cell_member_roles and rotations data
+    """
+
+    roles: DefaultDict[str, List[str]] = defaultdict(list)
+    for member in members:
+        roles[member.emailAddress].extend(
+            cell_member_roles[member.displayName]
+        )
+
+        roles[member.emailAddress].extend(
+            get_rotations_roles_for_member(member.displayName, rotations)
+        )
+
+    return roles
+
+def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[str]]):
+    """Given a member and a dictionary containing get_rotations_users() output, return a list
+    of all roles for that user.
+    """
+
+    roles = []
+    for duty, assignees in rotations.items():
+        for idx, assignee in enumerate(assignees):
+            # The rotations sheet sometimes contains only the first name
+            if member_name.startswith(assignee):
+                roles.append("%s-%d" % (duty, idx+1))
+    return roles
+
 
 def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[str, List[Sprint]]:
     """Retrieves all sprints (used for handling cross-cell tickets)."""

@@ -149,11 +149,11 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 @celery_app.task(ignore_result=True)
 def trigger_new_sprint_webhooks(cell: Dict[str, str], sprint_name: str, sprint_number: int, board_id: int):
     """
-    1. Gather a dictionary mapping Name to E-Mail Address of members
-    2. Gather cell member roles
-    3. Map E-Mails to Cell member roles
-    4. Add rotations (DD, FF etc) to the Cell member roles array
-    5. Trigger webhooks
+    1. Gathers a dictionary mapping Name to E-Mail Address of members
+    2. Gathers cell member roles
+    3. Maps cell member's E-Mails to their roles
+    4. Adds rotations (DD, FF etc) to the cell member roles array
+    5. Triggers webhooks
 
     The webhook receivers identify users by E-Mail, but our spreadsheets & documentation identify them
     by name, so we must map the two. It is important that the spelling of member names is consistent in

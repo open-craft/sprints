@@ -8,6 +8,6 @@ class WebhooksConfig(AppConfig):
 
     def ready(self):
         try:
-            import sprints.users.signals  # noqa F401
+            import sprints.webhooks.signals  # noqa F401
         except ImportError:
             pass

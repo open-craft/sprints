@@ -32,6 +32,8 @@ urlpatterns = [
     path("", lambda request: redirect('/swagger')),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
+    # User management
+    path("users/", include("sprints.users.urls", namespace="users")),
     # Dashboard
     path("dashboard/", include("sprints.dashboard.urls", namespace="dashboard")),
     # Sustainability Dashboard

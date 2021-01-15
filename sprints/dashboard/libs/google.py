@@ -64,7 +64,7 @@ def get_vacations(from_: str, to: str) -> List[Dict[str, Union[int, str, Dict[st
                         event["end"]["date"] = (parse(event["end"]["date"]) - timedelta(days=1)).strftime(
                             settings.JIRA_API_DATE_FORMAT
                         )
-                        user = search.get('user')
+                        user = search.get('name') or search.get('first_name')
                         event['user'] = user
                         event['seconds'] = int(search.get('hours', 0) or 0) * SECONDS_IN_HOUR
                         vacations.append(event)

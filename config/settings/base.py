@@ -538,10 +538,11 @@ GOOGLE_API_CREDENTIALS = {
 }
 # Regex for retrieving users' vacations from Google Calendar. This one is case-insensitive.
 # It supports two basic cases:
-# - `{name} off`, `{name} away`, etc. for full vacation.
-# - `{name} available 4 hours/day`, `{name} 3h`, etc. for reduced availability.
-# FIXME: It doesn't currently support people with the same name, so, if needed, we'll need to change it.
-GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"^(?P<user>\w+)\s(?P<action>.*?)(?:(?P<hours>\d+)\s?h.*?)?$")
+# - `{name}: off`, `{name}: away`, etc. for full vacation.
+# - `{name}: available 4 hours/day`, `{name}: 3h`, etc. for reduced availability.
+# DEPRECATED: Events without a colon following a name are enabled only for the backwards compatibility.
+#             This default behavior may be altered in the future.
+GOOGLE_CALENDAR_VACATION_REGEX = env.str("GOOGLE_CALENDAR_VACATION_REGEX", r"^(?:(?:(?P<name>.*?):)|(?P<first_name>\w+))\s(?P<action>.*?)(?:(?P<hours>\d+)\s?h.*?)?$")
 GOOGLE_SPILLOVER_SPREADSHEET = env.str("GOOGLE_SPILLOVER_SPREADSHEET")
 GOOGLE_CONTACT_SPREADSHEET = env.str("GOOGLE_CONTACT_SPREADSHEET")
 GOOGLE_AVAILABILITY_RANGE = env.str("GOOGLE_AVAILABILITY_RANGE")

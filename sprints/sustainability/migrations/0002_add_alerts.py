@@ -7,25 +7,58 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sustainability', '0001_initial'),
+        ("sustainability", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Account',
+            name="Account",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text="Account's name.", max_length=255)),
-                ('alert_emails',
-                 django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=255), default=list, blank=True, help_text='List of comma-separated (`,`) email addresses that will be periodically notified about budget overhead.', size=None)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(help_text="Account's name.", max_length=255)),
+                (
+                    "alert_emails",
+                    django.contrib.postgres.fields.ArrayField(
+                        base_field=models.CharField(max_length=255),
+                        default=list,
+                        blank=True,
+                        help_text="List of comma-separated (`,`) email addresses that will be periodically notified about budget overhead.",
+                        size=None,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Cell',
+            name="Cell",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text="Cell's name.", max_length=255)),
-                ('alert_emails', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=255), default=list, blank=True, help_text='List of comma-separated (`,`) email addresses that will be periodically notified about cell sustainability problems.', size=None)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(help_text="Cell's name.", max_length=255)),
+                (
+                    "alert_emails",
+                    django.contrib.postgres.fields.ArrayField(
+                        base_field=models.CharField(max_length=255),
+                        default=list,
+                        blank=True,
+                        help_text="List of comma-separated (`,`) email addresses that will be periodically notified about cell sustainability problems.",
+                        size=None,
+                    ),
+                ),
             ],
         ),
     ]

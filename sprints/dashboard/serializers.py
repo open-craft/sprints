@@ -10,6 +10,7 @@ from sprints.dashboard.models import (
 # noinspection PyAbstractClass
 class CellSerializer(serializers.Serializer):
     """Serializer for cells."""
+
     name = serializers.CharField(max_length=256)
     board_id = serializers.IntegerField()
 
@@ -17,6 +18,7 @@ class CellSerializer(serializers.Serializer):
 # noinspection PyAbstractClass
 class DashboardIssueSerializer(serializers.Serializer):
     """Serializer for dashboard issue."""
+
     key = serializers.CharField()
     summary = serializers.CharField()
     account = serializers.CharField()
@@ -46,6 +48,7 @@ class DashboardIssueSerializer(serializers.Serializer):
 # noinspection PyAbstractClass
 class DashboardRowSerializer(serializers.Serializer):
     """Serializer for dashboard row."""
+
     name = serializers.SerializerMethodField()
     current_remaining_assignee_time = serializers.IntegerField()
     current_remaining_review_time = serializers.IntegerField()
@@ -69,6 +72,7 @@ class DashboardRowSerializer(serializers.Serializer):
 # noinspection PyAbstractClass
 class DashboardSerializer(serializers.Serializer):
     """Serializer for the dashboard."""
+
     rows = DashboardRowSerializer(many=True)
     issues = DashboardIssueSerializer(many=True)
     future_sprint = serializers.SerializerMethodField()

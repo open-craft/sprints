@@ -55,7 +55,7 @@ class Account(models.Model):
         default=list,
         blank=True,
         help_text="List of comma-separated (`,`) email addresses that will be periodically notified about budget "
-                  "overhead.",
+        "overhead.",
     )
 
     def __str__(self):
@@ -75,7 +75,7 @@ class Cell(models.Model):
         default=list,
         blank=True,
         help_text="List of comma-separated (`,`) email addresses that will be periodically notified about cell "
-                  "sustainability problems.",
+        "sustainability problems.",
     )
 
     def __str__(self):
@@ -117,40 +117,52 @@ class SustainabilityAccount:
     def __radd__(self, other):
         return self
 
-    def add_reports(self, reports: List[PropertyHolder], worklogs: Dict[str, Dict[str, str]]) -> None:
+    def add_reports(
+        self, reports: List[PropertyHolder], worklogs: Dict[str, Dict[str, str]]
+    ) -> None:
         """Converts reports with worklogs into overall hours."""
         for report in reports:
             hours = report.hours
             username = report.user.displayName
             worklog_id = str(report.typeId)
-            project = worklogs[worklog_id]['project']
+            project = worklogs[worklog_id]["project"]
 
             self.overall += hours
             self.by_project[project] = self.by_project.get(project, 0) + hours
             self.by_person[username] = self.by_person.get(username, 0) + hours
 
     def calculate_budgets(
-        self, ytd_start: datetime.date, start: datetime.date, end_sprint: datetime.date, end: datetime.date
+        self,
+        ytd_start: datetime.date,
+        start: datetime.date,
+        end_sprint: datetime.date,
+        end: datetime.date,
     ) -> None:
         """
         Calculates budgets for the account.
         Retrieves account's budgets from the DB.
         """
 
-        self.budgets = {}  # TODO: remove later. For now we need to do this to avoid dealing with cache invalidation.
-        budgets = list(Budget.objects.filter(name=self.name).order_by('date'))
+        self.budgets = (
+            {}
+        )  # TODO: remove later. For now we need to do this to avoid dealing with cache invalidation.
+        budgets = list(Budget.objects.filter(name=self.name).order_by("date"))
         self.next_sprint_goal = self._calculate_budgets(ytd_start, end_sprint, budgets)
-        self.ytd_goal = self._calculate_budgets(ytd_start, datetime.date.today(), budgets)
+        self.ytd_goal = self._calculate_budgets(
+            ytd_start, datetime.date.today(), budgets
+        )
         self.period_goal = self._calculate_budgets(start, end, budgets)
 
-    def _calculate_budgets(self, start_date: datetime.date, end_date: datetime.date, budgets: List[Budget]) -> float:
+    def _calculate_budgets(
+        self, start_date: datetime.date, end_date: datetime.date, budgets: List[Budget]
+    ) -> float:
         """
         Inner method for calculating budgets for the account.
 
         It uses `pairwise` to process chronological pairs of existing budgets.
         The list of budgets is extended by `None` to have a clear indication which budget is the last one.
         """
-        goal = 0.
+        goal = 0.0
         current_start = start_date  # Local range
 
         start_budget: Budget
@@ -160,24 +172,32 @@ class SustainabilityAccount:
             current_start = max(current_start, start_budget.date)
             current_end = end_date
             if end_budget:
-                current_end = min(current_end, end_budget.date + relativedelta(months=-1, day=31))
+                current_end = min(
+                    current_end, end_budget.date + relativedelta(months=-1, day=31)
+                )
 
             if current_start <= current_end:
-                goal += self._calculate_budget(current_start, current_end, start_budget.hours)
+                goal += self._calculate_budget(
+                    current_start, current_end, start_budget.hours
+                )
                 self._add_budget(start_budget, current_start, current_end)
                 current_start = current_end
 
         return goal
 
     @classmethod
-    def _calculate_budget(cls, start: datetime.date, end: datetime.date, hours: int) -> float:
+    def _calculate_budget(
+        cls, start: datetime.date, end: datetime.date, hours: int
+    ) -> float:
         """Processes monthly budget (full or partial)."""
         end_last_day_of_month = calendar.monthrange(end.year, end.month)[1]
-        partial_hours = 0.
+        partial_hours = 0.0
 
         # First edge case - the start day is not the first day of the month.
         if start.day != 1:
-            partial_end = min(start + relativedelta(day=31), end)  # Partial end cannot exceed the real end.
+            partial_end = min(
+                start + relativedelta(day=31), end
+            )  # Partial end cannot exceed the real end.
             partial_hours += cls._calculate_partial_budget(start, partial_end, hours)
             start = start + relativedelta(months=+1, day=1)
 
@@ -188,11 +208,15 @@ class SustainabilityAccount:
             partial_hours += cls._calculate_partial_budget(partial_start, end, hours)
             end = end + relativedelta(months=-1, day=31)
 
-        monthly_hours = diff_month(start, end) * hours if start <= end else 0  # Calculate months between edge cases.
+        monthly_hours = (
+            diff_month(start, end) * hours if start <= end else 0
+        )  # Calculate months between edge cases.
         return monthly_hours + partial_hours
 
     @classmethod
-    def _calculate_partial_budget(cls, start: datetime.date, end: datetime.date, hours: int) -> float:
+    def _calculate_partial_budget(
+        cls, start: datetime.date, end: datetime.date, hours: int
+    ) -> float:
         """Calculate budget for a part of one month."""
         if start.month != end.month:
             raise AttributeError("`start` and `end` must be in the same month.")
@@ -200,12 +224,14 @@ class SustainabilityAccount:
         days_in_month = calendar.monthrange(start.year, start.month)[1]
         return hours / days_in_month * ((end - start).days + 1)
 
-    def _add_budget(self, budget: Budget, start: datetime.date, end: datetime.date) -> None:
+    def _add_budget(
+        self, budget: Budget, start: datetime.date, end: datetime.date
+    ) -> None:
         """
         Add each month of the processed budget to the list. The end result is a per-month list of budget hours.
         """
         for month, _ in generate_month_range(str(start), str(end)):
-            self.budgets[month.strftime('%B %Y')] = budget.hours
+            self.budgets[month.strftime("%B %Y")] = budget.hours
 
 
 class SustainabilityDashboard:
@@ -218,16 +244,25 @@ class SustainabilityDashboard:
         self.from_ = from_
         self.to = to
 
-        self.ytd_from = parse(from_).replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
+        self.ytd_from = (
+            parse(from_).replace(month=1, day=1).strftime(settings.JIRA_API_DATE_FORMAT)
+        )
         today = datetime.datetime.today()
         last_day_of_month = calendar.monthrange(today.year, today.month)[1]
         current_end_date = today.replace(day=last_day_of_month)
-        self.ytd_to = min(current_end_date, parse(to).replace(month=12, day=31)).strftime(settings.JIRA_API_DATE_FORMAT)
+        self.ytd_to = min(
+            current_end_date, parse(to).replace(month=12, day=31)
+        ).strftime(settings.JIRA_API_DATE_FORMAT)
 
-        self.billable_accounts: Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
-        self.non_billable_accounts: Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
-        self.non_billable_responsible_accounts: \
-            Union[List[SustainabilityAccount], Dict[str, SustainabilityAccount]] = {}
+        self.billable_accounts: Union[
+            List[SustainabilityAccount], Dict[str, SustainabilityAccount]
+        ] = {}
+        self.non_billable_accounts: Union[
+            List[SustainabilityAccount], Dict[str, SustainabilityAccount]
+        ] = {}
+        self.non_billable_responsible_accounts: Union[
+            List[SustainabilityAccount], Dict[str, SustainabilityAccount]
+        ] = {}
 
         self.fetch_accounts(self.from_, self.to)
         self.fetch_accounts(self.ytd_from, self.ytd_to, generate_ytd=True)
@@ -238,11 +273,12 @@ class SustainabilityDashboard:
         FIXME: The exceptions here are logged, but they are not being captured by `p.get()` for some reason.
         """
         with ThreadPool(processes=settings.MULTIPROCESSING_POOL_SIZE) as pool:
-            results = [pool.apply_async(
-                self.fetch_accounts_chunk,
-                args + (settings.CACHE_WORKLOG_TIMEOUT_ONE_TIME,),
-                error_callback=on_error,
-            )
+            results = [
+                pool.apply_async(
+                    self.fetch_accounts_chunk,
+                    args + (settings.CACHE_WORKLOG_TIMEOUT_ONE_TIME,),
+                    error_callback=on_error,
+                )
                 for args in generate_month_range(from_, to)
             ]
             output = [p.get(settings.MULTIPROCESSING_TIMEOUT) for p in results]
@@ -252,9 +288,13 @@ class SustainabilityDashboard:
             for chunk in output:
                 for category, accounts in chunk.items():
                     try:
-                        result_accounts = getattr(self, settings.TEMPO_ACCOUNT_TRANSLATE[category])
+                        result_accounts = getattr(
+                            self, settings.TEMPO_ACCOUNT_TRANSLATE[category]
+                        )
                         for account_name, account in accounts.items():
-                            result_accounts[account_name] = result_accounts.get(account_name, None) + account
+                            result_accounts[account_name] = (
+                                result_accounts.get(account_name, None) + account
+                            )
                     except KeyError:
                         # Ignore non-existing categories
                         pass
@@ -262,11 +302,14 @@ class SustainabilityDashboard:
             for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
                 setattr(self, category, getattr(self, category).values())
 
-                end_sprint_date = get_current_sprint_end_date('future')
+                end_sprint_date = get_current_sprint_end_date("future")
 
                 accounts = getattr(self, category)
                 for account in accounts:
-                    args = map(lambda d: parse(d).date(), [self.ytd_from, from_, end_sprint_date, to])
+                    args = map(
+                        lambda d: parse(d).date(),
+                        [self.ytd_from, from_, end_sprint_date, to],
+                    )
                     account.calculate_budgets(*args)
 
         # Generate year-to-date values.
@@ -275,7 +318,9 @@ class SustainabilityDashboard:
             for chunk in output:
                 for accounts in chunk.values():
                     for account_name, account in accounts.items():
-                        ytd_results[account_name] = ytd_results.get(account_name, None) + account
+                        ytd_results[account_name] = (
+                            ytd_results.get(account_name, None) + account
+                        )
 
             for category in settings.TEMPO_ACCOUNT_TRANSLATE.values():
                 for account in getattr(self, category):
@@ -286,14 +331,18 @@ class SustainabilityDashboard:
                         account.ytd_by_person = ytd_account.by_person
 
     @staticmethod
-    def fetch_accounts_chunk(from_: str, to: str, cache_timeout=0, force=False) -> Dict[str, Dict]:
+    def fetch_accounts_chunk(
+        from_: str, to: str, cache_timeout=0, force=False
+    ) -> Dict[str, Dict]:
         """Wraps fetching account chunks for caching."""
         key = f"{settings.CACHE_SUSTAINABILITY_PREFIX}{from_} - {to}"
         if force:
             cache.set(
                 key,
-                categories := SustainabilityDashboard._fetch_accounts_chunk(from_, to, force),
-                cache_timeout
+                categories := SustainabilityDashboard._fetch_accounts_chunk(
+                    from_, to, force
+                ),
+                cache_timeout,
             )
             return categories
 
@@ -301,12 +350,14 @@ class SustainabilityDashboard:
             categories = cache.get_or_set(
                 key,
                 SustainabilityDashboard._fetch_accounts_chunk(from_, to, force),
-                cache_timeout
+                cache_timeout,
             )
         return categories
 
     @staticmethod
-    def _fetch_accounts_chunk(from_: str, to: str, force_regenerate_worklogs=False) -> Dict[str, Dict]:
+    def _fetch_accounts_chunk(
+        from_: str, to: str, force_regenerate_worklogs=False
+    ) -> Dict[str, Dict]:
         """Fetches worklogs by a month, which is much faster."""
         with connect_to_jira() as conn:
             reports = conn.report(from_, to)
@@ -346,14 +397,19 @@ class SustainabilityDashboard:
 
         sustainability: Dict[str, float] = {}
         for project, data in aggregated_projects.items():
-            billable_hours = data[settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_BILLABLE_ACCOUNT_NAME]]
-            non_billable_reponsible_hours = \
-                data[settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME]]
+            billable_hours = data[
+                settings.TEMPO_ACCOUNT_TRANSLATE[settings.TEMPO_BILLABLE_ACCOUNT_NAME]
+            ]
+            non_billable_reponsible_hours = data[
+                settings.TEMPO_ACCOUNT_TRANSLATE[
+                    settings.TEMPO_NON_BILLABLE_RESPONSIBLE_ACCOUNT_NAME
+                ]
+            ]
             cell_hours = billable_hours + non_billable_reponsible_hours
             try:
                 responsible_hours = non_billable_reponsible_hours / cell_hours * 100
             except ZeroDivisionError:
-                responsible_hours = float('inf')
+                responsible_hours = float("inf")
             sustainability[project] = responsible_hours
 
         return sustainability

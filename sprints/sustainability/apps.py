@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class SustainabilityConfig(AppConfig):
-    name = 'sprints.sustainability'
+    name = "sprints.sustainability"
     verbose_name = _("Sustainability")
 
     def ready(self):

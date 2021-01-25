@@ -7,6 +7,6 @@ from sprints.dashboard.views import (
 
 app_name = "dashboard"
 router = DefaultRouter()
-router.register(r'', DashboardViewSet, basename='dashboard')
-router.register(r'complete_sprint', CompleteSprintViewSet, basename='complete_sprint')
+router.register(r"", DashboardViewSet, basename="dashboard")
+router.register(r"complete_sprint", CompleteSprintViewSet, basename="complete_sprint")
 urlpatterns = router.urls

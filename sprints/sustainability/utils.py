@@ -32,15 +32,17 @@ def split_accounts_into_categories(accounts: List[Account]) -> Dict[str, List[Ac
     result: Dict[str, List[Account]] = {}
     for account in accounts:
         try:
-            category = getattr(account, 'category').key
+            category = getattr(account, "category").key
         except AttributeError:
-            category = ''
+            category = ""
 
         result.setdefault(category, []).append(account)
     return result
 
 
-def generate_month_range(start: str, end: str) -> Generator[Tuple[datetime.date, datetime.date], None, None]:
+def generate_month_range(
+    start: str, end: str
+) -> Generator[Tuple[datetime.date, datetime.date], None, None]:
     """Generates months between `start` and `end` dates."""
     start_date = parse(start)
     end_date = parse(end)
@@ -72,22 +74,38 @@ def _get_cached_dicts_from_keys(keys: Iterable) -> Dict:
     return result
 
 
-def cache_worklogs_and_issues(required_worklogs: Set[str], long_term: bool) -> Dict[str, Dict[str, str]]:
+def cache_worklogs_and_issues(
+    required_worklogs: Set[str], long_term: bool
+) -> Dict[str, Dict[str, str]]:
     """
     Workaround for missing Tempo API data. It retrieves `required_worklogs` and caches them along with issues.
 
     It's possible to regenerate long-term cache by specifying `long_term` argument.
     """
     # Determine whether we're be using long-term cache or short-term one. Set keys and timeout accordingly.
-    worklogs_key = settings.CACHE_WORKLOGS_KEY_LONG_TERM if long_term else settings.CACHE_WORKLOGS_KEY
-    issues_key = settings.CACHE_ISSUES_KEY_LONG_TERM if long_term else settings.CACHE_ISSUES_KEY
-    timeout = settings.CACHE_WORKLOG_TIMEOUT_LONG_TERM if long_term else settings.CACHE_ISSUES_TIMEOUT_SHOT_TERM
+    worklogs_key = (
+        settings.CACHE_WORKLOGS_KEY_LONG_TERM
+        if long_term
+        else settings.CACHE_WORKLOGS_KEY
+    )
+    issues_key = (
+        settings.CACHE_ISSUES_KEY_LONG_TERM if long_term else settings.CACHE_ISSUES_KEY
+    )
+    timeout = (
+        settings.CACHE_WORKLOG_TIMEOUT_LONG_TERM
+        if long_term
+        else settings.CACHE_ISSUES_TIMEOUT_SHOT_TERM
+    )
 
     # Check if worklogs are missing from cache.
     required_issues: Set[str] = set()
-    worklogs: Dict[str, Dict[str, str]] = _get_cached_dicts_from_keys(
-        (settings.CACHE_WORKLOGS_KEY, settings.CACHE_WORKLOGS_KEY_LONG_TERM)
-    ) if not long_term else {}
+    worklogs: Dict[str, Dict[str, str]] = (
+        _get_cached_dicts_from_keys(
+            (settings.CACHE_WORKLOGS_KEY, settings.CACHE_WORKLOGS_KEY_LONG_TERM)
+        )
+        if not long_term
+        else {}
+    )
 
     if missing_worklogs := required_worklogs - worklogs.keys():
         with connect_to_jira() as conn:
@@ -96,9 +114,13 @@ def cache_worklogs_and_issues(required_worklogs: Set[str], long_term: bool) -> D
                 required_issues.add(worklog.issueId)
 
         # Check if worklogs are missing from cache.
-        issues: Dict[str, Dict[str, str]] = _get_cached_dicts_from_keys(
-            (settings.CACHE_ISSUES_KEY, settings.CACHE_ISSUES_KEY_LONG_TERM)
-        ) if not long_term else {}
+        issues: Dict[str, Dict[str, str]] = (
+            _get_cached_dicts_from_keys(
+                (settings.CACHE_ISSUES_KEY, settings.CACHE_ISSUES_KEY_LONG_TERM)
+            )
+            if not long_term
+            else {}
+        )
         new_issues: Dict[str, Dict[str, str]] = {}
 
         if missing_issues := required_issues - issues.keys():
@@ -106,19 +128,25 @@ def cache_worklogs_and_issues(required_worklogs: Set[str], long_term: bool) -> D
                 try:
                     retrieved_issues = conn.search_issues(
                         f'id in ({",".join(missing_issues)})',
-                        fields='project', maxResults=0
+                        fields="project",
+                        maxResults=0,
                     )
                 except JIRAError:
                     # We can notice this for long-term cache, as Jira has limits for the header size.
                     retrieved_issues = []
                     for chunk in chunks(list(missing_issues), 12):
-                        retrieved_issues = conn.search_issues(f'id in ({",".join(chunk)})',
-                                                              fields='project', maxResults=0)
-            new_issues = {issue.id: {'key': issue.key, 'project': issue.fields.project.name}
-                          for issue in retrieved_issues}
+                        retrieved_issues = conn.search_issues(
+                            f'id in ({",".join(chunk)})', fields="project", maxResults=0
+                        )
+            new_issues = {
+                issue.id: {"key": issue.key, "project": issue.fields.project.name}
+                for issue in retrieved_issues
+            }
 
-        new_worklogs = {worklog.id: issues.get(worklog.issueId, new_issues.get(worklog.issueId))
-                        for worklog in retrieved_worklogs}
+        new_worklogs = {
+            worklog.id: issues.get(worklog.issueId, new_issues.get(worklog.issueId))
+            for worklog in retrieved_worklogs
+        }
 
         # We retrieve cache second time to avoid race conditions.
         with cache.lock(settings.CACHE_ISSUES_LOCK):

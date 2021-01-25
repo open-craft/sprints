@@ -3,9 +3,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 from celery import group
+
 # noinspection PyProtectedMember
 from celery.result import allow_join_result
 from django.conf import settings
+
 # noinspection PyProtectedMember
 from django.core.cache import cache
 from jira.resources import Issue, Sprint
@@ -50,13 +52,17 @@ def upload_spillovers_task(board_id: int, cell_name: str) -> None:
     with connect_to_jira() as conn:
         issue_fields = get_issue_fields(conn, settings.SPILLOVER_REQUIRED_FIELDS)
         issues = get_spillover_issues(conn, issue_fields, cell_name)
-        active_sprints = get_all_sprints(conn)['active']
+        active_sprints = get_all_sprints(conn)["active"]
         meetings = get_meetings_issue(conn, cell_name, issue_fields)
-        members = get_cell_member_names(conn, get_cell_members(conn.quickfilters(board_id)))
+        members = get_cell_member_names(
+            conn, get_cell_members(conn.quickfilters(board_id))
+        )
 
     active_sprints_dict = {int(sprint.id): sprint for sprint in active_sprints}
     rows = prepare_spillover_rows(issues, issue_fields, active_sprints_dict)
-    prepare_clean_sprint_rows(rows, members, meetings, issue_fields, active_sprints_dict)
+    prepare_clean_sprint_rows(
+        rows, members, meetings, issue_fields, active_sprints_dict
+    )
     upload_spillovers(rows)
 
 
@@ -75,14 +81,17 @@ def upload_commitments_task(board_id: int, cell_name: str) -> None:
 
 
 @celery_app.task(ignore_result=True)
-def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str, clean_sprint: bool = False) -> None:
+def add_spillover_reminder_comment_task(
+    issue_key: str, assignee_key: str, clean_sprint: bool = False
+) -> None:
     """A task for posting the spillover reason reminder on the issue."""
-    message = settings.SPILLOVER_CLEAN_HINTS_MESSAGE if clean_sprint else settings.SPILLOVER_REMINDER_MESSAGE
+    message = (
+        settings.SPILLOVER_CLEAN_HINTS_MESSAGE
+        if clean_sprint
+        else settings.SPILLOVER_REMINDER_MESSAGE
+    )
     with connect_to_jira() as conn:
-        conn.add_comment(
-            issue_key,
-            f"[~{assignee_key}], {message}"
-        )
+        conn.add_comment(issue_key, f"[~{assignee_key}], {message}")
 
 
 @celery_app.task(ignore_result=True)
@@ -98,51 +107,67 @@ def create_next_sprint_task(board_id: int) -> int:
 
 
 @celery_app.task(ignore_result=True)
-def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number: int) -> None:
+def create_role_issues_task(
+    cell: Dict[str, str], sprint_id: int, sprint_number: int
+) -> None:
     """A task for posting the spillover reason reminder on the issue."""
-    rotations = get_rotations_users(str(sprint_number), cell['name'])
+    rotations = get_rotations_users(str(sprint_number), cell["name"])
     with connect_to_jira() as conn:
         jira_fields = get_issue_fields(conn, settings.JIRA_REQUIRED_FIELDS)
         epic = conn.search_issues(
             **prepare_jql_query_cell_role_epic(
-                ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
-                project=cell['name'],
+                [
+                    "None"
+                ],  # We don't need any fields here. The `key` attribute will be sufficient.
+                project=cell["name"],
             ),
             maxResults=1,
         )[0]
 
         fields = {
-            'project': cell['key'],
-            jira_fields['Issue Type']: 'Story',
-            jira_fields['Sprint']: sprint_id,
-            jira_fields['Epic Link']: epic.key,
+            "project": cell["key"],
+            jira_fields["Issue Type"]: "Story",
+            jira_fields["Sprint"]: sprint_id,
+            jira_fields["Epic Link"]: epic.key,
         }
 
         for role, users in rotations.items():
             for sprint_part, user in enumerate(users):
                 user_name = conn.search_users(user)[0].name
-                fields.update({
-                    jira_fields['Assignee']: {'name': user_name},
-                    jira_fields['Reviewer 1']: {'name': user_name},
-                })
+                fields.update(
+                    {
+                        jira_fields["Assignee"]: {"name": user_name},
+                        jira_fields["Reviewer 1"]: {"name": user_name},
+                    }
+                )
                 for subrole in settings.JIRA_CELL_ROLES.get(role, []):
-                    fields.update({
-                        jira_fields['Summary']:
-                            f"Sprint {sprint_number}{string.ascii_lowercase[sprint_part]} {subrole['name']}",
-                        jira_fields['Story Points']: subrole['story_points'],
-                        # This needs to be string.
-                        jira_fields['Account']: str(subrole.get('account', settings.JIRA_CELL_ROLE_ACCOUNT)),
-                        # This requires special dict structure.
-                        'timetracking': {'originalEstimate': f"{subrole['hours']}h"},
-                    })
+                    fields.update(
+                        {
+                            jira_fields[
+                                "Summary"
+                            ]: f"Sprint {sprint_number}{string.ascii_lowercase[sprint_part]} {subrole['name']}",
+                            jira_fields["Story Points"]: subrole["story_points"],
+                            # This needs to be string.
+                            jira_fields["Account"]: str(
+                                subrole.get("account", settings.JIRA_CELL_ROLE_ACCOUNT)
+                            ),
+                            # This requires special dict structure.
+                            "timetracking": {
+                                "originalEstimate": f"{subrole['hours']}h"
+                            },
+                        }
+                    )
 
                     conn.create_issue(fields)
 
+
 @celery_app.task(ignore_result=True)
-def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
+def trigger_new_sprint_webhooks_task(
+    cell_name: str, sprint_name: str, sprint_number: int, board_id: int
+):
     """
     1. Collects a dictionary of rotations, and the cell members.
-    2. Collects the usernames of the cell members of a board. 
+    2. Collects the usernames of the cell members of a board.
     3. Collects the cell members and their associated roles.
     4. Associates the cell members' info with their roles, and their rotations.
     5. Triggers the active 'new sprint' webhooks.
@@ -159,19 +184,22 @@ def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_nu
 
         # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
         cell_member_roles = get_cell_member_roles()
-        
+
         payload = {
-            'board_id': board_id,
-            'cell': cell_name,
-            'sprint_number': sprint_number,
-            'sprint_name': sprint_name,
-            'participants': compile_participants_roles(members, rotations, cell_member_roles),
-            'event_name': "new sprint",
+            "board_id": board_id,
+            "cell": cell_name,
+            "sprint_number": sprint_number,
+            "sprint_name": sprint_name,
+            "participants": compile_participants_roles(
+                members, rotations, cell_member_roles
+            ),
+            "event_name": "new sprint",
         }
 
         webhooks = Webhook.objects.filter(events__name="new sprint", active=True)
         for webhook in webhooks:
             webhook.trigger(payload=payload)
+
 
 @celery_app.task(ignore_result=True)
 def complete_sprint_task(board_id: int) -> None:
@@ -205,7 +233,7 @@ def complete_sprint_task(board_id: int) -> None:
         sprints = filter_sprints_by_cell(sprints, cell.key)
 
         for sprint in sprints:
-            if sprint.state == 'active':
+            if sprint.state == "active":
                 active_sprint = sprint
                 break
 
@@ -213,7 +241,9 @@ def complete_sprint_task(board_id: int) -> None:
 
         archived_issues: List[Issue] = conn.search_issues(
             **prepare_jql_query_active_sprint_tickets(
-                ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
+                [
+                    "None"
+                ],  # We don't need any fields here. The `key` attribute will be sufficient.
                 {settings.SPRINT_STATUS_ARCHIVED},
                 project=cell.name,
             ),
@@ -223,8 +253,11 @@ def complete_sprint_task(board_id: int) -> None:
 
         issues: List[Issue] = conn.search_issues(
             **prepare_jql_query_active_sprint_tickets(
-                ['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
-                settings.SPRINT_STATUS_ACTIVE | {settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
+                [
+                    "None"
+                ],  # We don't need any fields here. The `key` attribute will be sufficient.
+                settings.SPRINT_STATUS_ACTIVE
+                | {settings.SPRINT_STATUS_DEPLOYED_AND_DELIVERED},
                 project=cell.name,
             ),
             maxResults=0,
@@ -232,23 +265,25 @@ def complete_sprint_task(board_id: int) -> None:
         issue_keys = [issue.key for issue in issues]
 
         cell_dict = {
-            'key': cell.key,
-            'name': cell.name,
-            'board_id': cell.board_id,
+            "key": cell.key,
+            "name": cell.name,
+            "board_id": cell.board_id,
         }
 
         # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
-        if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+        if (
+            not settings.DEBUG
+        ):  # We really don't want to trigger this in the dev environment.
             if settings.FEATURE_CELL_ROLES:
                 # Raise error if we can't read roles from the handbook
                 get_cell_member_roles()
 
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
             for i in range(0, len(archived_issue_keys), batch_size):
-                batch = archived_issue_keys[i:i + batch_size]
+                batch = archived_issue_keys[i : i + batch_size]
                 conn.move_to_backlog(batch)
 
             # Close the active sprint.
@@ -257,12 +292,12 @@ def complete_sprint_task(board_id: int) -> None:
                 name=active_sprint.name,
                 startDate=active_sprint.startDate,
                 endDate=active_sprint.endDate,
-                state='closed',
+                state="closed",
             )
 
             # Move issues to the next sprint from the closed one.
             for i in range(0, len(issue_keys), batch_size):
-                batch = issue_keys[i:i + batch_size]
+                batch = issue_keys[i : i + batch_size]
                 conn.add_issues_to_sprint(next_sprint.id, batch)
 
             # Open the next sprint.
@@ -273,7 +308,7 @@ def complete_sprint_task(board_id: int) -> None:
                 name=next_sprint.name,
                 startDate=start_date.isoformat(),
                 endDate=end_date.isoformat(),
-                state='active',
+                state="active",
             )
 
             # Ensure that the next sprint exists. If it doesn't exist, create it.
@@ -284,11 +319,15 @@ def complete_sprint_task(board_id: int) -> None:
                 future_next_sprint_number = create_next_sprint_task(board_id)
                 future_next_sprint = get_next_sprint(sprints, next_sprint)
 
-            create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
+            create_role_issues_task.delay(
+                cell_dict, future_next_sprint.id, future_next_sprint_number
+            )
 
-            trigger_new_sprint_webhooks.delay(cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id)
+            trigger_new_sprint_webhooks.delay(
+                cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id
+            )
 
-    cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
+    cache.delete(f"{settings.CACHE_SPRINT_END_LOCK}{board_id}")  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}cell{board_id}")
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}future")

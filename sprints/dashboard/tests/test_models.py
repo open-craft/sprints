@@ -12,67 +12,67 @@ from sprints.dashboard.tests.helpers import does_not_raise
     "test_description, test_directive, expected, raises",
     [
         (
-            'Test [~crafty]: plan 1 hours 1 minutes per sprint for this task',
+            "Test [~crafty]: plan 1 hours 1 minutes per sprint for this task",
             settings.SPRINT_RECURRING_DIRECTIVE,
             3660,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 3h10m per sprint for this task',
+            "Test [~crafty]: plan 3h10m per sprint for this task",
             settings.SPRINT_RECURRING_DIRECTIVE,
             11400,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan  10m per sprint for this task',
+            "Test [~crafty]: plan  10m per sprint for this task",
             settings.SPRINT_RECURRING_DIRECTIVE,
             600,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 3h       10m per sprint for this task',
+            "Test [~crafty]: plan 3h       10m per sprint for this task",
             settings.SPRINT_RECURRING_DIRECTIVE,
             11400,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 3h 10m per sprint for this task',
+            "Test [~crafty]: plan 3h 10m per sprint for this task",
             settings.SPRINT_RECURRING_DIRECTIVE,
             11400,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 1 hour 1 minute per sprint for this task',
+            "Test [~crafty]: plan 1 hour 1 minute per sprint for this task",
             settings.SPRINT_RECURRING_DIRECTIVE,
             3660,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 5hous 10minutes per sprint for this task',  # Test with a typo.
+            "Test [~crafty]: plan 5hous 10minutes per sprint for this task",  # Test with a typo.
             settings.SPRINT_RECURRING_DIRECTIVE,
             18600,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 5h 10m per sprint for epic management',
+            "Test [~crafty]: plan 5h 10m per sprint for epic management",
             settings.SPRINT_EPIC_DIRECTIVE,
             18600,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 5 hours for reviewing this task',
+            "Test [~crafty]: plan 5 hours for reviewing this task",
             settings.SPRINT_REVIEW_DIRECTIVE,
             18000,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 10 minutes for reviewing this task',
+            "Test [~crafty]: plan 10 minutes for reviewing this task",
             settings.SPRINT_REVIEW_DIRECTIVE,
             600,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan 5hrs 10mins per sprint for this task',  # Directive not found.
+            "Test [~crafty]: plan 5hrs 10mins per sprint for this task",  # Directive not found.
             settings.SPRINT_REVIEW_DIRECTIVE,
             18600,
             pytest.raises(ValueError),
@@ -84,13 +84,13 @@ from sprints.dashboard.tests.helpers import does_not_raise
             pytest.raises(ValueError),
         ),
         (
-            'Test [~crafty]: plan  per sprint for this task',  # Value not provided. Known, but safe to ignore.
+            "Test [~crafty]: plan  per sprint for this task",  # Value not provided. Known, but safe to ignore.
             settings.SPRINT_RECURRING_DIRECTIVE,
             0,
             does_not_raise(),
         ),
         (
-            'Test [~crafty]: plan per sprint for this task',  # Value not provided.
+            "Test [~crafty]: plan per sprint for this task",  # Value not provided.
             settings.SPRINT_RECURRING_DIRECTIVE,
             0,
             pytest.raises(ValueError),
@@ -169,10 +169,17 @@ def test_get_bot_directive(test_description, test_directive, expected, raises):
         (28800, "2020-11-20", 28700, "x", {"x": (0.4, True)}, 100),
     ],
 )
-def test_get_vacation_for_day(commitments, date, planned_commitments, username, division, expected):
+def test_get_vacation_for_day(
+    commitments, date, planned_commitments, username, division, expected
+):
     mock_dashboard = object.__new__(Dashboard)
     mock_dashboard.future_sprint_start = "2020-11-17"
     mock_dashboard.future_sprint_end = "2020-11-30"
     mock_dashboard.sprint_division = division
 
-    assert mock_dashboard._get_vacation_for_day(commitments, date, planned_commitments, username) == expected
+    assert (
+        mock_dashboard._get_vacation_for_day(
+            commitments, date, planned_commitments, username
+        )
+        == expected
+    )

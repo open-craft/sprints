@@ -10,6 +10,7 @@ class WebhookEvent(models.Model):
     def __str__(self):
         return self.name
 
+
 class Webhook(models.Model):
     payload_url = models.URLField()
     active = models.BooleanField()

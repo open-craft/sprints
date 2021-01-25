@@ -34,10 +34,13 @@ from sprints.dashboard.utils import (
 )
 
 _cache_param = openapi.Parameter(
-    'cache', openapi.IN_QUERY, description="should use cached results?", type=openapi.TYPE_BOOLEAN
+    "cache",
+    openapi.IN_QUERY,
+    description="should use cached results?",
+    type=openapi.TYPE_BOOLEAN,
 )
-_cell_response = openapi.Response('list of the cells', CellSerializer)
-_dashboard_response = openapi.Response('sprint planning dashboard', DashboardSerializer)
+_cell_response = openapi.Response("list of the cells", CellSerializer)
+_dashboard_response = openapi.Response("sprint planning dashboard", DashboardSerializer)
 _task_scheduled_response = openapi.Response("task scheduled")
 _can_complete_sprint = openapi.Response("can complete sprint")
 _cannot_complete_sprint = openapi.Response("cannot complete sprint")
@@ -48,6 +51,7 @@ class DashboardViewSet(viewsets.ViewSet):
     """
     Handles listing, retrieving and adding new sprint for cell boards.
     """
+
     permission_classes = (permissions.IsAuthenticated,)
 
     @swagger_auto_schema(responses={200: _cell_response})
@@ -58,10 +62,12 @@ class DashboardViewSet(viewsets.ViewSet):
         serializer = CellSerializer(cells, many=True)
         return Response(serializer.data)
 
-    @swagger_auto_schema(manual_parameters=[_cache_param], responses={200: _dashboard_response})
+    @swagger_auto_schema(
+        manual_parameters=[_cache_param], responses={200: _dashboard_response}
+    )
     def retrieve(self, request, pk=None):
         """Generates a specified cell's board."""
-        use_cache = bool(request.query_params.get('cache', False))
+        use_cache = bool(request.query_params.get("cache", False))
         data = cache.get(pk) if use_cache else None
 
         if not data:
@@ -75,7 +81,7 @@ class DashboardViewSet(viewsets.ViewSet):
     def update(self, _request, pk=None):
         """Invokes task for creating the next sprint for the chosen cell."""
         create_next_sprint_task.delay(int(pk))
-        return Response(data='', status=http.HTTPStatus.OK)
+        return Response(data="", status=http.HTTPStatus.OK)
 
 
 # noinspection PyMethodMayBeStatic
@@ -83,6 +89,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
     """
     Handles ending the sprint for the chosen cell.
     """
+
     permission_classes = (permissions.IsAdminUser,)
 
     @staticmethod
@@ -94,7 +101,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
 
         Acquire a lock for a day, if `acquire_lock` specified.
         """
-        end_date = parse(get_current_sprint_end_date('cell', str(board_id)))
+        end_date = parse(get_current_sprint_end_date("cell", str(board_id)))
         if datetime.now() < end_date:
             return False, "The current day is not the last day of the current sprint."
 
@@ -104,22 +111,37 @@ class CompleteSprintViewSet(viewsets.ViewSet):
             except NoRolesFoundException as msg:
                 return False, str(msg)
 
-        if (acquire_lock and not cache.add(
-            f'{settings.CACHE_SPRINT_END_LOCK}{board_id}', True, settings.CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS
-        )) or (not acquire_lock and cache.get(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}', False)):
-            return False, "The completion task is already running or hasn't been completed successfully."
+        if (
+            acquire_lock
+            and not cache.add(
+                f"{settings.CACHE_SPRINT_END_LOCK}{board_id}",
+                True,
+                settings.CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS,
+            )
+        ) or (
+            not acquire_lock
+            and cache.get(f"{settings.CACHE_SPRINT_END_LOCK}{board_id}", False)
+        ):
+            return (
+                False,
+                "The completion task is already running or hasn't been completed successfully.",
+            )
 
-        return True, ''
+        return True, ""
 
-    @swagger_auto_schema(responses={200: _can_complete_sprint, 403: _cannot_complete_sprint})
+    @swagger_auto_schema(
+        responses={200: _can_complete_sprint, 403: _cannot_complete_sprint}
+    )
     def retrieve(self, _request, pk=None):
         """Checks if the sprint can be closed now. Otherwise returns proper error message."""
         status, error_message = self.can_end_sprint(pk)
         if not status:
             raise PermissionDenied(detail=error_message)
-        return Response(data='', status=http.HTTPStatus.OK)
+        return Response(data="", status=http.HTTPStatus.OK)
 
-    @swagger_auto_schema(responses={200: _task_scheduled_response, 403: _cannot_complete_sprint})
+    @swagger_auto_schema(
+        responses={200: _task_scheduled_response, 403: _cannot_complete_sprint}
+    )
     def update(self, _request, pk=None):
         """
         Invokes task for uploading spillovers and ending the sprint for the chosen cell.
@@ -132,4 +154,4 @@ class CompleteSprintViewSet(viewsets.ViewSet):
             raise PermissionDenied(detail=error_message)
 
         complete_sprint_task.delay(int(pk))
-        return Response(data='', status=http.HTTPStatus.OK)
+        return Response(data="", status=http.HTTPStatus.OK)

@@ -12,11 +12,12 @@ from sprints.sustainability.widgets import MonthYearWidget
 @admin.register(Budget)
 class BudgetAdmin(admin.ModelAdmin):
     """We want to override datepicker for the `date` field."""
+
     formfield_overrides = {
-        models.DateField: {'widget': MonthYearWidget},
+        models.DateField: {"widget": MonthYearWidget},
     }
-    list_filter = ('name', 'date')
-    search_fields = ('name',)
+    list_filter = ("name", "date")
+    search_fields = ("name",)
 
 
 @admin.register(Account)

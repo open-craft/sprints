@@ -11,13 +11,20 @@ from sprints.sustainability.models import SustainabilityDashboard
 from sprints.sustainability.serializers import SustainabilityDashboardSerializer
 
 _from_param = openapi.Parameter(
-    'from', openapi.IN_QUERY, description="start date in format `%Y-%M-%d`", type=openapi.TYPE_STRING
+    "from",
+    openapi.IN_QUERY,
+    description="start date in format `%Y-%M-%d`",
+    type=openapi.TYPE_STRING,
 )
 _to_param = openapi.Parameter(
-    'to', openapi.IN_QUERY, description="end date in format `%Y-%M-%d`", type=openapi.TYPE_STRING
+    "to",
+    openapi.IN_QUERY,
+    description="end date in format `%Y-%M-%d`",
+    type=openapi.TYPE_STRING,
 )
 _sustainability_response = openapi.Response(
-    'sustainability dashboard for the selected period', SustainabilityDashboardSerializer
+    "sustainability dashboard for the selected period",
+    SustainabilityDashboardSerializer,
 )
 
 
@@ -32,11 +39,12 @@ class SustainabilityDashboardViewSet(viewsets.ViewSet):
     permission_classes = (permissions.IsAuthenticated,)
 
     @swagger_auto_schema(
-        manual_parameters=[_from_param, _to_param], responses={200: _sustainability_response}
+        manual_parameters=[_from_param, _to_param],
+        responses={200: _sustainability_response},
     )
     def list(self, request):
-        from_ = request.query_params.get('from')
-        to = request.query_params.get('to')
+        from_ = request.query_params.get("from")
+        to = request.query_params.get("to")
         if not (from_ and to):
             raise ValidationError("`from` and `to` query params are required.")
 

@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class WebhooksConfig(AppConfig):
-    name = 'sprints.webhooks'
+    name = "sprints.webhooks"
     verbose_name = _("Webhooks")
 
     def ready(self):

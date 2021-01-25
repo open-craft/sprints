@@ -56,37 +56,45 @@ class DashboardIssue:
     ) -> None:
         self.key = issue.key
         # It should be present, but that's not enforced by the library, so it's better to specify default value.
-        self.assignee: JiraUser = getattr(issue.fields, issue_fields['Assignee'], None)
+        self.assignee: JiraUser = getattr(issue.fields, issue_fields["Assignee"], None)
         # We don't want to treat commitments from the other cell as "Unassigned".
         if not self.key.startswith(cell_key):
             self.assignee = other_cell
         elif not self.assignee:
             self.assignee = unassigned_user
 
-        self.summary = getattr(issue.fields, issue_fields['Summary'], '')
-        self.description = getattr(issue.fields, issue_fields['Description'], '')
-        self.status = getattr(issue.fields, issue_fields['Status']).name
-        self.time_spent = getattr(issue.fields, issue_fields['Time Spent'], 0) or 0
-        self.time_estimate = getattr(issue.fields, issue_fields['Remaining Estimate'], 0) or 0
-        self.is_epic = getattr(issue.fields, issue_fields['Issue Type']).name == 'Epic'
+        self.summary = getattr(issue.fields, issue_fields["Summary"], "")
+        self.description = getattr(issue.fields, issue_fields["Description"], "")
+        self.status = getattr(issue.fields, issue_fields["Status"]).name
+        self.time_spent = getattr(issue.fields, issue_fields["Time Spent"], 0) or 0
+        self.time_estimate = (
+            getattr(issue.fields, issue_fields["Remaining Estimate"], 0) or 0
+        )
+        self.is_epic = getattr(issue.fields, issue_fields["Issue Type"]).name == "Epic"
         try:
-            self.account = getattr(issue.fields, issue_fields['Account']).name
+            self.account = getattr(issue.fields, issue_fields["Account"]).name
         except AttributeError:  # Inherited account in a subtask is null
             self.account = None
 
         try:
-            sprint = getattr(issue.fields, issue_fields['Sprint'])
+            sprint = getattr(issue.fields, issue_fields["Sprint"])
             if isinstance(sprint, list):
                 sprint = sprint[-1]
-            self.current_sprint = extract_sprint_id_from_str(sprint) in current_sprint_ids
+            self.current_sprint = (
+                extract_sprint_id_from_str(sprint) in current_sprint_ids
+            )
         except (AttributeError, TypeError):
             # Possible for epics
             self.current_sprint = False
         try:
-            self.story_points = int(getattr(issue.fields, issue_fields['Story Points'], 0))
+            self.story_points = int(
+                getattr(issue.fields, issue_fields["Story Points"], 0)
+            )
         except (AttributeError, TypeError):
             self.story_points = 0
-        self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], "Unassigned")
+        self.reviewer_1: JiraUser = getattr(
+            issue.fields, issue_fields["Reviewer 1"], "Unassigned"
+        )
         if not self.reviewer_1:
             self.reviewer_1 = unassigned_user
         # We don't want to treat commitments from the other cell as "Unassigned".
@@ -103,11 +111,14 @@ class DashboardIssue:
         :raises `ValueError` if directive was not found.
         """
         try:
-            search = re.search(pattern, self.description).groupdict('0')  # type: ignore
-            hours = int(search.get('hours', 0))
-            minutes = int(search.get('minutes', 0))
+            search = re.search(pattern, self.description).groupdict("0")  # type: ignore
+            hours = int(search.get("hours", 0))
+            minutes = int(search.get("minutes", 0))
             return hours * SECONDS_IN_HOUR + minutes * SECONDS_IN_MINUTE
-        except (AttributeError, TypeError):  # Directive not found or description is `None`.
+        except (
+            AttributeError,
+            TypeError,
+        ):  # Directive not found or description is `None`.
             raise ValueError
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
@@ -118,10 +129,15 @@ class DashboardIssue:
             return 0
 
         # Assume that no more review will be needed at this point.
-        if self.status in (settings.SPRINT_STATUS_EXTERNAL_REVIEW, settings.SPRINT_STATUS_MERGED):
+        if self.status in (
+            settings.SPRINT_STATUS_EXTERNAL_REVIEW,
+            settings.SPRINT_STATUS_MERGED,
+        ):
             return self.time_estimate
 
-        return max(self.time_estimate - self.review_time, 0)  # We don't want negative values here.
+        return max(
+            self.time_estimate - self.review_time, 0
+        )  # We don't want negative values here.
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()
@@ -166,7 +182,9 @@ class DashboardIssue:
         except ValueError:
             return settings.SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT * SECONDS_IN_HOUR
 
-    def _is_relevant_for_current_cell(self, cell_key: str, cell_members: List[str]) -> bool:
+    def _is_relevant_for_current_cell(
+        self, cell_key: str, cell_members: List[str]
+    ) -> bool:
         """
         Helper method for determining whether the issue is "relevant" for the current cell.
         The issue is "relevant" when it matches one of the following conditions:
@@ -181,7 +199,12 @@ class DashboardIssue:
     @staticmethod
     def _is_flagged(issue: Issue, issue_fields: Dict[str, str]) -> bool:
         """Check whether the ticket has been flagged as "Impediment"."""
-        return any(filter(lambda x: x.value == 'Impediment', getattr(issue.fields, issue_fields['Flagged']) or []))
+        return any(
+            filter(
+                lambda x: x.value == "Impediment",
+                getattr(issue.fields, issue_fields["Flagged"]) or [],
+            )
+        )
 
 
 class DashboardRow:
@@ -199,7 +222,7 @@ class DashboardRow:
         self.flagged_time = 0
         self.current_unestimated: List[DashboardIssue] = []
         self.future_unestimated: List[DashboardIssue] = []
-        self.vacation_time = 0.
+        self.vacation_time = 0.0
         # self.issues: List[DashboardIssue] = []
 
     def set_goal_time(self, goal) -> None:
@@ -207,17 +230,21 @@ class DashboardRow:
         Calculate goal time for this user.
         Use default if time not specified in user's profile.
         """
-        self.goal_time = goal - settings.SPRINT_HOURS_RESERVED_FOR_MEETINGS * SECONDS_IN_HOUR
+        self.goal_time = (
+            goal - settings.SPRINT_HOURS_RESERVED_FOR_MEETINGS * SECONDS_IN_HOUR
+        )
 
     @property
     def committed_time(self) -> float:
         """Calculate summary time for the upcoming sprint."""
-        return (self.current_remaining_assignee_time
-                + self.current_remaining_review_time
-                + self.current_remaining_upstream_time
-                + self.future_assignee_time
-                + self.future_review_time
-                + self.future_epic_management_time)
+        return (
+            self.current_remaining_assignee_time
+            + self.current_remaining_review_time
+            + self.current_remaining_upstream_time
+            + self.future_assignee_time
+            + self.future_review_time
+            + self.future_epic_management_time
+        )
 
     @property
     def remaining_time(self) -> float:
@@ -254,7 +281,9 @@ class Dashboard:
         self.cell_key = get_cell_key(conn, board_id)
         self.get_sprints()
         self.create_mock_users()
-        self.vacations = get_vacations(self.before_future_sprint_start, self.after_future_sprint_end)
+        self.vacations = get_vacations(
+            self.before_future_sprint_start, self.after_future_sprint_end
+        )
         self.get_issues()
         self.generate_rows()
 
@@ -266,29 +295,33 @@ class Dashboard:
     def get_sprints(self) -> None:
         """Retrieves current and future sprint for the board."""
         sprints = get_all_sprints(self.jira_connection, self.board_id)
-        self.active_sprints = sprints['active']
-        self.future_sprints = sprints['future']
-        self.cell_future_sprint = get_next_sprint(sprints['cell'], sprints['cell'][0])
+        self.active_sprints = sprints["active"]
+        self.future_sprints = sprints["future"]
+        self.cell_future_sprint = get_next_sprint(sprints["cell"], sprints["cell"][0])
 
         self.future_sprint_start = get_sprint_start_date(self.cell_future_sprint)
         self.future_sprint_end = get_sprint_end_date(self.cell_future_sprint)
 
         # Helper variables to retrieve more data for different timezones (one extra day on each end of the sprint).
-        self.before_future_sprint_start = (parse(self.future_sprint_start) - timedelta(days=1)).strftime(
-            settings.JIRA_API_DATE_FORMAT
-        )
-        self.after_future_sprint_end = (parse(self.future_sprint_end) + timedelta(days=1)).strftime(
-            settings.JIRA_API_DATE_FORMAT
-        )
+        self.before_future_sprint_start = (
+            parse(self.future_sprint_start) - timedelta(days=1)
+        ).strftime(settings.JIRA_API_DATE_FORMAT)
+        self.after_future_sprint_end = (
+            parse(self.future_sprint_end) + timedelta(days=1)
+        ).strftime(settings.JIRA_API_DATE_FORMAT)
 
     def create_mock_users(self):
         """Create mock users for handling unassigned and cross-cell tickets."""
-        self.unassigned_user = JiraUser(self.jira_connection._options, self.jira_connection._session)
+        self.unassigned_user = JiraUser(
+            self.jira_connection._options, self.jira_connection._session
+        )
         self.unassigned_user.name = "Unassigned"
         self.unassigned_user.displayName = self.unassigned_user.name
 
         # We don't want to treat commitments from the other cell as "Unassigned".
-        self.other_cell = JiraUser(self.jira_connection._options, self.jira_connection._session)
+        self.other_cell = JiraUser(
+            self.jira_connection._options, self.jira_connection._session
+        )
         self.other_cell.name = "Other Cell"
         self.other_cell.displayName = "Other Cell"
 
@@ -299,16 +332,23 @@ class Dashboard:
 
     def get_issues(self) -> None:
         """Retrieves all stories and epics for the current dashboard."""
-        self.issue_fields = get_issue_fields(self.jira_connection, settings.JIRA_REQUIRED_FIELDS)
+        self.issue_fields = get_issue_fields(
+            self.jira_connection, settings.JIRA_REQUIRED_FIELDS
+        )
 
         issues: List[Issue] = self.jira_connection.search_issues(
             **prepare_jql_query(
-                [str(sprint.id) for sprint in self.active_sprints + self.future_sprints],
+                [
+                    str(sprint.id)
+                    for sprint in self.active_sprints + self.future_sprints
+                ],
                 list(self.issue_fields.values()),
             ),
             maxResults=0,
         )
-        quickfilters: List[QuickFilter] = self.jira_connection.quickfilters(self.board_id)
+        quickfilters: List[QuickFilter] = self.jira_connection.quickfilters(
+            self.board_id
+        )
 
         self.members = get_cell_members(quickfilters)
         self.sprint_division = get_sprint_meeting_day_division(self.future_sprint_start)
@@ -335,16 +375,20 @@ class Dashboard:
                 self.after_future_sprint_end,
             )
             self.commitments[member] = {
-                'total': schedule.requiredSeconds,
-                'days': {day.date: day.requiredSeconds for day in schedule.days}
+                "total": schedule.requiredSeconds,
+                "days": {day.date: day.requiredSeconds for day in schedule.days},
             }
 
     @typing.no_type_check
     def generate_rows(self) -> None:
         """Generates rows for all users and calculates their time stats."""
         for issue in self.issues:  # type: DashboardIssue
-            assignee = self.dashboard.setdefault(issue.assignee, DashboardRow(issue.assignee))
-            reviewer_1 = self.dashboard.setdefault(issue.reviewer_1, DashboardRow(issue.reviewer_1))
+            assignee = self.dashboard.setdefault(
+                issue.assignee, DashboardRow(issue.assignee)
+            )
+            reviewer_1 = self.dashboard.setdefault(
+                issue.reviewer_1, DashboardRow(issue.reviewer_1)
+            )
 
             # Calculate time for epic management
             if issue.is_epic:
@@ -402,15 +446,15 @@ class Dashboard:
                         for vacation_date in daterange(
                             max(
                                 vacation["start"]["date"],
-                                (parse(self.future_sprint_start) - timedelta(days=1)).strftime(
-                                    settings.JIRA_API_DATE_FORMAT
-                                ),
+                                (
+                                    parse(self.future_sprint_start) - timedelta(days=1)
+                                ).strftime(settings.JIRA_API_DATE_FORMAT),
                             ),
                             min(
                                 vacation["end"]["date"],
-                                (parse(self.future_sprint_end) + timedelta(days=1)).strftime(
-                                    settings.JIRA_API_DATE_FORMAT
-                                ),
+                                (
+                                    parse(self.future_sprint_end) + timedelta(days=1)
+                                ).strftime(settings.JIRA_API_DATE_FORMAT),
                             ),
                         ):
                             row.vacation_time += self._get_vacation_for_day(
@@ -427,12 +471,18 @@ class Dashboard:
                 # noinspection PyTypeChecker
                 row.set_goal_time(
                     self.commitments[row.user.name]["total"]
-                    - self.commitments[row.user.name]["days"][self.before_future_sprint_start]
-                    - self.commitments[row.user.name]["days"][self.after_future_sprint_end]
+                    - self.commitments[row.user.name]["days"][
+                        self.before_future_sprint_start
+                    ]
+                    - self.commitments[row.user.name]["days"][
+                        self.after_future_sprint_end
+                    ]
                     - row.vacation_time
                 )
 
-    def _get_vacation_for_day(self, commitments: int, date: str, planned_commitments: int, username: str) -> float:
+    def _get_vacation_for_day(
+        self, commitments: int, date: str, planned_commitments: int, username: str
+    ) -> float:
         """
         Returns vacation time for specific users during a day.
 

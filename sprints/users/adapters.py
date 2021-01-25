@@ -18,9 +18,11 @@ from config.settings.base import (
 class AccountAdapter(DefaultAccountAdapter):
     def clean_email(self, email):
         """This ensures that the provided domain is specified in the `ACCOUNT_ALLOWED_EMAIL_DOMAINS`."""
-        domain = email.split('@')[-1]
+        domain = email.split("@")[-1]
         if domain not in ACCOUNT_ALLOWED_EMAIL_DOMAINS:
-            raise ValidationError(_("Registration from this email domain is not allowed."))
+            raise ValidationError(
+                _("Registration from this email domain is not allowed.")
+            )
         return email
 
     def is_open_for_signup(self, request: HttpRequest):
@@ -51,7 +53,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         User = get_user_model()
         try:
             user = User.objects.get(email=social_user.email)
-            sociallogin.state['process'] = 'connect'
-            perform_login(request, user, 'none')
+            sociallogin.state["process"] = "connect"
+            perform_login(request, user, "none")
         except User.DoesNotExist:
             pass

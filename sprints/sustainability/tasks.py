@@ -34,7 +34,9 @@ def validate_worklog_cache(long_term=True, force_regenerate=False) -> bool:
     today = datetime.today()
 
     if not cache.add(
-        settings.CACHE_WORKLOG_REGENERATE_LOCK, True, settings.CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS
+        settings.CACHE_WORKLOG_REGENERATE_LOCK,
+        True,
+        settings.CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS,
     ):  # Cache regeneration is still running or has ended unsuccessfully.
         return False
 
@@ -43,12 +45,14 @@ def validate_worklog_cache(long_term=True, force_regenerate=False) -> bool:
         start_year = parse(str(settings.TEMPO_START_YEAR))
         start_date = start_year.replace(month=1, day=1)
         cache_timeout = settings.CACHE_WORKLOG_TIMEOUT_LONG_TERM
-        end_date = (today - relativedelta(months=settings.CACHE_WORKLOG_MUTABLE_MONTHS))
+        end_date = today - relativedelta(months=settings.CACHE_WORKLOG_MUTABLE_MONTHS)
         last_day_of_month = calendar.monthrange(end_date.year, end_date.month)[1]
         end_date = end_date.replace(day=last_day_of_month)
     else:
         # Validate cache only for the last `settings.CACHE_WORKLOG_MUTABLE_MONTHS` mutable months.
-        start_date = (today - relativedelta(months=settings.CACHE_WORKLOG_MUTABLE_MONTHS - 1)).replace(day=1)
+        start_date = (
+            today - relativedelta(months=settings.CACHE_WORKLOG_MUTABLE_MONTHS - 1)
+        ).replace(day=1)
         cache_timeout = settings.CACHE_WORKLOG_TIMEOUT_SHORT_TERM
         last_day_of_month = calendar.monthrange(today.year, today.month)[1]
         end_date = today.replace(day=last_day_of_month)
@@ -88,10 +92,14 @@ def send_email_alerts() -> bool:
     dashboard = SustainabilityDashboard(start_str, end_str)
 
     # Send alerts for cells.
-    max_percentage_ratio = settings.SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO * 100
+    max_percentage_ratio = (
+        settings.SUSTAINABILITY_MAX_NON_BILLABLE_TO_BILLABLE_CELL_RATIO * 100
+    )
     unsustainable_cells: Dict[str, float] = {}
     for cell, ratio in dashboard.get_projects_sustainability().items():
-        if ratio >= max_percentage_ratio and Cell.objects.filter(name=cell).exists():  # Ignore non-set projects.
+        if (
+            ratio >= max_percentage_ratio and Cell.objects.filter(name=cell).exists()
+        ):  # Ignore non-set projects.
             unsustainable_cells[cell] = ratio
 
     _send_email_alert(
@@ -112,16 +120,16 @@ def send_email_alerts() -> bool:
     _send_email_alert(
         exceeded_budgets,
         "Budget problem.",
-        Template(
-            f"The $entity account's budget is exceeded by $ratio."
-        ),
+        Template(f"The $entity account's budget is exceeded by $ratio."),
         Account,
     )
 
     return True
 
 
-def _send_email_alert(budgets: Dict[str, float], title: str, message: Template, model: models.Model) -> None:
+def _send_email_alert(
+    budgets: Dict[str, float], title: str, message: Template, model: models.Model
+) -> None:
     """
     Helper method for sending emails for Cells or Accounts.
     """
@@ -137,5 +145,5 @@ def _send_email_alert(budgets: Dict[str, float], title: str, message: Template, 
                 title,
                 message.substitute(entity=key, ratio=str(round(value, 2))),
                 settings.DEFAULT_FROM_EMAIL,
-                emails
+                emails,
             )

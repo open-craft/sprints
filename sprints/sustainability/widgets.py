@@ -9,7 +9,7 @@ from django.forms.widgets import (
 from django.utils.dates import MONTHS
 from django.utils.safestring import mark_safe
 
-__all__ = ('MonthYearWidget',)
+__all__ = ("MonthYearWidget",)
 
 
 class MonthYearWidget(Widget):
@@ -19,9 +19,10 @@ class MonthYearWidget(Widget):
 
     Based on SelectDateWidget, in `django/trunk/django/forms/extras/widgets.py`
     """
-    none_value = (0, '---')
-    month_field = '%s_month'
-    year_field = '%s_year'
+
+    none_value = (0, "---")
+    month_field = "%s_month"
+    year_field = "%s_year"
 
     def __init__(self, attrs=None, required=True):
         super().__init__(attrs)
@@ -38,10 +39,10 @@ class MonthYearWidget(Widget):
 
         output = []
 
-        if 'id' in self.attrs:
-            id_ = self.attrs['id']
+        if "id" in self.attrs:
+            id_ = self.attrs["id"]
         else:
-            id_ = f'id_{name}'
+            id_ = f"id_{name}"
 
         month_choices = list(MONTHS.items())
         if not (self.required and value):
@@ -52,12 +53,12 @@ class MonthYearWidget(Widget):
         select_html = s.render(self.month_field % name, month_val, local_attrs)
         output.append(select_html)
 
-        local_attrs['id'] = self.year_field % id_
+        local_attrs["id"] = self.year_field % id_
         s = NumberInput()
         select_html = s.render(self.year_field % name, year_val, local_attrs)
         output.append(select_html)
 
-        return mark_safe(u'\n'.join(output))
+        return mark_safe("\n".join(output))
 
     def id_for_label(cls, id_) -> str:
         return cls.month_field % id_
@@ -70,5 +71,5 @@ class MonthYearWidget(Widget):
         if y == m == "0":
             return None
         if y and m:
-            return '%s-%s-%s' % (y, m, 1)
+            return "%s-%s-%s" % (y, m, 1)
         return data.get(name, None)

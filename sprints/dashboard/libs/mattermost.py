@@ -10,10 +10,10 @@ class Mattermost:
 
     def __init__(self):
         connection_parameters = {
-            'url': settings.MATTERMOST_SERVER,
-            'port': settings.MATTERMOST_PORT,
-            'username': settings.MATTERMOST_LOGIN_ID,
-            'token': settings.MATTERMOST_ACCESS_TOKEN
+            "url": settings.MATTERMOST_SERVER,
+            "port": settings.MATTERMOST_PORT,
+            "username": settings.MATTERMOST_LOGIN_ID,
+            "token": settings.MATTERMOST_ACCESS_TOKEN,
         }
         self.mattermost_connection = Driver(connection_parameters)
 
@@ -25,6 +25,7 @@ class Mattermost:
             if not settings.DEBUG:
                 # noinspection PyUnresolvedReferences
                 from sentry_sdk import capture_exception
+
                 capture_exception(e)
         return self
 
@@ -42,13 +43,16 @@ class Mattermost:
         usernames = []
         for email in emails:
             try:
-                username = self.mattermost_connection.users.get_user_by_email(email).get('username')
+                username = self.mattermost_connection.users.get_user_by_email(
+                    email
+                ).get("username")
                 usernames.append(username)
             except HTTPError as e:
                 # Log exception to Sentry if call fails, but do not break the server.
                 if not settings.DEBUG:
                     # noinspection PyUnresolvedReferences
                     from sentry_sdk import capture_exception
+
                     capture_exception(e)
 
         return usernames
@@ -63,13 +67,17 @@ class Mattermost:
         try:
             channels = self.mattermost_connection.channels
             channel_id = channels.get_channel_by_name_and_team_name(
-                settings.MATTERMOST_TEAM_NAME, channel_name).get('id')
-            self.mattermost_connection.posts.create_post({'channel_id': channel_id, 'message': message})
+                settings.MATTERMOST_TEAM_NAME, channel_name
+            ).get("id")
+            self.mattermost_connection.posts.create_post(
+                {"channel_id": channel_id, "message": message}
+            )
         except HTTPError as e:
             # Log exception to Sentry if call fails, but do not break the server.
             if not settings.DEBUG:
                 # noinspection PyUnresolvedReferences
                 from sentry_sdk import capture_exception
+
                 capture_exception(e)
 
 
@@ -82,9 +90,10 @@ def create_mattermost_post(message: str, emails: List[str]) -> None:
     :param emails: Email ids of the users.
     """
     with Mattermost() as conn:
-        tagged_usernames = [f'@{username}'
-                            for username in conn.get_usernames_from_emails(emails)]
+        tagged_usernames = [
+            f"@{username}" for username in conn.get_usernames_from_emails(emails)
+        ]
         if tagged_usernames:
-            usernames = ', '.join(tagged_usernames)
-            post = f'{usernames}: {message}'
+            usernames = ", ".join(tagged_usernames)
+            post = f"{usernames}: {message}"
             conn.post_message_to_channel(settings.MATTERMOST_CHANNEL, post)

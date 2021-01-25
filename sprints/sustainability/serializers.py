@@ -4,6 +4,7 @@ from rest_framework import serializers
 # noinspection PyAbstractClass
 class SustainabilityAccountSerializer(serializers.Serializer):
     """Serializer for Accounts."""
+
     name = serializers.CharField()
     overall = serializers.FloatField()
     by_project = serializers.DictField()
@@ -20,6 +21,7 @@ class SustainabilityAccountSerializer(serializers.Serializer):
 # noinspection PyAbstractClass
 class SustainabilityDashboardSerializer(serializers.Serializer):
     """Serializer for Sustainability Dashboard."""
+
     billable_accounts = SustainabilityAccountSerializer(many=True)
     non_billable_accounts = SustainabilityAccountSerializer(many=True)
     non_billable_responsible_accounts = SustainabilityAccountSerializer(many=True)

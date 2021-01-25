@@ -323,7 +323,7 @@ def complete_sprint_task(board_id: int) -> None:
                 cell_dict, future_next_sprint.id, future_next_sprint_number
             )
 
-            trigger_new_sprint_webhooks.delay(
+            trigger_new_sprint_webhooks_task.delay(
                 cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id
             )
 

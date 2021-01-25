@@ -24,6 +24,7 @@ from dateutil.parser import (  # type: ignore
 )
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ImproperlyConfigured
 from django.core.validators import URLValidator
 
 # noinspection PyProtectedMember

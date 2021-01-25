@@ -384,6 +384,7 @@ def test_compile_participants_roles():
         'Jack Doe': ['Sprint Planning Manager', 'DevOps Specialist'],
         'John Doe': ['Sprint Manager'],
         'Jake Doe': ['Recruitment Manager'],
+        'Juan Doe': [''],
     }
 
     output = compile_participants_roles(members_data_dummy, rotations_data_dummy, roles_data_dummy)

@@ -19,7 +19,7 @@ from django.conf import settings
 )
 def test_vacation_format(calendar_event, expected_name, expected_action, expected_hours):
     regex = settings.GOOGLE_CALENDAR_VACATION_REGEX
-    search = re.match(regex, calendar_event, re.IGNORECASE).groupdict()
+    search = re.match(regex, calendar_event, re.IGNORECASE).groupdict()  # type: ignore
 
     assert search.get('name') or search.get('first_name') == expected_name
     assert search.get('action') == expected_action

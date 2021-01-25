@@ -84,9 +84,8 @@ MATTERMOST_SERVER=
 # Default is the https port but it can be configured
 # MATTERMOST_PORT=
 # Channel to ping
-# Name of the channel should always be in lowercase and if incase the channel name
-# has a space in between then it is replaced by a hyphen. For eg: "Sprint Planning"
-# changes to "sprint-planning"
+# Note: the name of the channel should always be lowercase. Any spaces should be replaced by hyphens.
+# Example: "Sprint Planning" should be changed to "sprint-planning".
 MATTERMOST_CHANNEL=
 # Login Id
 MATTERMOST_LOGIN_ID=

@@ -342,6 +342,10 @@ Alerts are sent by default to emails specified in `MAX_NON_BILLABLE_TO_BILLABLE_
 3. Add new account.
 4. Specify comma-separated email addresses that will receive alerts.
 
+Automation
+----------
+This will be added in BB-3174.
+
 Settings
 --------
 

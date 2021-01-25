@@ -5,12 +5,27 @@ from typing import Dict, List
 from celery import group
 # noinspection PyProtectedMember
 from celery.result import allow_join_result
+from dateutil.parser import parse
 from django.conf import settings
-# noinspection PyProtectedMember
 from django.core.cache import cache
+from django.utils.timezone import make_aware
+from django_celery_beat.models import (
+    IntervalSchedule,
+    PeriodicTask,
+)
+# noinspection PyProtectedMember
 from jira.resources import Issue, Sprint
 
 from config import celery_app
+from sprints.dashboard.automation import (
+    check_issue_injected,
+    get_next_sprint_issues,
+    get_overcommitted_users,
+    get_specific_day_of_sprint,
+    group_incomplete_issues,
+    notify_about_injection,
+    unflag_issue,
+)
 from sprints.dashboard.libs.google import (
     get_commitments_spreadsheet,
     get_rotations_users,
@@ -18,6 +33,7 @@ from sprints.dashboard.libs.google import (
     upload_spillovers,
 )
 from sprints.dashboard.libs.jira import connect_to_jira
+from sprints.dashboard.libs.mattermost import create_mattermost_post
 from sprints.dashboard.models import Dashboard
 from sprints.dashboard.utils import (
     compile_participants_roles,
@@ -27,12 +43,15 @@ from sprints.dashboard.utils import (
     get_cell_member_names,
     get_cell_member_roles,
     get_cell_members,
+    get_cell_membership,
     get_cells,
     get_commitment_range,
+    get_current_sprint_end_date,
     get_issue_fields,
     get_meetings_issue,
     get_next_sprint,
     get_spillover_issues,
+    get_sprint_by_name,
     get_sprint_number,
     get_sprints,
     prepare_clean_sprint_rows,
@@ -178,16 +197,16 @@ def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_nu
 @celery_app.task(ignore_result=True)
 def complete_sprint_task(board_id: int) -> None:
     """
-    1. Uploads spillovers.
-    2. Uploads commitments.
-    3. Moves archived issues out of the active sprint.
-    4. Closes the active sprint.
-    5. Moves issues from the closed sprint to the next one.
-    6. Opens the next sprint.
-    7. Creates role tickets.
-    8. Triggers the start of new sprint webhooks.
-    9. Releases the sprint completion lock.
-    10. Clears cache related to end of sprint date.
+    1. Upload spillovers.
+    2. Upload commitments.
+    3. Move archived issues out of the active sprint.
+    4. Close the active sprint.
+    5. Move issues from the closed sprint to the next one.
+    6. Open the next sprint.
+    7. Create role tickets.
+    8. Trigger the `new sprint` webhooks.
+    9. Release the sprint completion lock and clear the cache related to end of sprint date.
+    10. Schedule asynchronous sprint planning tasks for the new sprint, if SPRINT_ASYNC_AUTOMATION_ENABLED is set.
     """
     with connect_to_jira() as conn:
         cells = get_cells(conn)
@@ -236,16 +255,13 @@ def complete_sprint_task(board_id: int) -> None:
         # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
-        batch_size = 50
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
             if settings.FEATURE_CELL_ROLES:
                 # Raise error if we can't read roles from the handbook
                 get_cell_member_roles()
 
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
-            for i in range(0, len(archived_issue_keys), batch_size):
-                batch = archived_issue_keys[i:i + batch_size]
-                conn.move_to_backlog(batch)
+            conn.move_to_backlog(archived_issue_keys)
 
             # Close the active sprint.
             conn.update_sprint(
@@ -257,9 +273,7 @@ def complete_sprint_task(board_id: int) -> None:
             )
 
             # Move issues to the next sprint from the closed one.
-            for i in range(0, len(issue_keys), batch_size):
-                batch = issue_keys[i:i + batch_size]
-                conn.add_issues_to_sprint(next_sprint.id, batch)
+            conn.add_issues_to_sprint(next_sprint.id, issue_keys)
 
             # Open the next sprint.
             start_date = datetime.now()
@@ -292,7 +306,102 @@ def complete_sprint_task(board_id: int) -> None:
                 cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id
             )
 
-    cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
-    cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")
-    cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}cell{board_id}")
-    cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}future")
+    cache.delete_many(
+        [
+            f'{settings.CACHE_SPRINT_END_LOCK}{board_id}',  # Release the lock.
+            f'{settings.CACHE_SPRINT_START_DATE_PREFIX}active',
+            f'{settings.CACHE_SPRINT_START_DATE_PREFIX}cell{board_id}',
+            f'{settings.CACHE_SPRINT_START_DATE_PREFIX}future',
+        ]
+    )
+
+    if settings.SPRINT_ASYNC_AUTOMATION_ENABLED:
+        schedule_sprint_tasks_task.delay()
+
+
+@celery_app.task(ignore_result=True)
+def schedule_sprint_tasks_task() -> None:
+    """Create task schedules for the current sprint."""
+    get_specific_day_of_sprint(settings.SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY)
+    # One extra minute to ensure that the task will be scheduled on time. Otherwise it might get revoked.
+    expiration_date = parse(get_current_sprint_end_date()) + timedelta(days=1, minutes=1)
+
+    for task_path, task_details in settings.SPRINT_ASYNC_TASKS.items():
+        # If there are more than one tasks with the same path, then remove all of them.
+        query = PeriodicTask.objects.filter(task=task_path)
+        if query.count() > 1:
+            query.delete()
+
+        start_time = get_specific_day_of_sprint(task_details['start'])
+        one_off = task_details['one_off']
+        interval, _ = IntervalSchedule.objects.get_or_create(
+            every=1, period=IntervalSchedule.SECONDS if one_off else IntervalSchedule.HOURS
+        )
+
+        task_data = dict(
+            name=task_details['name'],
+            enabled=True,
+            start_time=make_aware(start_time),
+            expires=make_aware(expiration_date),
+            interval=interval,
+            one_off=one_off,
+        )
+
+        PeriodicTask.objects.update_or_create(task=task_path, defaults=task_data)
+
+
+@celery_app.task(ignore_result=True)
+def move_out_injections_task() -> None:
+    """
+    Move injected tickets out of the next sprint to the `SPRINT_ASYNC_INJECTION_SPRINT`.
+    Then notify assignees and epic owners about this, if they exist.
+    """
+    with connect_to_jira() as conn:
+        injection_sprint = get_sprint_by_name(conn, settings.SPRINT_ASYNC_INJECTION_SPRINT)
+        issues = get_next_sprint_issues(conn, changelog=True)
+
+        injections = [issue for issue in issues if check_issue_injected(conn, issue)]
+        injections_keys = [issue.key for issue in injections]
+        if not settings.DEBUG:  # We should not trigger this in the dev environment.
+            conn.add_issues_to_sprint(injection_sprint.id, injections_keys)
+        for injection in injections:
+            notify_about_injection(conn, injection, injection_sprint)
+
+
+@celery_app.task(ignore_result=True)
+def check_tickets_ready_for_sprint_task() -> None:
+    """Notify team members about incomplete tickets."""
+    with connect_to_jira() as conn:
+        cell_membership = get_cell_membership(conn)
+        issues = get_next_sprint_issues(conn)
+
+        for user, incomplete_issues in group_incomplete_issues(conn, issues).items():
+            # TODO: Improve the message.
+            message = settings.SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE + str(incomplete_issues)
+            emails = [user.emailAddress]
+            cell = cell_membership[user.name]
+
+            if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                create_mattermost_post(message, emails=emails, channel=cell)
+
+
+@celery_app.task(ignore_result=True)
+def ping_overcommitted_users_task() -> None:
+    """Notify team members about their overcommitment."""
+    with connect_to_jira() as conn:
+        for cell, users in get_overcommitted_users(conn).items():
+            # TODO: Ping sprint managers too. Use the approach from https://github.com/open-craft/sprints/pull/63.
+            emails = [user.emailAddress for user in users]
+            message = settings.SPRINT_ASYNC_OVERCOMMITMENT_MESSAGE
+            if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                create_mattermost_post(message, emails=emails, channel=cell)
+
+
+@celery_app.task(ignore_result=True)
+def unflag_tickets_task() -> None:
+    """Unflag all tickets from the next sprint."""
+    with connect_to_jira() as conn:
+        issues = get_next_sprint_issues(conn)
+        for issue in issues:
+            if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                unflag_issue(conn, issue)

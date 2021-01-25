@@ -1,5 +1,3 @@
-from typing import List
-
 from django.conf import settings
 from mattermostdriver import Driver
 from requests import HTTPError
@@ -31,10 +29,9 @@ class Mattermost:
     def __exit__(self, *args):
         self.mattermost_connection.logout()
 
-    def get_usernames_from_emails(self, emails: List[str]) -> List[str]:
+    def get_usernames_from_emails(self, emails: list[str]) -> list[str]:
         """
-        Function that helps to get mattermost usernames
-        from emails.
+        Function that helps to get mattermost usernames from emails.
 
         :param emails: Emails of the users.
         :return: Mattermost usernames of the users.
@@ -73,13 +70,14 @@ class Mattermost:
                 capture_exception(e)
 
 
-def create_mattermost_post(message: str, emails: List[str]) -> None:
+def create_mattermost_post(message: str, emails: list[str], channel: str = settings.MATTERMOST_CHANNEL) -> None:
     """
     Function that helps to create post in specific channel tagging the users
     in them.
 
     :param message: The message to be posted in mattermost.
     :param emails: Email ids of the users.
+    :param channel: Channel, to which the message will be posted.
     """
     with Mattermost() as conn:
         tagged_usernames = [f'@{username}'
@@ -87,4 +85,4 @@ def create_mattermost_post(message: str, emails: List[str]) -> None:
         if tagged_usernames:
             usernames = ', '.join(tagged_usernames)
             post = f'{usernames}: {message}'
-            conn.post_message_to_channel(settings.MATTERMOST_CHANNEL, post)
+            conn.post_message_to_channel(channel, post)

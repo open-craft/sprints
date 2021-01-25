@@ -7,6 +7,7 @@ from typing import (
 )
 
 from django.conf import settings
+from functools import cached_property
 from jira import JIRA
 from jira.client import ResultList
 from jira.resources import (
@@ -61,11 +62,30 @@ class Report(Resource):
 
 class CustomJira(JIRA):
     """Custom Jira class for using greenhopper and Tempo APIs."""
+
     API_V2 = '{server}/rest/api/2/{path}'
     GREENHOPPER_BASE_URL = '{server}/rest/greenhopper/1.0/{path}'
     TEMPO_CORE_URL = '{server}/rest/tempo-core/1/{path}'
     TEMPO_ACCOUNTS_URL = '{server}/rest/tempo-accounts/1/{path}'
     TEMPO_TIMESHEETS_URL = '{server}/rest/tempo-timesheets/3/{path}'
+
+    def move_to_backlog(self, issue_keys: list[str]):
+        """
+        It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
+        https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
+        """
+        batch_size = 50
+        for chunk in chunks(issue_keys, batch_size):
+            super().move_to_backlog(chunk)
+
+    def add_issues_to_sprint(self, sprint_id: int, issue_keys: list[str]):
+        """
+        It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
+        https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
+        """
+        batch_size = 50
+        for chunk in chunks(issue_keys, batch_size):
+            super().add_issues_to_sprint(sprint_id, chunk)
 
     def quickfilters(self, board_id: int) -> ResultList:
         """Retrieve quickfilters defined for the board with `board_id`."""
@@ -131,6 +151,15 @@ class CustomJira(JIRA):
                     for raw_worklog_json in aggregated_worklogs]
         return worklogs
 
+    @cached_property
+    def issue_fields(self) -> Dict[str, str]:
+        """Get issue field names mapped to their IDs."""
+        field_ids = {field['name']: field['id'] for field in self.fields()}
+        required_fields = set(
+            settings.JIRA_REQUIRED_FIELDS + settings.SPILLOVER_REQUIRED_FIELDS + settings.JIRA_AUTOMATION_FIELDS
+        )
+        return {field: field_ids[field] for field in required_fields}
+
 
 @contextmanager
 def connect_to_jira() -> Iterator[CustomJira]:
@@ -138,7 +167,7 @@ def connect_to_jira() -> Iterator[CustomJira]:
     conn = CustomJira(
         server=settings.JIRA_SERVER,
         basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD),
-        options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH}
+        options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH},
     )
     yield conn
     conn.close()

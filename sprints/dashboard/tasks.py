@@ -139,7 +139,7 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
                     conn.create_issue(fields)
 
 @celery_app.task(ignore_result=True)
-def trigger_new_sprint_webhooks(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
+def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
     """
     1. Gathers a dictionary mapping Name to E-Mail Address of members
     2. Gathers cell member roles

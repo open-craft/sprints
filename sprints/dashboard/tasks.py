@@ -142,7 +142,7 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
     """
     1. Collects a dictionary of rotations, and the cell members.
-    2. Collects the usernames of the cell members of a board. 
+    2. Collects the usernames of the cell members of a board.
     3. Collects the cell members and their associated roles.
     4. Associates the cell members' info with their roles, and their rotations.
     5. Triggers the active 'new sprint' webhooks.
@@ -159,7 +159,7 @@ def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_nu
 
         # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
         cell_member_roles = get_cell_member_roles()
-        
+
         payload = {
             'board_id': board_id,
             'cell': cell_name,
@@ -286,7 +286,9 @@ def complete_sprint_task(board_id: int) -> None:
 
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
 
-            trigger_new_sprint_webhooks.delay(cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id)
+            trigger_new_sprint_webhooks_task.delay(
+                cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id
+            )
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")

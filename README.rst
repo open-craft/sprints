@@ -303,20 +303,21 @@ Setting up webhooks
 ~~~~~~~~~~~~~~~~~
 The sprints app supports triggering webhooks on certain events. Currently the following events are supported:
 
-* 'new sprint' - Triggered at the end of the sprint completion process. It fires a webhook containing details of each member of the cell & their responsibilities in the new sprint. It reads permanent roles (Sprint Planning Manager etc) from the HANDBOOK_ROLES_PAGE & temporary roles (Firefighter, Discovery Duty etc) from the rotations spreadsheets. If the FEATURE_CELL_ROLES (Default: False) environment variable is set to True it will cause an error and prevent the sprint from being completed if the permanent roles cannot be read from the handbook.
+* 'new sprint' - Triggered at the end of the sprint completion process. It fires a webhook containing details of each member of the cell & their responsibilities in the new sprint. It reads permanent roles (Sprint Planning Manager etc.) from the ``HANDBOOK_ROLES_PAGE`` & temporary roles (Firefighter, Discovery Duty etc.) from the rotations spreadsheets. If the ``FEATURE_CELL_ROLES`` (disabled by default) environment variable is set to ``True`` it will cause an error and prevent the sprint from being completed if the permanent roles cannot be read from the handbook.
 
-In order to setup receivers you first need to setup webhook events, to do that follow these steps:
+In order to setup receivers you first need to setup webhook events; to do that follow these steps:
 
-1. Go to 'Webhook events' in your Django admin panel (http://your_site/admin/webhooks/webhookevent/)
-2. Click 'Add webhook event' and create events based on the above mentioned list of events
+1. Go to 'Webhook events' in your Django admin panel (http://your_site/admin/webhooks/webhookevent/).
+2. Click 'Add webhook event' and create events based on the above mentioned list of events.
     
-For now only the 'new sprint' event type is supported, more will be added in the future
+For now only the 'new sprint' event type is supported. More event types will be added in the future.
 
 To create a new webhook receiver, follow these steps:
 
-1. Make sure a 'Webhook Event' exists for your webhook (See following section for instructions)
-2. Go to 'Webhooks' in the Django admin panel (http://your_site/admin/webhooks/webhook/)
-3. Click add webhook, in Events select one or multiple events to link to the webhook & enter a payload URL. If you'd like to send any extra headers with the request, you can put them in the headers field in JSON format.
+1. Make sure a 'Webhook Event' exists for your webhook (see the following section for the instructions).
+2. Go to 'Webhooks' in the Django admin panel (http://your_site/admin/webhooks/webhook/).
+3. Click 'Add Webhook'.
+4. In Events, select one or multiple events to link to the webhook & enter a payload URL. If you'd like to send any extra headers with the request, you can specify them in the headers field using the JSON format.
 
 
 For sustainability

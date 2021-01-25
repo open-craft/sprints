@@ -231,12 +231,6 @@ def complete_sprint_task(board_id: int) -> None:
         )
         issue_keys = [issue.key for issue in issues]
 
-        cell_dict = {
-            'key': cell.key,
-            'name': cell.name,
-            'board_id': cell.board_id,
-        }
-
         # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
@@ -283,6 +277,12 @@ def complete_sprint_task(board_id: int) -> None:
             else:
                 future_next_sprint_number = create_next_sprint_task(board_id)
                 future_next_sprint = get_next_sprint(sprints, next_sprint)
+
+            cell_dict = {
+                'key': cell.key,
+                'name': cell.name,
+                'board_id': cell.board_id,
+            }
 
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
 

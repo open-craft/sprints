@@ -244,7 +244,7 @@ def complete_sprint_task(board_id: int) -> None:
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
             if settings.FEATURE_CELL_ROLES:
                 # Raise error if we can't read roles from the handbook
-                get_cell_member_roles(raise_exception=True)
+                get_cell_member_roles()
 
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
             for i in range(0, len(archived_issue_keys), batch_size):

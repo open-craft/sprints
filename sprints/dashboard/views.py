@@ -100,7 +100,7 @@ class CompleteSprintViewSet(viewsets.ViewSet):
 
         if settings.FEATURE_CELL_ROLES:
             try:
-                get_cell_member_roles(raise_exception=True)
+                get_cell_member_roles()
             except NoRolesFoundException as msg:
                 return False, str(msg)
 

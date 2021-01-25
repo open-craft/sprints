@@ -349,7 +349,7 @@ def test_get_cell_member_roles_corrupted(mock_get):
     with open("sprints/dashboard/tests/data/handbook/dummy_cells_corrupted.html", 'r') as f:
         mock_get.return_value = Mock(text=f.read())
         with TestCase().assertRaises(NoRolesFoundException):
-            get_cell_member_roles(raise_exception=True)
+            get_cell_member_roles()
 
 def test_get_rotations_roles_for_member():
     # When the member is on FF duty

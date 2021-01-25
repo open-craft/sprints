@@ -24,6 +24,7 @@ from dateutil.parser import (  # type: ignore
 )
 from django.conf import settings
 from django.core.cache import cache
+from django.core.validators import URLValidator
 # noinspection PyProtectedMember
 from jira.resources import (
     Board,
@@ -34,7 +35,12 @@ from jira.resources import (
     User,
 )
 
-from config.settings.base import SECONDS_IN_HOUR, HANDBOOK_ROLES_PAGE
+from config.settings.base import (
+    FEATURE_CELL_ROLES,
+    HANDBOOK_ROLES_PAGE,
+    ROLES_REGEX,
+    SECONDS_IN_HOUR,
+)
 from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
@@ -101,16 +107,27 @@ def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str,
     """Returns cell members with their names."""
     return {conn.user(member).displayName: member for member in members}
 
-def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]:
-    """Return a dictionary of cell members and their associated roles.
-    Example return: {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}.
 
-    Note: We have room for error here if member names are spelled differently, hence we must
-    be careful that the handbook & Jira have consistent naming.
+def get_cell_member_roles() -> Dict[str, List[str]]:
+    """
+    Return a dictionary of cell members and their associated roles.
+
+    Example return: `{'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}`
+
+    Note: we are using the following sources of data for this function:
+        1. Handbook (cell roles, e.g. "Sprint Planning Manager").
+        2. Rotations spreadsheet (sprint roles - e.g. "Firefighter", "Discovery Duty")
+        3. Jira (matching users with their email addresses).
+    Therefore we should ensure that users' names don't contain any typos, as this will provide inaccurate results.
     """
 
-    # Example HTML: <li><a href="../roles/#cell-manager-recruitment">Recruitment manager</a>: John Doe</li>
-    ROLES_REGEX = r"<li>.*roles.*>([A-Za-z ]+).*: (.+)<\/li>"
+    if FEATURE_CELL_ROLES:
+        try:
+            URLValidator(HANDBOOK_ROLES_PAGE)
+        except:
+            raise ImproperlyConfigured(
+                f"Handbook roles page ({HANDBOOK_ROLES_PAGE}) specified is not a valid url"
+            )
 
     r = requests.get(HANDBOOK_ROLES_PAGE)
 
@@ -122,10 +139,9 @@ def get_cell_member_roles(raise_exception: bool = False) -> Dict[str, List[str]]
     for role, member in roles:
         roles_dict[member].append(role)
 
-    # It's difficult to know whether we have read all roles
-    # So we assume that if we've read roles for less than 12 members, something's probably wrong
-    if raise_exception and len(roles_dict) == 0:
-        raise NoRolesFoundException("No roles were found at the handbook page: %s" % HANDBOOK_ROLES_PAGE)
+    # If we haven't read any roles, then something must have went wrong.
+    if len(roles_dict) == 0:
+        raise NoRolesFoundException(f"No roles were found at the handbook page: {HANDBOOK_ROLES_PAGE}")
 
     return roles_dict
 
@@ -134,8 +150,7 @@ def compile_participants_roles(
     rotations: Dict[str, List[str]],
     cell_member_roles: Dict[str, List[str]]
 ) -> Dict[str, List[str]]:
-    """Compile the final roles Dictionary from cell_member_roles and rotations data
-    """
+    """Compile the final roles Dictionary from `cell_member_roles` and `rotations` data"""
 
     roles: DefaultDict[str, List[str]] = defaultdict(list)
     for member in members:
@@ -150,8 +165,11 @@ def compile_participants_roles(
     return roles
 
 def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[str]]):
-    """Given a member and a dictionary containing get_rotations_users() output, return a list
-    of all roles for that user.
+    """
+    Retrieves the rotation roles for a member
+    :param member_name: a string representing the member's name
+    :param rotations: a dictionary containing `get_rotations_users()` output 
+    :returns a list of all roles for that user.
     """
 
     roles = []

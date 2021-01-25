@@ -173,7 +173,7 @@ def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_nu
             'event_name': "new sprint",
         }
 
-        webhooks = Webhook.objects.filter(events__name="new sprint")
+        webhooks = Webhook.objects.filter(events__name="new sprint", active=True)
         for webhook in webhooks:
             webhook.trigger(payload=payload)
 

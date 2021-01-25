@@ -24,6 +24,10 @@ from dateutil.parser import (  # type: ignore
 )
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import (
+    ImproperlyConfigured,
+    ValidationError,
+)
 from django.core.validators import URLValidator
 # noinspection PyProtectedMember
 from jira.resources import (
@@ -124,10 +128,8 @@ def get_cell_member_roles() -> Dict[str, List[str]]:
     if FEATURE_CELL_ROLES:
         try:
             URLValidator(HANDBOOK_ROLES_PAGE)
-        except:
-            raise ImproperlyConfigured(
-                f"Handbook roles page ({HANDBOOK_ROLES_PAGE}) specified is not a valid url"
-            )
+        except ValidationError:
+            raise ImproperlyConfigured(f"Handbook roles page ({HANDBOOK_ROLES_PAGE}) specified is not a valid url")
 
     r = requests.get(HANDBOOK_ROLES_PAGE)
 
@@ -168,7 +170,7 @@ def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[s
     """
     Retrieves the rotation roles for a member
     :param member_name: a string representing the member's name
-    :param rotations: a dictionary containing `get_rotations_users()` output 
+    :param rotations: a dictionary containing `get_rotations_users()` output
     :returns a list of all roles for that user.
     """
 

@@ -1,6 +1,8 @@
-from django.db import models
-import requests
 import json
+
+import requests
+from django.db import models
+
 
 class WebhookEvent(models.Model):
     name = models.TextField()

@@ -354,7 +354,8 @@ def test_get_cell_member_roles_corrupted(mock_get):
 def test_get_rotations_roles_for_member():
     # When the member is on FF duty
     output = get_rotations_roles_for_member('John Doe', {'FF': ['Jake Doe', 'John Doe'], 'DD': ['Jane Doe', 'James Doe']})
-    assert len(output) == 1 and output[0] == 'FF-2'
+    assert len(output) == 1
+    assert output[0] == 'FF-2'
 
     # When member has no duty
     output = get_rotations_roles_for_member('John Doe', {'FF': ['Jake Doe', 'James Doe'], 'DD': ['Jane Doe', 'James Doe']})
@@ -362,7 +363,8 @@ def test_get_rotations_roles_for_member():
 
     # When only partial name of the member is defined
     output = get_rotations_roles_for_member('John Doe', {'FF': ['John Doe', 'Jake Doe'], 'DD': ['Jane Doe', 'James Doe']})
-    assert len(output) == 1 and output[0] == 'FF-1'
+    assert len(output) == 1
+    assert output[0] == 'FF-1'
 
 def test_compile_participants_roles():
     members_data_dummy = [

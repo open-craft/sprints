@@ -636,3 +636,6 @@ MATTERMOST_TEAM_NAME = env.str("MATTERMOST_TEAM_NAME")
 # Handbook roles page URL
 HANDBOOK_ROLES_PAGE = env.str("HANDBOOK_ROLES_PAGE", None)
 FEATURE_CELL_ROLES = env.bool("FEATURE_CELL_ROLES", False)
+
+# Example HTML: `<li><a href="../roles/#cell-manager-recruitment">Recruitment manager</a>: John Doe</li>`
+ROLES_REGEX = env.str("ROLES_REGEX", r"<li>.*roles.*>([A-Za-z ]+).*: (.+)<\/li>")

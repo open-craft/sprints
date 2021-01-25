@@ -141,15 +141,11 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 @celery_app.task(ignore_result=True)
 def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
     """
-    1. Gathers a dictionary mapping Name to E-Mail Address of members
-    2. Gathers cell member roles
-    3. Maps cell member's E-Mails to their roles
-    4. Adds rotations (DD, FF etc) to the cell member roles array
-    5. Triggers webhooks
-
-    The webhook receivers identify users by E-Mail, but our spreadsheets & documentation identify them
-    by name, so we must map the two. It is important that the spelling of member names is consistent in
-    the documentation.
+    1. Collects a dictionary of rotations, and the cell members.
+    2. Collects the usernames of the cell members of a board. 
+    3. Collects the cell members and their associated roles.
+    4. Associates the cell members' info with their roles, and their rotations.
+    5. Triggers the active 'new sprint' webhooks.
     """
     with connect_to_jira() as conn:
         # Dictionary containing rotations: {'FF': ['John Doe',...],...}
@@ -187,7 +183,7 @@ def complete_sprint_task(board_id: int) -> None:
     5. Moves issues from the closed sprint to the next one.
     6. Opens the next sprint.
     7. Creates role tickets.
-    8. Triggers the start of new sprint webhooks
+    8. Triggers the start of new sprint webhooks.
     9. Releases the sprint completion lock.
     10. Clears cache related to end of sprint date.
     """

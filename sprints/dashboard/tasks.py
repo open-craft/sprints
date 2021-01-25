@@ -1,14 +1,6 @@
 import string
-from datetime import (
-    datetime,
-    timedelta,
-)
-from collections import defaultdict
-from typing import (
-    Dict,
-    List,
-    DefaultDict,
-)
+from datetime import datetime, timedelta
+from typing import Dict, List
 
 from celery import group
 # noinspection PyProtectedMember
@@ -16,10 +8,7 @@ from celery.result import allow_join_result
 from django.conf import settings
 # noinspection PyProtectedMember
 from django.core.cache import cache
-from jira.resources import (
-    Issue,
-    Sprint,
-)
+from jira.resources import Issue, Sprint
 
 from config import celery_app
 from sprints.dashboard.libs.google import (
@@ -30,14 +19,13 @@ from sprints.dashboard.libs.google import (
 )
 from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.dashboard.models import Dashboard
-from sprints.webhooks.models import Webhook, WebhookEvent
 from sprints.dashboard.utils import (
+    compile_participants_roles,
     create_next_sprint,
     filter_sprints_by_cell,
     get_all_sprints,
     get_cell_member_names,
     get_cell_member_roles,
-    compile_participants_roles,
     get_cell_members,
     get_cells,
     get_commitment_range,
@@ -53,6 +41,7 @@ from sprints.dashboard.utils import (
     prepare_jql_query_cell_role_epic,
     prepare_spillover_rows,
 )
+from sprints.webhooks.models import Webhook
 
 
 @celery_app.task(ignore_result=True)

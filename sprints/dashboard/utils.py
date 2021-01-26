@@ -112,7 +112,7 @@ def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str,
     return {conn.user(member).displayName: member for member in members}
 
 
-def get_cell_member_roles() -> Dict[str, List[str]]:
+def get_cell_member_roles() -> DefaultDict[str, List[str]]:
     """
     Return a dictionary of cell members and their associated roles.
 
@@ -151,8 +151,8 @@ def get_cell_member_roles() -> Dict[str, List[str]]:
 def compile_participants_roles(
     members: List[User],
     rotations: Dict[str, List[str]],
-    cell_member_roles: Dict[str, List[str]]
-) -> Dict[str, List[str]]:
+    cell_member_roles: DefaultDict[str, List[str]]
+) -> DefaultDict[str, List[str]]:
     """Compile the final roles Dictionary from `cell_member_roles` and `rotations` data"""
 
     roles: DefaultDict[str, List[str]] = defaultdict(list)

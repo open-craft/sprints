@@ -138,6 +138,7 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 
                     conn.create_issue(fields)
 
+
 @celery_app.task(ignore_result=True)
 def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
     """
@@ -172,6 +173,7 @@ def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_nu
         webhooks = Webhook.objects.filter(events__name="new sprint", active=True)
         for webhook in webhooks:
             webhook.trigger(payload=payload)
+
 
 @celery_app.task(ignore_result=True)
 def complete_sprint_task(board_id: int) -> None:

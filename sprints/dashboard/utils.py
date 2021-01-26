@@ -147,6 +147,7 @@ def get_cell_member_roles() -> Dict[str, List[str]]:
 
     return roles_dict
 
+
 def compile_participants_roles(
     members: List[User],
     rotations: Dict[str, List[str]],
@@ -156,30 +157,26 @@ def compile_participants_roles(
 
     roles: DefaultDict[str, List[str]] = defaultdict(list)
     for member in members:
-        roles[member.emailAddress].extend(
-            cell_member_roles[member.displayName]
-        )
-
-        roles[member.emailAddress].extend(
-            get_rotations_roles_for_member(member.displayName, rotations)
-        )
+        roles[member.emailAddress].extend(cell_member_roles[member.displayName])
+        roles[member.emailAddress].extend(get_rotations_roles_for_member(member.displayName, rotations))
 
     return roles
 
+
 def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[str]]):
     """
-    Retrieves the rotation roles for a member
+    Retrieve rotation roles for a member.
     :param member_name: a string representing the member's name
     :param rotations: a dictionary containing `get_rotations_users()` output
     :returns a list of all roles for that user.
     """
-
     roles = []
+
     for duty, assignees in rotations.items():
+        # Enumeration is used for determining the order of roles in a sprint - e.g. `FF-1`, `DD-2`, etc.
         for idx, assignee in enumerate(assignees):
-            # The rotations sheet sometimes contains only the first name
             if member_name.startswith(assignee):
-                roles.append("%s-%d" % (duty, idx+1))
+                roles.append(f"{duty}-{idx + 1}")
     return roles
 
 

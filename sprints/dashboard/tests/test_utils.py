@@ -328,21 +328,23 @@ def test_get_sprint_meeting_day_division_for_member(hours, expected):
     sprint_start = "2020-01-01"
     assert _get_sprint_meeting_day_division_for_member(hours, sprint_start) == pytest.approx(expected, 0.1)
 
+
 @patch("requests.get")
 def test_get_cell_member_roles(mock_get):
     with open("sprints/dashboard/tests/data/handbook/dummy_cells.html", 'r') as f:
         mock_get.return_value = Mock(text=f.read())
         output = dict(get_cell_member_roles())
         expected_output = {
-                            "Member Six": ["Recruitment manager"],
-                            "Member Seven": ["Sprint manager"],
-                            "Member Five": ["Sprint Planning Manager"],
-                            "Member Eight": ["Epic manager"],
-                            "Member Two": ["Sustainability manager"],
-                            "Member Four": ["OSPR Liaison", "Official forum moderator"],
-                            "Member One": ["DevOps Specialist"],
-                        }
+            "Member Six": ["Recruitment manager"],
+            "Member Seven": ["Sprint manager"],
+            "Member Five": ["Sprint Planning Manager"],
+            "Member Eight": ["Epic manager"],
+            "Member Two": ["Sustainability manager"],
+            "Member Four": ["OSPR Liaison", "Official forum moderator"],
+            "Member One": ["DevOps Specialist"],
+        }
         TestCase().assertDictEqual(output, expected_output)
+
 
 @patch("requests.get")
 def test_get_cell_member_roles_corrupted(mock_get):
@@ -350,6 +352,7 @@ def test_get_cell_member_roles_corrupted(mock_get):
         mock_get.return_value = Mock(text=f.read())
         with TestCase().assertRaises(NoRolesFoundException):
             get_cell_member_roles()
+
 
 def test_get_rotations_roles_for_member():
     # When the member is on FF duty
@@ -365,6 +368,7 @@ def test_get_rotations_roles_for_member():
     output = get_rotations_roles_for_member('John Doe', {'FF': ['John Doe', 'Jake Doe'], 'DD': ['Jane Doe', 'James Doe']})
     assert len(output) == 1
     assert output[0] == 'FF-1'
+
 
 def test_compile_participants_roles():
     members_data_dummy = [

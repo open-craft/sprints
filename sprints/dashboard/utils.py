@@ -572,8 +572,17 @@ def prepare_clean_sprint_rows(
     members_with_spillovers = {row[assignee_index] for row in rows}
     members_with_clean_sprint = members.keys() - members_with_spillovers - settings.SPILLOVER_CLEAN_SPRINT_IGNORED_USERS
 
-    sprint = getattr(meetings.fields, issue_fields['Sprint'])[-1]
-    current_sprint = sprints[extract_sprint_id_from_str(sprint)]
+    # Jira orders sprints by their IDs, so if they were not created in chronological order, then we need to search for
+    # an active one.
+    sprint = None
+    current_sprint = None
+    for sprint in reversed(getattr(meetings.fields, issue_fields['Sprint'])):
+        try:
+            current_sprint = sprints[extract_sprint_id_from_str(sprint)]
+        except KeyError:
+            pass
+        else:
+            break
 
     for member in members_with_clean_sprint:
         row = [''] * (len(settings.SPILLOVER_REQUIRED_FIELDS) + 1)

@@ -29,6 +29,8 @@ from sprints.dashboard.tasks import (
 from sprints.dashboard.utils import (
     get_cells,
     get_current_sprint_end_date,
+    get_cell_member_roles,
+    NoRolesFoundException,
 )
 
 _cache_param = openapi.Parameter(
@@ -95,6 +97,12 @@ class CompleteSprintViewSet(viewsets.ViewSet):
         end_date = parse(get_current_sprint_end_date('cell', str(board_id)))
         if datetime.now() < end_date:
             return False, "The current day is not the last day of the current sprint."
+
+        if settings.FEATURE_CELL_ROLES:
+            try:
+                get_cell_member_roles()
+            except NoRolesFoundException as msg:
+                return False, str(msg)
 
         if (acquire_lock and not cache.add(
             f'{settings.CACHE_SPRINT_END_LOCK}{board_id}', True, settings.CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS

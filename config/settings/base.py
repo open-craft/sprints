@@ -88,6 +88,7 @@ LOCAL_APPS = [
     "sprints.users.apps.UsersConfig",
     "sprints.dashboard.apps.DashboardConfig",
     "sprints.sustainability.apps.SustainabilityConfig",
+    "sprints.webhooks.apps.WebhooksConfig",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -630,3 +631,12 @@ MATTERMOST_LOGIN_ID = env.str("MATTERMOST_LOGIN_ID")
 MATTERMOST_ACCESS_TOKEN = env.str("MATTERMOST_ACCESS_TOKEN")
 # Team Name
 MATTERMOST_TEAM_NAME = env.str("MATTERMOST_TEAM_NAME")
+
+# WEBHOOKS
+# ------------------------------------------------------------------------------
+# Handbook roles page URL
+HANDBOOK_ROLES_PAGE = env.str("HANDBOOK_ROLES_PAGE", None)
+FEATURE_CELL_ROLES = env.bool("FEATURE_CELL_ROLES", False)
+
+# Example HTML: `<li><a href="../roles/#cell-manager-recruitment">Recruitment manager</a>: John Doe</li>`
+ROLES_REGEX = env.str("ROLES_REGEX", r"<li>.*roles.*>([A-Za-z ]+).*: (.+)<\/li>")

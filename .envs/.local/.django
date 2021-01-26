@@ -60,3 +60,11 @@ MATTERMOST_LOGIN_ID=
 MATTERMOST_ACCESS_TOKEN=
 # Team Name
 MATTERMOST_TEAM_NAME=
+
+# WEBHOOKS
+# -----------------------------------------------------------------------------
+# Handbook roles page URL
+# HANDBOOK_ROLES_PAGE=
+
+# Enable cell roles (Disabled by default)
+# FEATURE_CELL_ROLES=

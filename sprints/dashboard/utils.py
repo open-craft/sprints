@@ -1,5 +1,6 @@
 import re
 import string
+import requests
 from collections import defaultdict
 from datetime import (
     datetime,
@@ -23,6 +24,11 @@ from dateutil.parser import (  # type: ignore
 )
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import (
+    ImproperlyConfigured,
+    ValidationError,
+)
+from django.core.validators import URLValidator
 # noinspection PyProtectedMember
 from jira.resources import (
     Board,
@@ -30,9 +36,15 @@ from jira.resources import (
     Issue,
     Project,
     Sprint,
+    User,
 )
 
-from config.settings.base import SECONDS_IN_HOUR
+from config.settings.base import (
+    FEATURE_CELL_ROLES,
+    HANDBOOK_ROLES_PAGE,
+    ROLES_REGEX,
+    SECONDS_IN_HOUR,
+)
 from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
@@ -40,6 +52,8 @@ from sprints.dashboard.libs.jira import (
     connect_to_jira,
 )
 
+class NoRolesFoundException(Exception):
+    pass
 
 class Cell:
     """
@@ -96,6 +110,74 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
 def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str, str]:
     """Returns cell members with their names."""
     return {conn.user(member).displayName: member for member in members}
+
+
+def get_cell_member_roles() -> DefaultDict[str, List[str]]:
+    """
+    Return a dictionary of cell members and their associated roles.
+
+    Example return: `{'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}`
+
+    Note: we are using the following sources of data for this function:
+        1. Handbook (cell roles, e.g. "Sprint Planning Manager").
+        2. Rotations spreadsheet (sprint roles - e.g. "Firefighter", "Discovery Duty")
+        3. Jira (matching users with their email addresses).
+    Therefore we should ensure that users' names don't contain any typos, as this will provide inaccurate results.
+    """
+
+    if FEATURE_CELL_ROLES:
+        try:
+            URLValidator(HANDBOOK_ROLES_PAGE)
+        except ValidationError:
+            raise ImproperlyConfigured(f"Handbook roles page ({HANDBOOK_ROLES_PAGE}) specified is not a valid url")
+
+    r = requests.get(HANDBOOK_ROLES_PAGE)
+
+    # roles = [('Recruitment manager', 'John Doe'),('Sprint Planning Manager', 'John Doe'),...]
+    roles = re.findall(ROLES_REGEX, r.text)
+
+    # roles_dict = {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}
+    roles_dict = defaultdict(list)
+    for role, member in roles:
+        roles_dict[member].append(role)
+
+    # If we haven't read any roles, then something must have went wrong.
+    if len(roles_dict) == 0:
+        raise NoRolesFoundException(f"No roles were found at the handbook page: {HANDBOOK_ROLES_PAGE}")
+
+    return roles_dict
+
+
+def compile_participants_roles(
+    members: List[User],
+    rotations: Dict[str, List[str]],
+    cell_member_roles: DefaultDict[str, List[str]]
+) -> DefaultDict[str, List[str]]:
+    """Compile the final roles Dictionary from `cell_member_roles` and `rotations` data"""
+
+    roles: DefaultDict[str, List[str]] = defaultdict(list)
+    for member in members:
+        roles[member.emailAddress].extend(cell_member_roles[member.displayName])
+        roles[member.emailAddress].extend(get_rotations_roles_for_member(member.displayName, rotations))
+
+    return roles
+
+
+def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[str]]) -> List[str]:
+    """
+    Retrieve rotation roles for a member.
+    :param member_name: a string representing the member's name
+    :param rotations: a dictionary containing `get_rotations_users()` output
+    :returns a list of all roles for that user.
+    """
+    roles = []
+
+    for duty, assignees in rotations.items():
+        # Enumeration is used for determining the order of roles in a sprint - e.g. `FF-1`, `DD-2`, etc.
+        for idx, assignee in enumerate(assignees):
+            if member_name.startswith(assignee):
+                roles.append(f"{duty}-{idx + 1}")
+    return roles
 
 
 def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[str, List[Sprint]]:

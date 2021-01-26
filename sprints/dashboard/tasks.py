@@ -1,12 +1,6 @@
 import string
-from datetime import (
-    datetime,
-    timedelta,
-)
-from typing import (
-    Dict,
-    List,
-)
+from datetime import datetime, timedelta
+from typing import Dict, List
 
 from celery import group
 # noinspection PyProtectedMember
@@ -14,10 +8,7 @@ from celery.result import allow_join_result
 from django.conf import settings
 # noinspection PyProtectedMember
 from django.core.cache import cache
-from jira.resources import (
-    Issue,
-    Sprint,
-)
+from jira.resources import Issue, Sprint
 
 from config import celery_app
 from sprints.dashboard.libs.google import (
@@ -29,10 +20,12 @@ from sprints.dashboard.libs.google import (
 from sprints.dashboard.libs.jira import connect_to_jira
 from sprints.dashboard.models import Dashboard
 from sprints.dashboard.utils import (
+    compile_participants_roles,
     create_next_sprint,
     filter_sprints_by_cell,
     get_all_sprints,
     get_cell_member_names,
+    get_cell_member_roles,
     get_cell_members,
     get_cells,
     get_commitment_range,
@@ -48,6 +41,7 @@ from sprints.dashboard.utils import (
     prepare_jql_query_cell_role_epic,
     prepare_spillover_rows,
 )
+from sprints.webhooks.models import Webhook
 
 
 @celery_app.task(ignore_result=True)
@@ -146,6 +140,42 @@ def create_role_issues_task(cell: Dict[str, str], sprint_id: int, sprint_number:
 
 
 @celery_app.task(ignore_result=True)
+def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_number: int, board_id: int):
+    """
+    1. Collects a dictionary of rotations, and the cell members.
+    2. Collects the usernames of the cell members of a board.
+    3. Collects the cell members and their associated roles.
+    4. Associates the cell members' info with their roles, and their rotations.
+    5. Triggers the active 'new sprint' webhooks.
+    """
+    with connect_to_jira() as conn:
+        # Dictionary containing rotations: {'FF': ['John Doe',...],...}
+        rotations = get_rotations_users(str(sprint_number), cell_name)
+
+        # A list of jira usernames for a board: ['johndoe1', 'jane_doe_22', ...]
+        members = []
+        usernames = get_cell_members(conn.quickfilters(board_id))
+        for username in usernames:
+            members.append(conn.user(username))
+
+        # Dictionary containing member roles: {'John Doe': ['Sprint Planning Manager', ...],...}
+        cell_member_roles = get_cell_member_roles()
+
+        payload = {
+            'board_id': board_id,
+            'cell': cell_name,
+            'sprint_number': sprint_number,
+            'sprint_name': sprint_name,
+            'participants': compile_participants_roles(members, rotations, cell_member_roles),
+            'event_name': "new sprint",
+        }
+
+        webhooks = Webhook.objects.filter(events__name="new sprint", active=True)
+        for webhook in webhooks:
+            webhook.trigger(payload=payload)
+
+
+@celery_app.task(ignore_result=True)
 def complete_sprint_task(board_id: int) -> None:
     """
     1. Uploads spillovers.
@@ -155,8 +185,9 @@ def complete_sprint_task(board_id: int) -> None:
     5. Moves issues from the closed sprint to the next one.
     6. Opens the next sprint.
     7. Creates role tickets.
-    8. Releases the sprint completion lock.
-    9. Clears cache related to end of sprint date.
+    8. Triggers the start of new sprint webhooks.
+    9. Releases the sprint completion lock.
+    10. Clears cache related to end of sprint date.
     """
     with connect_to_jira() as conn:
         cells = get_cells(conn)
@@ -207,6 +238,10 @@ def complete_sprint_task(board_id: int) -> None:
         # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         batch_size = 50
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+            if settings.FEATURE_CELL_ROLES:
+                # Raise error if we can't read roles from the handbook
+                get_cell_member_roles()
+
             # Remove archived tickets from the active sprint. Leaving them might interrupt closing the sprint.
             for i in range(0, len(archived_issue_keys), batch_size):
                 batch = archived_issue_keys[i:i + batch_size]
@@ -250,7 +285,12 @@ def complete_sprint_task(board_id: int) -> None:
                 'name': cell.name,
                 'board_id': cell.board_id,
             }
+
             create_role_issues_task.delay(cell_dict, future_next_sprint.id, future_next_sprint_number)
+
+            trigger_new_sprint_webhooks_task.delay(
+                cell.name, next_sprint.name, get_sprint_number(next_sprint), board_id
+            )
 
     cache.delete(f'{settings.CACHE_SPRINT_END_LOCK}{board_id}')  # Release a lock.
     cache.delete(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}active")

@@ -518,8 +518,16 @@ def prepare_spillover_rows(
                     pass
             if field == 'Sprint':
                 original_value = cell_value
-                cell_value = extract_sprint_name_from_str(original_value[-1])
-                current_sprint = sprints[extract_sprint_id_from_str(original_value[-1])]
+                # Jira orders sprints by their IDs, so if they were not created in chronological order, then we need to
+                # search for an active one.
+                for sprint in reversed(original_value):
+                    try:
+                        cell_value = extract_sprint_name_from_str(sprint)
+                        current_sprint = sprints[extract_sprint_id_from_str(sprint)]
+                    except KeyError:
+                        pass
+                    else:
+                        break
 
             if field == 'Comment':
                 try:

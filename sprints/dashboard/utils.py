@@ -163,7 +163,7 @@ def compile_participants_roles(
     return roles
 
 
-def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[str]]):
+def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[str]]) -> List[str]:
     """
     Retrieve rotation roles for a member.
     :param member_name: a string representing the member's name

@@ -39,12 +39,7 @@ from jira.resources import (
     User,
 )
 
-from config.settings.base import (
-    FEATURE_CELL_ROLES,
-    HANDBOOK_ROLES_PAGE,
-    ROLES_REGEX,
-    SECONDS_IN_HOUR,
-)
+from config.settings.base import SECONDS_IN_HOUR
 from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
@@ -52,8 +47,10 @@ from sprints.dashboard.libs.jira import (
     connect_to_jira,
 )
 
+
 class NoRolesFoundException(Exception):
     pass
+
 
 class Cell:
     """
@@ -145,16 +142,18 @@ def get_cell_member_roles() -> DefaultDict[str, List[str]]:
     Therefore we should ensure that users' names don't contain any typos, as this will provide inaccurate results.
     """
 
-    if FEATURE_CELL_ROLES:
+    if settings.FEATURE_CELL_ROLES:
         try:
-            URLValidator(HANDBOOK_ROLES_PAGE)
+            URLValidator(settings.HANDBOOK_ROLES_PAGE)
         except ValidationError:
-            raise ImproperlyConfigured(f"Handbook roles page ({HANDBOOK_ROLES_PAGE}) specified is not a valid url")
+            raise ImproperlyConfigured(
+                f"Handbook roles page ({settings.HANDBOOK_ROLES_PAGE}) specified is not a valid url"
+            )
 
-    r = requests.get(HANDBOOK_ROLES_PAGE)
+    r = requests.get(settings.HANDBOOK_ROLES_PAGE)
 
     # roles = [('Recruitment manager', 'John Doe'),('Sprint Planning Manager', 'John Doe'),...]
-    roles = re.findall(ROLES_REGEX, r.text)
+    roles = re.findall(settings.ROLES_REGEX, r.text)
 
     # roles_dict = {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}
     roles_dict = defaultdict(list)
@@ -163,7 +162,7 @@ def get_cell_member_roles() -> DefaultDict[str, List[str]]:
 
     # If we haven't read any roles, then something must have went wrong.
     if len(roles_dict) == 0:
-        raise NoRolesFoundException(f"No roles were found at the handbook page: {HANDBOOK_ROLES_PAGE}")
+        raise NoRolesFoundException(f"No roles were found at the handbook page: {settings.HANDBOOK_ROLES_PAGE}")
 
     return roles_dict
 

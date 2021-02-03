@@ -533,16 +533,28 @@ SPRINT_ISSUE_REGEX = env.str("SPRINT_ISSUE_REGEX", r"(\w+)-(\d+)")
 SPRINT_START_TIME_UTC = env.int("SPRINT_START_TIME_UTC", "00:00")
 # Exact name of the tickets for logging the clean sprint hints.
 SPRINT_MEETINGS_TICKET = env.str("SPRINT_MEETINGS_TICKET", "Meetings")
+
+# Sprint automation
+# ------------------------------------------------------------------------------
 # Enable automating parts of the asynchronous sprint process.
 SPRINT_ASYNC_AUTOMATION_ENABLED = env.str("SPRINT_AUTOMATION_ENABLED", False)
+# Day of the current sprint, after which no ticket should be added to the next one.
 SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY = env.int("SPRINT_ASYNC_TICKET_CREATION_CUTOFF", 11)
+# Day of the current sprint, after which all tickets should be ready for the next sprint.
 SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY = env.int("SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY", 14)
+# A Jira label, which approves the ticket added to the sprint after the ticket creation cutoff day.
 SPRINT_ASYNC_INJECTION_LABEL = env.str("SPRINT_ASYNC_INJECTION_LABEL", "injection-accepted")
+# A name of the sprint, to which "injected" tickets will be moved.
+SPRINT_ASYNC_INJECTION_SPRINT = env.str("SPRINT_ASYNC_INJECTION_SPRINT", "Stretch Goals")
+# Message included as a comment to a ticket that has been moved out of the sprint as an injection.
 SPRINT_ASYNC_INJECTION_MESSAGE = "this ticket was an injection for the next sprint, so I moved it out to "
+# Message sent via Mattermost when some tickets are not ready for the next sprint.
 SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE = "the following tickets are not ready for the sprint. " \
                                          "Please fill out the remaining fields.\n"
+# Message sent via Mattermost when user's commitments are higher than the capacity.
 SPRINT_ASYNC_OVERCOMMITMENT_MESSAGE = "you are overcommitted. Please adjust your assignments."
-SPRINT_ASYNC_INJECTION_SPRINT = env.str("SPRINT_ASYNC_INJECTION_SPRINT", "Stretch Goals")
+# Configuration used for generating Celery tasks for the asynchronous sprint process. These tasks are created
+# or updated (if they already exist) while ending a sprint, so any manual changes to them will be lost.
 SPRINT_ASYNC_TASKS = {
     "sprints.dashboard.tasks.move_out_injections_task": {
         "name": "[ASYNC] Move out injections",

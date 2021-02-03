@@ -321,7 +321,15 @@ def complete_sprint_task(board_id: int) -> None:
 
 @celery_app.task(ignore_result=True)
 def schedule_sprint_tasks_task() -> None:
-    """Create task schedules for the current sprint."""
+    """
+    Create task schedules for the current sprint.
+
+    There are currently two types of tasks. Both of them use the `IntervalSchedule` for simplification.
+    1. One-off - scheduled to run every second to ensure they will be invoked on time. After the first run, the
+       `Enabled` option is set to `False` in the database.
+    2. Periodic (non-one-off) - ran hourly until the end of the sprint +1 minute, so they are invoked on the hour of the
+       sprint end as well.
+    """
     get_specific_day_of_sprint(settings.SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY)
     # One extra minute to ensure that the task will be scheduled on time. Otherwise it might get revoked.
     expiration_date = parse(get_current_sprint_end_date()) + timedelta(days=1, minutes=1)
@@ -376,10 +384,11 @@ def check_tickets_ready_for_sprint_task() -> None:
         issues = get_next_sprint_issues(conn)
 
         for user, incomplete_issues in group_incomplete_issues(conn, issues).items():
-            # TODO: Improve the message.
+            # TODO: Add more flexibility to the Mattermost library, to support a nicer format here.
             message = settings.SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE + str(incomplete_issues)
             emails = [user.emailAddress]
-            cell = cell_membership[user.name]
+            # If user is not a member of any cell, then use a default Mattermost channel.
+            cell = cell_membership.get(user.name, settings.MATTERMOST_CHANNEL)
 
             if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
                 create_mattermost_post(message, emails=emails, channel=cell)
@@ -391,8 +400,10 @@ def ping_overcommitted_users_task() -> None:
     with connect_to_jira() as conn:
         for cell, users in get_overcommitted_users(conn).items():
             # TODO: Ping sprint managers too. Use the approach from https://github.com/open-craft/sprints/pull/63.
+            #  Add more flexibility to the Mattermost library to handle this.
             emails = [user.emailAddress for user in users]
             message = settings.SPRINT_ASYNC_OVERCOMMITMENT_MESSAGE
+
             if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
                 create_mattermost_post(message, emails=emails, channel=cell)
 

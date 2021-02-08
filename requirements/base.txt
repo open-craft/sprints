@@ -41,3 +41,6 @@ more-itertools==8.6.0
 
 # Mattermost Driver
 mattermostdriver~=7.1.0  # https://github.com/Vaelor/python-mattermost-driver
+
+# FIXME: Temporary change
+cryptography==3.1.1  # https://github.com/pyca/cryptography/issues/5765

@@ -13,7 +13,6 @@ from django.conf import settings
 from django.test import override_settings
 from freezegun import freeze_time
 
-from dashboard.tests.test_utils import MockItem
 from sprints.dashboard.automation import (
     check_issue_injected,
     check_issue_missing_fields,
@@ -27,6 +26,7 @@ from sprints.dashboard.automation import (
     notify_about_injection,
     unflag_issue,
 )
+from sprints.dashboard.tests.test_utils import MockItem
 
 
 @patch("sprints.dashboard.automation.get_current_sprint_start_date")

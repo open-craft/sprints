@@ -44,6 +44,12 @@ class MockItem:
                 return False
         return True
 
+    def __hash__(self) -> int:
+        result = 0
+        for attr in self._attrs:
+            result = hash((result << 1, hash(attr)))
+        return result
+
     def __repr__(self):
         return ', '.join([getattr(self, attr) for attr in self._attrs])
 

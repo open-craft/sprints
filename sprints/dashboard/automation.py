@@ -58,7 +58,7 @@ def get_next_sprint_issues(conn: CustomJira, changelog: bool = False) -> list[Is
     sprints_str = ",".join((str(s.id) for s in sprints['future']))
     return conn.search_issues(
         jql_str=f"Sprint IN ({sprints_str})",
-        fields=get_issue_fields(conn, settings.JIRA_REQUIRED_FIELDS + settings.JIRA_AUTOMATION_FIELDS).values(),
+        fields=list(get_issue_fields(conn, settings.JIRA_REQUIRED_FIELDS + settings.JIRA_AUTOMATION_FIELDS).values()),
         expand="changelog" if changelog else "",  # Retrieve history of changes for each issue.
         maxResults=0,
     )
@@ -70,7 +70,7 @@ def get_users_to_ping(conn: CustomJira, issue: Issue, epic_owner: bool = False) 
 
     The assignee is included if the ticket is assigned.
     The epic owner is included if the ticket is unassigned or if the `epic_owner` option is set.
-    The reporter is included if the ticket:
+    The reporter is included if the ticket both:
         - is unassigned,
         - does not belong to an epic or the epic is unassigned.
     If none of the above is present, the error is reported to Sentry.
@@ -145,9 +145,9 @@ def group_incomplete_issues(conn: CustomJira, issues: list[Issue]) -> defaultdic
     """
     result: defaultdict[User, dict[str, list[str]]] = defaultdict(dict)
     for issue in issues:
-        if messages := check_issue_missing_fields(conn, issue):
+        if missing_fields := check_issue_missing_fields(conn, issue):
             for user in get_users_to_ping(conn, issue):
-                result[user][issue.key] = messages
+                result[user][issue.key] = missing_fields
 
     return result
 
@@ -222,13 +222,13 @@ def check_issue_missing_fields(conn: CustomJira, issue: Issue) -> list[str]:
     :param issue: Jira issue.
     :return: List of missing fields.
     """
-    messages = []
+    missing_fields = []
     # TODO: Make this configurable. It might need some tweaks to handle default behaviors for various fields.
     for field in [settings.JIRA_FIELDS_ASSIGNEE, settings.JIRA_FIELDS_REVIEWER, settings.JIRA_FIELDS_STORY_POINTS]:
         if not getattr(issue.fields, conn.issue_fields[field]):
-            messages.append(field)
+            missing_fields.append(field)
 
-    return messages
+    return missing_fields
 
 
 def get_overcommitted_users(conn: CustomJira) -> dict[str, list[User]]:
@@ -248,10 +248,13 @@ def get_overcommitted_users(conn: CustomJira) -> dict[str, list[User]]:
 
     for dashboard in dashboards:
         overcommitted_users: list[User] = []
-        result[dashboard.cell.name] = overcommitted_users
         for row in dashboard.rows:
             # Check if the user has `raw` value - this excludes artificial users, like "Unassigned".
             if row.remaining_time < 0 and row.user.raw:
                 overcommitted_users.append(row.user)
+
+        # Ignore cells without overcommitted users.
+        if overcommitted_users:
+            result[dashboard.cell.name] = overcommitted_users
 
     return result

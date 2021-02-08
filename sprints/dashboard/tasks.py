@@ -252,9 +252,6 @@ def complete_sprint_task(board_id: int) -> None:
         )
         issue_keys = [issue.key for issue in issues]
 
-        # It is not mentioned in Python lib docs, but the limit for the issue-moving queries is 50 issues. Source:
-        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-backlog-issue-post
-        # https://developer.atlassian.com/cloud/jira/software/rest/#api-rest-agile-1-0-sprint-sprintId-issue-post
         if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
             if settings.FEATURE_CELL_ROLES:
                 # Raise error if we can't read roles from the handbook
@@ -385,7 +382,7 @@ def check_tickets_ready_for_sprint_task() -> None:
 
         for user, incomplete_issues in group_incomplete_issues(conn, issues).items():
             # TODO: Add more flexibility to the Mattermost library, to support a nicer format here.
-            message = settings.SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE + str(incomplete_issues)
+            message = f"{settings.SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE}{incomplete_issues}"
             emails = [user.emailAddress]
             # If user is not a member of any cell, then use a default Mattermost channel.
             cell = cell_membership.get(user.name, settings.MATTERMOST_CHANNEL)

@@ -119,7 +119,7 @@ def notify_about_injection(conn: CustomJira, issue: Issue, sprint: Sprint) -> No
     for user in users:
         message += f"[~{user.name}], "
 
-    message += settings.SPRINT_ASYNC_INJECTION_MESSAGE + sprint.name + "."
+    message += f"{settings.SPRINT_ASYNC_INJECTION_MESSAGE}{sprint.name}."
 
     if not settings.DEBUG:  # We should not trigger this in the dev environment.
         conn.add_comment(issue.key, message)
@@ -186,7 +186,7 @@ def check_issue_injected(conn: CustomJira, issue: Issue) -> bool:
     The injection can be "accepted" (ignored) by adding a `SPRINT_ASYNC_INJECTION_LABEL` to the ticket.
 
     Note: the link below and API docs indicate that the `changelog` contains all existing changes - the pagination has
-    `maxResults = total` by default. This was tested this with a ticket that has over 3500 items in the changelog and it
+    `maxResults = total` by default. This was tested with a ticket that has over 3500 items in the changelog and it
     worked as described. Most of these tickets should be fairly new, so they will not have such extensive
     changelogs, but it is worth to keep this in mind, as not all behaviors of the API are documented properly.
     https://community.atlassian.com/t5/Answers-Developer-Questions/How-to-get-complete-changelog-for-a-issue/qaq-p/501636]

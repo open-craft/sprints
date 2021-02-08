@@ -39,7 +39,7 @@ services:
       - ./.env
 
   redis:
-    image: redis:5.0
+    image: redis:6
 
   celeryworker:
     <<: *django

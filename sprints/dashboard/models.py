@@ -27,10 +27,11 @@ from sprints.dashboard.libs.jira import (
     QuickFilter,
 )
 from sprints.dashboard.utils import (
+    Cell,
     daterange,
     extract_sprint_id_from_str,
     get_all_sprints,
-    get_cell_key,
+    get_cell,
     get_cell_members,
     get_issue_fields,
     get_next_sprint,
@@ -243,7 +244,7 @@ class Dashboard:
         self.members: List[str]
         self.commitments: Dict[str, Dict[str, Dict[str, int]]] = {}
         self.board_id = board_id
-        self.cell_key: str
+        self.cell: Cell
         self.active_sprints: List[Sprint]
         self.cell_future_sprint: Sprint
         self.future_sprints: List[Sprint]
@@ -251,7 +252,7 @@ class Dashboard:
         self.future_sprint_end: str
 
         # Retrieve data from Jira.
-        self.cell_key = get_cell_key(conn, board_id)
+        self.cell = get_cell(conn, board_id)
         self.get_sprints()
         self.create_mock_users()
         self.vacations = get_vacations(self.before_future_sprint_start, self.after_future_sprint_end)
@@ -323,7 +324,7 @@ class Dashboard:
                 self.unassigned_user,
                 self.other_cell,
                 self.issue_fields,
-                self.cell_key,
+                self.cell.key,
             )
             if dashboard_issue.is_relevant:
                 self.issues.append(dashboard_issue)

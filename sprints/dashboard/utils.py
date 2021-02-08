@@ -18,7 +18,7 @@ from typing import (
 )
 
 # noinspection PyUnresolvedReferences,PyPackageRequirements
-from dateutil.parser import (  # type: ignore
+from dateutil.parser import (
     ParserError,
     parse,
 )
@@ -39,12 +39,7 @@ from jira.resources import (
     User,
 )
 
-from config.settings.base import (
-    FEATURE_CELL_ROLES,
-    HANDBOOK_ROLES_PAGE,
-    ROLES_REGEX,
-    SECONDS_IN_HOUR,
-)
+from config.settings.base import SECONDS_IN_HOUR
 from sprints.dashboard.libs.google import get_availability_spreadsheet
 from sprints.dashboard.libs.jira import (
     CustomJira,
@@ -52,8 +47,10 @@ from sprints.dashboard.libs.jira import (
     connect_to_jira,
 )
 
+
 class NoRolesFoundException(Exception):
     pass
+
 
 class Cell:
     """
@@ -85,14 +82,15 @@ def get_projects_dict(conn: CustomJira) -> Dict[str, Project]:
     return {p.name: p for p in projects}
 
 
-def get_cell_key(conn: CustomJira, board_id: int) -> str:
+def get_cell(conn: CustomJira, board_id: int) -> Cell:
     """
-    Retrieves the key of the cell owning the sprint board.
+    Retrieves the cell owning the sprint board.
+
     :raises ValueError if the cell was not found (this can happen when the board is not a sprint board)
     """
     for cell in get_cells(conn):
         if cell.board_id == board_id:
-            return cell.key
+            return cell
     raise ValueError("Cell not found.")
 
 
@@ -105,6 +103,25 @@ def get_cell_members(quickfilters: List[QuickFilter]) -> List[str]:
             members.append(username_search.group(1))
 
     return members
+
+
+def get_cell_membership(conn: CustomJira) -> dict[str, str]:
+    """
+    Get a dict with users and their cell membership for querying it by user.
+
+    :param conn: Jira connection.
+    :return: Dict with `user: cell_name` entries.
+    """
+    cells = get_cells(conn)
+    cell_membership = {}
+
+    for cell in cells:
+        quickfilters = conn.quickfilters(cell.board_id)
+        members = get_cell_members(quickfilters)
+        for member in members:
+            cell_membership[member] = cell.name
+
+    return cell_membership
 
 
 def get_cell_member_names(conn: CustomJira, members: Iterable[str]) -> Dict[str, str]:
@@ -125,16 +142,18 @@ def get_cell_member_roles() -> DefaultDict[str, List[str]]:
     Therefore we should ensure that users' names don't contain any typos, as this will provide inaccurate results.
     """
 
-    if FEATURE_CELL_ROLES:
+    if settings.FEATURE_CELL_ROLES:
         try:
-            URLValidator(HANDBOOK_ROLES_PAGE)
+            URLValidator(settings.HANDBOOK_ROLES_PAGE)
         except ValidationError:
-            raise ImproperlyConfigured(f"Handbook roles page ({HANDBOOK_ROLES_PAGE}) specified is not a valid url")
+            raise ImproperlyConfigured(
+                f"Handbook roles page ({settings.HANDBOOK_ROLES_PAGE}) specified is not a valid url"
+            )
 
-    r = requests.get(HANDBOOK_ROLES_PAGE)
+    r = requests.get(settings.HANDBOOK_ROLES_PAGE)
 
     # roles = [('Recruitment manager', 'John Doe'),('Sprint Planning Manager', 'John Doe'),...]
-    roles = re.findall(ROLES_REGEX, r.text)
+    roles = re.findall(settings.ROLES_REGEX, r.text)
 
     # roles_dict = {'John Doe': ['Recruitment Manager', 'Sprint Planning Manager',...],...}
     roles_dict = defaultdict(list)
@@ -143,7 +162,7 @@ def get_cell_member_roles() -> DefaultDict[str, List[str]]:
 
     # If we haven't read any roles, then something must have went wrong.
     if len(roles_dict) == 0:
-        raise NoRolesFoundException(f"No roles were found at the handbook page: {HANDBOOK_ROLES_PAGE}")
+        raise NoRolesFoundException(f"No roles were found at the handbook page: {settings.HANDBOOK_ROLES_PAGE}")
 
     return roles_dict
 
@@ -208,6 +227,11 @@ def get_all_sprints(conn: CustomJira, board_id: Optional[int] = None) -> Dict[st
         result['future'] = get_next_sprints(sprints, result['cell'][0])
     else:
         result['future'] = get_next_sprints(sprints, result['active'][0])
+
+    # Each sprint can appear once for every cell if there are any cross-cell tickets in it. We should remove duplicates.
+    for sprint_type, sprints_of_type in result.items():
+        result[sprint_type] = remove_duplicates_by_attribute(sprints_of_type, 'id')
+
     return result
 
 
@@ -289,34 +313,62 @@ def get_sprint_start_date(sprint: Sprint) -> str:
 
 
 def get_sprint_end_date(sprint: Sprint) -> str:
-    """Returns the last day of the sprint."""
+    """Get the last day of the sprint."""
     date = get_sprint_start_date(sprint)
-    return (parse(date) + timedelta(days=settings.SPRINT_DURATION_DAYS - 1)).strftime(settings.JIRA_API_DATE_FORMAT)
+    return _get_sprint_end_date(date)
 
 
-def get_current_sprint_end_date(sprint_type='active', board_id: str = '') -> str:
-    """Retrieves the cached end of sprint date for speeding up more frequent requests."""
-    if not (result := cache.get(f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}{board_id}")):
+def _get_sprint_end_date(date_str: str) -> str:
+    """Get the last day of the sprint, given the sprint start date."""
+    end_date = (parse(date_str) + timedelta(days=settings.SPRINT_DURATION_DAYS - 1))
+    return end_date.strftime(settings.JIRA_API_DATE_FORMAT)
+
+
+def get_current_sprint_start_date(sprint_type='active', board_id: str = '') -> str:
+    """Get the cached start of sprint date for speeding up more frequent requests."""
+    if not (result := cache.get(f"{settings.CACHE_SPRINT_START_DATE_PREFIX}{sprint_type}{board_id}")):
         result = cache.get_or_set(
-            f"{settings.CACHE_SPRINT_END_DATE_PREFIX}{sprint_type}{board_id}",
-            _get_current_sprint_end_date(sprint_type, int(board_id) if board_id else None),
-            settings.CACHE_SPRINT_END_DATE_TIMEOUT_SECONDS
+            f"{settings.CACHE_SPRINT_START_DATE_PREFIX}{sprint_type}{board_id}",
+            get_sprint_start_date(_get_current_sprint(sprint_type, int(board_id) if board_id else None)),
+            settings.CACHE_SPRINT_DATES_TIMEOUT_SECONDS
         )
     return result
 
 
-def _get_current_sprint_end_date(type_: str, board_id: int = None) -> str:
-    """Retrieves the end of sprint date. `type_` can be set to `active` or `future`."""
+def get_current_sprint_end_date(sprint_type='active', board_id: str = '') -> str:
+    """Get the cached end of sprint date for speeding up more frequent requests."""
+    start_str = get_current_sprint_start_date(sprint_type, board_id)
+    return _get_sprint_end_date(start_str)
+
+
+def _get_current_sprint(type_: str, board_id: int = None) -> Sprint:
+    """Get the current sprint. `type_` can be set to `active` or `future`."""
     with connect_to_jira() as conn:
         sprints = get_all_sprints(conn, board_id)[type_]
 
-    sprint = sprints[0]
-    return get_sprint_end_date(sprint)
+    return sprints[0]
 
 
 def filter_sprints_by_cell(sprints: List[Sprint], key: str) -> List[Sprint]:
     """Filters sprints created for the specific cell. We're using cell's key for finding the suitable sprints."""
     return [sprint for sprint in sprints if sprint.name.startswith(key)]
+
+
+def get_sprint_by_name(conn: CustomJira, sprint_name: str) -> Sprint:
+    """
+    Get the sprint with a specified name.
+
+    :param conn: Jira connection.
+    :param sprint_name: Name of the sprint that needs to be found.
+    :raise ImproperlyConfigured: Sprint with the desired name does not exist.
+    :return: Sprint with the desired name.
+    """
+    sprints = get_all_sprints(conn)
+    for sprint in sprints['all']:
+        if sprint.name == sprint_name:
+            return sprint
+
+    raise ImproperlyConfigured(f'Could not find the "{settings.SPRINT_ASYNC_INJECTION_SPRINT}" sprint.')
 
 
 def prepare_jql_query(
@@ -405,8 +457,7 @@ def daterange(start: str, end: str) -> Generator[str, None, None]:
 
 def get_issue_fields(conn: CustomJira, required_fields: Iterable[str]) -> Dict[str, str]:
     """Filter Jira issue fields by their names."""
-    field_ids = {field['name']: field['id'] for field in conn.fields()}
-    return {field: field_ids[field] for field in required_fields}
+    return {field: conn.issue_fields[field] for field in required_fields}
 
 
 def get_spillover_issues(conn: CustomJira, issue_fields: Dict[str, str], project: str = '') -> List[Issue]:
@@ -545,7 +596,7 @@ def prepare_spillover_rows(
                         from sprints.dashboard.tasks import add_spillover_reminder_comment_task
                         add_spillover_reminder_comment_task.delay(
                             issue.key,
-                            getattr(issue.fields, issue_fields['Assignee']).key,
+                            getattr(issue.fields, issue_fields['Assignee']).name,
                         )
                 except AttributeError:
                     cell_value = 'Unassigned'
@@ -704,3 +755,16 @@ def get_sprint_meeting_day_division(sprint_start: str) -> DefaultDict[str, Tuple
             break
 
     return result
+
+
+def remove_duplicates_by_attribute(lst: list, attr: str) -> list:
+    """
+    Remove duplicated items from a list by their attributes.
+
+    This is a small helper for getting unique Jira resources which don't have `__eq__` and `__hash__` implemented.
+
+    :param lst: A list of objects that contain `attr` attribute.
+    :param attr: Attribute that needs to be present for each item of the `lst`.
+    :return: A list of unique (by `attr`) objects.
+    """
+    return list({getattr(item, attr): item for item in lst}.values())

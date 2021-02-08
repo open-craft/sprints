@@ -5,16 +5,17 @@ orbs:
 jobs:
   test_backend:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.9
         environment:
           DATABASE_URL: postgresql://root@localhost/circle_test?sslmode=disable
           CELERY_BROKER_URL: redis://redis:6379/0
           REDIS_URL: redis://redis:6379/0
-      - image: circleci/postgres:10.3
+      - image: circleci/postgres:10
         environment:
           POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
           POSTGRES_DB: circle_test
-      - image: circleci/redis:5.0
+      - image: circleci/redis:6.0
     steps:
       - checkout
       - run:
@@ -37,13 +38,13 @@ jobs:
           name: Run Tests
           command: |
             . venv/bin/activate
-            mypy sprints
+            mypy -p sprints
             coverage run -m pytest
             coverage report
 
   test_frontend:
     docker:
-      - image: circleci/node:12
+      - image: circleci/node:14
     steps:
       - checkout
       - restore_cache:
@@ -61,7 +62,7 @@ jobs:
 
   build_backend:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.9
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
@@ -82,7 +83,7 @@ jobs:
 
   build_frontend:
     docker:
-      - image: circleci/node:12
+      - image: circleci/node:14
     steps:
       - checkout
       - run:
@@ -111,7 +112,7 @@ jobs:
 
   deploy_frontend:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.9
     steps:
       - attach_workspace:
           at: build
@@ -126,7 +127,7 @@ jobs:
 
   deploy_backend:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.9
     steps:
       - run:
           name: Deploy backend

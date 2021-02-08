@@ -15,7 +15,7 @@ from sprints.dashboard.utils import (
     extract_sprint_name_from_str,
     extract_sprint_start_date_from_sprint_name,
     get_all_sprints,
-    get_cell_key,
+    get_cell,
     get_cell_members,
     get_cells,
     get_issue_fields,
@@ -43,6 +43,12 @@ class MockItem:
             if getattr(self, attr) != getattr(other, attr):
                 return False
         return True
+
+    def __hash__(self) -> int:
+        result = 0
+        for attr in self._attrs:
+            result = hash((result << 1, hash(attr)))
+        return result
 
     def __repr__(self):
         return ', '.join([getattr(self, attr) for attr in self._attrs])
@@ -78,16 +84,20 @@ class MockJiraConnection:
             },
         ]
 
+    @property
+    def issue_fields(self):
+        return {field['name']: field['id'] for field in self.fields()}
+
     @staticmethod
     def sprints(board_id, **_kwargs):
         if board_id == 1:
             return [
-                MockItem(name='T1.125 (2019-01-01)', state='future'),
-                MockItem(name='T1.123 (2019-01-01)', state='active'),
+                MockItem(id=4, name='T1.125 (2019-01-01)', state='future'),
+                MockItem(id=1, name='T1.123 (2019-01-01)', state='active'),
             ]
         return [
-            MockItem(name='T2.124 (2019-01-01)', state='future'),
-            MockItem(name='T1.124 (2019-01-01)', state='future'),
+            MockItem(id=2, name='T2.124 (2019-01-01)', state='future'),
+            MockItem(id=3, name='T1.124 (2019-01-01)', state='future'),
         ]
 
     @staticmethod
@@ -132,7 +142,7 @@ def test_get_cells():
 def test_get_cell_key(test_input, expected, raises):
     with raises:
         # noinspection PyTypeChecker
-        assert get_cell_key(MockJiraConnection(), test_input) == expected
+        assert get_cell(MockJiraConnection(), test_input).key == expected
 
 
 def test_get_cell_members():
@@ -174,17 +184,17 @@ def test_get_all_sprints():
     sprints = get_all_sprints(MockJiraConnection())
     expected = {
         'active': [
-            MockItem(name='T1.123 (2019-01-01)', state='active'),
+            MockItem(id=1, name='T1.123 (2019-01-01)', state='active'),
         ],
         'future': [
-            MockItem(name='T2.124 (2019-01-01)', state='future'),
-            MockItem(name='T1.124 (2019-01-01)', state='future'),
+            MockItem(id=2, name='T2.124 (2019-01-01)', state='future'),
+            MockItem(id=3, name='T1.124 (2019-01-01)', state='future'),
         ],
         'all': [
-            MockItem(name='T1.125 (2019-01-01)', state='future'),
-            MockItem(name='T1.123 (2019-01-01)', state='active'),
-            MockItem(name='T2.124 (2019-01-01)', state='future'),
-            MockItem(name='T1.124 (2019-01-01)', state='future'),
+            MockItem(id=4, name='T1.125 (2019-01-01)', state='future'),
+            MockItem(id=1, name='T1.123 (2019-01-01)', state='active'),
+            MockItem(id=2, name='T2.124 (2019-01-01)', state='future'),
+            MockItem(id=3, name='T1.124 (2019-01-01)', state='future'),
         ]
     }
     assert sprints == expected

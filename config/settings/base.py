@@ -83,6 +83,7 @@ THIRD_PARTY_APPS = [
     "drf_yasg",
     "corsheaders",
     'rest_framework_simplejwt.token_blacklist',
+    'django_celery_beat',
 ]
 LOCAL_APPS = [
     "sprints.users.apps.UsersConfig",
@@ -296,11 +297,13 @@ CELERY_TASK_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
-# TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_TIME_LIMIT = SECONDS_IN_MINUTE * 30
+# Set to whatever value is adequate in your circumstances
+CELERY_TASK_TIME_LIMIT = SECONDS_IN_MINUTE * 30
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
-# TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_SOFT_TIME_LIMIT = CELERYD_TASK_TIME_LIMIT
+# Set to whatever value is adequate in your circumstances
+CELERY_TASK_SOFT_TIME_LIMIT = CELERY_TASK_TIME_LIMIT
+
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 CELERY_BEAT_SCHEDULE = {
     "Validate long-term cache integrity every 15 minutes.": {
@@ -395,43 +398,50 @@ JIRA_SPRINT_BOARD_PREFIX = env.str("SPRINT_BOARD_PREFIX", "Sprint - ")
 JIRA_BOT_USERNAME = env.str("JIRA_BOT_USERNAME", "crafty")
 # Date format used by the Jira API.
 JIRA_API_DATE_FORMAT = env.str("JIRA_API_DATE_FORMAT", "%Y-%m-%d")
+# TODO: Refactor all references to use variables instead of strings.
 JIRA_REQUIRED_FIELDS = (
-    "Assignee",
-    "Summary",
-    "Description",
-    "Issue Type",
-    "Status",
-    "Time Spent",
-    "Remaining Estimate",
-    "Sprint",
-    "Story Points",
-    "Reviewer 1",
-    "Account",
-    "Epic Link",
-    "Flagged",
+    JIRA_FIELDS_ASSIGNEE := "Assignee",
+    JIRA_FIELDS_SUMMARY := "Summary",
+    JIRA_FIELDS_DESCRIPTION := "Description",
+    JIRA_FIELDS_ISSUE_TYPE := "Issue Type",
+    JIRA_FIELDS_STATUS := "Status",
+    JIRA_FIELDS_TIME_SPENT := "Time Spent",
+    JIRA_FIELDS_TIME_REMAINING := "Remaining Estimate",
+    JIRA_FIELDS_SPRINT := "Sprint",
+    JIRA_FIELDS_STORY_POINTS := "Story Points",
+    JIRA_FIELDS_REVIEWER := "Reviewer 1",
+    JIRA_FIELDS_ACCOUNT := "Account",
+    JIRA_FIELDS_EPIC_LINK := "Epic Link",
+    JIRA_FIELDS_FLAGGED := "Flagged",
 )
 # Fields required for documenting spillovers.
 SPILLOVER_REQUIRED_FIELDS = (
-    "Status",
-    "Sprint",
-    "Assignee",
-    "Reviewer 1",
-    "Reviewer 2",
-    "Reporter",
-    "Story Points",
-    "Original Estimate",
-    "Remaining Estimate",
-    "Comment",
+    JIRA_FIELDS_STATUS,
+    JIRA_FIELDS_SPRINT,
+    JIRA_FIELDS_ASSIGNEE,
+    JIRA_FIELDS_REVIEWER,
+    JIRA_FIELDS_REVIEWER2 := "Reviewer 2",
+    JIRA_FIELDS_REPORTER := "Reporter",
+    JIRA_FIELDS_STORY_POINTS,
+    JIRA_FIELDS_TIME_ESTIMATED := "Original Estimate",
+    JIRA_FIELDS_TIME_REMAINING,
+    JIRA_FIELDS_COMMENT := "Comment",
 )
 # Issue fields that contain time in seconds.
 JIRA_TIME_FIELDS = {
-    "Time Spent",
-    "Original Estimate",
-    "Remaining Estimate",
+    JIRA_FIELDS_TIME_SPENT,
+    JIRA_FIELDS_TIME_ESTIMATED,
+    JIRA_FIELDS_TIME_REMAINING,
 }
+# Extra fields required by automation.
+JIRA_AUTOMATION_FIELDS = (
+    JIRA_FIELDS_LABELS := "Labels",
+    JIRA_FIELDS_PROJECT := "Project",
+    JIRA_FIELDS_REPORTER
+)
 # Issue fields with numeric values.
 JIRA_INTEGER_FIELDS = {
-    "Story Points",
+    JIRA_FIELDS_STORY_POINTS,
 } | JIRA_TIME_FIELDS
 # A pattern for getting board's quickfilters to retrieve the cell's members without admin permissions.
 JIRA_BOARD_QUICKFILTER_PATTERN = env.str("JIRA_BOARD_QUICKFILTER_PATTERN", r"assignee = ([\w-]+).* or .*\1.*\1")
@@ -524,6 +534,50 @@ SPRINT_START_TIME_UTC = env.int("SPRINT_START_TIME_UTC", "00:00")
 # Exact name of the tickets for logging the clean sprint hints.
 SPRINT_MEETINGS_TICKET = env.str("SPRINT_MEETINGS_TICKET", "Meetings")
 
+# Sprint automation
+# ------------------------------------------------------------------------------
+# Enable automating parts of the asynchronous sprint process.
+SPRINT_ASYNC_AUTOMATION_ENABLED = env.str("SPRINT_AUTOMATION_ENABLED", False)
+# Day of the current sprint, after which no ticket should be added to the next one.
+SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY = env.int("SPRINT_ASYNC_TICKET_CREATION_CUTOFF", 11)
+# Day of the current sprint, after which all tickets should be ready for the next sprint.
+SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY = env.int("SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY", 14)
+# A Jira label, which approves the ticket added to the sprint after the ticket creation cutoff day.
+SPRINT_ASYNC_INJECTION_LABEL = env.str("SPRINT_ASYNC_INJECTION_LABEL", "injection-accepted")
+# A name of the sprint, to which "injected" tickets will be moved.
+SPRINT_ASYNC_INJECTION_SPRINT = env.str("SPRINT_ASYNC_INJECTION_SPRINT", "Stretch Goals")
+# Message included as a comment to a ticket that has been moved out of the sprint as an injection.
+SPRINT_ASYNC_INJECTION_MESSAGE = "this ticket was an injection for the next sprint, so I moved it out to "
+# Message sent via Mattermost when some tickets are not ready for the next sprint.
+SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE = "the following tickets are not ready for the sprint. " \
+                                         "Please fill out the remaining fields.\n"
+# Message sent via Mattermost when user's commitments are higher than the capacity.
+SPRINT_ASYNC_OVERCOMMITMENT_MESSAGE = "you are overcommitted. Please adjust your assignments."
+# Configuration used for generating Celery tasks for the asynchronous sprint process. These tasks are created
+# or updated (if they already exist) while ending a sprint, so any manual changes to them will be lost.
+SPRINT_ASYNC_TASKS = {
+    "sprints.dashboard.tasks.move_out_injections_task": {
+        "name": "[ASYNC] Move out injections",
+        "start": SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY,
+        "one_off": False,
+    },
+    "sprints.dashboard.tasks.check_tickets_ready_for_sprint_task": {
+        "name": "[ASYNC] Check if tickets are ready",
+        "start": SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY,
+        "one_off": True,
+    },
+    "sprints.dashboard.tasks.ping_overcommitted_users_task": {
+        "name": "[ASYNC] Ping overcommitted people",
+        "start": SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY,
+        "one_off": True,
+    },
+    "sprints.dashboard.tasks.unflag_tickets_task": {
+        "name": "[ASYNC] Remove flags from tickets",
+        "start": SPRINT_DURATION_DAYS + 1,
+        "one_off": True,
+    },
+}
+
 # GOOGLE CALENDAR
 # ------------------------------------------------------------------------------
 # Google API credentials for retrieving data from Calendar API.
@@ -583,8 +637,8 @@ CACHE_WORKLOG_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE * 2
 CACHE_SPRINT_TIMEOUT_ONE_TIME = SECONDS_IN_MINUTE * 2
 CACHE_WORKLOG_REGENERATE_LOCK = "cache-worklog-regenerate"
 CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS = env.int("CACHE_WORKLOG_REGENERATE_LOCK_TIMEOUT_SECONDS", SECONDS_IN_MINUTE * 30)
-CACHE_SPRINT_END_DATE_PREFIX = "sprint_end_date-"
-CACHE_SPRINT_END_DATE_TIMEOUT_SECONDS = SECONDS_IN_HOUR * HOURS_IN_DAY * SPRINT_DURATION_DAYS
+CACHE_SPRINT_START_DATE_PREFIX = "sprint_start_date-"
+CACHE_SPRINT_DATES_TIMEOUT_SECONDS = SECONDS_IN_HOUR * HOURS_IN_DAY * SPRINT_DURATION_DAYS
 CACHE_SPRINT_END_LOCK = "sprint_end_lock-"
 CACHE_SPRINT_END_LOCK_TIMEOUT_SECONDS = SECONDS_IN_HOUR * HOURS_IN_DAY
 CACHE_SUSTAINABILITY_PREFIX = "sustainability-"
@@ -621,9 +675,8 @@ MATTERMOST_SERVER = env.str("MATTERMOST_SERVER")
 # Default is the https port but it can be configured
 MATTERMOST_PORT = env.int("MATTERMOST_PORT", 443)
 # Channel to ping
-# Name of the channel should always be in lowercase and if incase the channel name
-# has a space in between then it is replaced by a hyphen. For eg: "Sprint Planning"
-# changes to "sprint-planning"
+# Note: the name of the channel should always be lowercase. Any spaces should be replaced by hyphens.
+# Example: "Sprint Planning" should be changed to "sprint-planning".
 MATTERMOST_CHANNEL = env.str("MATTERMOST_CHANNEL")
 # Login Id
 MATTERMOST_LOGIN_ID = env.str("MATTERMOST_LOGIN_ID")

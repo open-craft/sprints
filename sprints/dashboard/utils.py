@@ -240,16 +240,16 @@ def get_sprints(conn: CustomJira, board_id: int) -> List[Sprint]:
     return conn.sprints(board_id, state='active, future')
 
 
-def get_sprint_number(previous_sprint: Sprint) -> int:
+def get_sprint_number(sprint: Sprint) -> int:
     """
     Retrieves sprint number with regex and returns it as `int`.
     :raises AttributeError if the format is invalid
     """
-    previous_sprint_number_search = re.search(settings.SPRINT_REGEX, previous_sprint.name)
-    if previous_sprint_number_search:
-        return int(previous_sprint_number_search.group(2))
+    sprint_number_search = re.search(settings.SPRINT_REGEX, sprint.name)
+    if sprint_number_search:
+        return int(sprint_number_search.group(2))
     else:
-        raise AttributeError("Invalid `previous_sprint`.")
+        raise AttributeError(f'The sprint name ("{sprint.name}") does not match the "{settings.SPRINT_REGEX}" regex.')
 
 
 def get_next_sprint(sprints: List[Sprint], previous_sprint: Sprint) -> Sprint:

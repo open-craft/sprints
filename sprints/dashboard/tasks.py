@@ -1,6 +1,12 @@
 import string
-from datetime import datetime, timedelta
-from typing import Dict, List
+from datetime import (
+    datetime,
+    timedelta,
+)
+from typing import (
+    Dict,
+    List,
+)
 
 from celery import group
 # noinspection PyProtectedMember
@@ -14,16 +20,22 @@ from django_celery_beat.models import (
     PeriodicTask,
 )
 # noinspection PyProtectedMember
-from jira.resources import Issue, Sprint
+from jira.resources import (
+    Issue,
+    Sprint,
+)
 
 from config import celery_app
 from sprints.dashboard.automation import (
     check_issue_injected,
+    get_next_poker_session_name,
     get_next_sprint_issues,
     get_overcommitted_users,
+    get_poker_session_final_vote,
     get_specific_day_of_sprint,
+    get_unestimated_next_sprint_issues,
     group_incomplete_issues,
-    notify_about_injection,
+    ping_users_on_ticket,
     unflag_issue,
 )
 from sprints.dashboard.libs.google import (
@@ -98,10 +110,7 @@ def add_spillover_reminder_comment_task(issue_key: str, assignee_key: str, clean
     """A task for posting the spillover reason reminder on the issue."""
     message = settings.SPILLOVER_CLEAN_HINTS_MESSAGE if clean_sprint else settings.SPILLOVER_REMINDER_MESSAGE
     with connect_to_jira() as conn:
-        conn.add_comment(
-            issue_key,
-            f"[~{assignee_key}], {message}"
-        )
+        conn.add_comment(issue_key, f"[~{assignee_key}], {message}")
 
 
 @celery_app.task(ignore_result=True)
@@ -206,7 +215,6 @@ def complete_sprint_task(board_id: int) -> None:
     7. Create role tickets.
     8. Trigger the `new sprint` webhooks.
     9. Release the sprint completion lock and clear the cache related to end of sprint date.
-    10. Schedule asynchronous sprint planning tasks for the new sprint, if SPRINT_ASYNC_AUTOMATION_ENABLED is set.
     """
     with connect_to_jira() as conn:
         cells = get_cells(conn)
@@ -312,7 +320,7 @@ def complete_sprint_task(board_id: int) -> None:
         ]
     )
 
-    if settings.SPRINT_ASYNC_AUTOMATION_ENABLED:
+    if settings.FEATURE_SPRINT_AUTOMATION:
         schedule_sprint_tasks_task.delay()
 
 
@@ -328,8 +336,9 @@ def schedule_sprint_tasks_task() -> None:
        sprint end as well.
     """
     get_specific_day_of_sprint(settings.SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY)
+
     # One extra minute to ensure that the task will be scheduled on time. Otherwise it might get revoked.
-    expiration_date = parse(get_current_sprint_end_date()) + timedelta(days=1, minutes=1)
+    default_expiration_date = parse(get_current_sprint_end_date()) + timedelta(days=1, minutes=1)
 
     for task_path, task_details in settings.SPRINT_ASYNC_TASKS.items():
         # If there are more than one tasks with the same path, then remove all of them.
@@ -337,7 +346,14 @@ def schedule_sprint_tasks_task() -> None:
         if query.count() > 1:
             query.delete()
 
-        start_time = get_specific_day_of_sprint(task_details['start'])
+        start_delay = task_details.get('start_delay', timedelta())
+        start_time = get_specific_day_of_sprint(task_details['start']) + start_delay
+
+        expiration_date = default_expiration_date
+        if end := task_details.get('end'):
+            end_delay = task_details.get('end_delay', timedelta())
+            expiration_date = get_specific_day_of_sprint(end) + end_delay
+
         one_off = task_details['one_off']
         interval, _ = IntervalSchedule.objects.get_or_create(
             every=1, period=IntervalSchedule.SECONDS if one_off else IntervalSchedule.HOURS
@@ -370,7 +386,12 @@ def move_out_injections_task() -> None:
         if not settings.DEBUG:  # We should not trigger this in the dev environment.
             conn.add_issues_to_sprint(injection_sprint.id, injections_keys)
         for injection in injections:
-            notify_about_injection(conn, injection, injection_sprint)
+            ping_users_on_ticket(
+                conn,
+                injection,
+                f"{settings.SPRINT_ASYNC_INJECTION_MESSAGE}{injection_sprint.name}.",
+                epic_owner=True,
+            )
 
 
 @celery_app.task(ignore_result=True)
@@ -413,3 +434,174 @@ def unflag_tickets_task() -> None:
         for issue in issues:
             if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
                 unflag_issue(conn, issue)
+
+
+@celery_app.task(ignore_result=True)
+def create_estimation_session_task() -> None:
+    """
+    Create a new empty estimation session for every cell.
+
+    An empty estimation session does not contain any issues or participants. The current user is added as the scrum
+    master of the session, as without this permission it wouldn't be possible to make any future modifications.
+
+    WARNING
+    Creating a session without issues causes some chaos in Jira, as the `/session/async/{sessionId}/rounds/` endpoint
+    returns HTTP 500 in such case. It does not break other API calls, so operations like updating, closing, and deleting
+    the session (via the API) work correctly. It makes the session unusable via the browser by breaking two views:
+        - estimation,
+        - configuration.
+    Therefore, the decision is to avoid adding the participants to the session until there are issues that can be added
+    too. Assuming that the sessions are fully automated, and don't require any manual interventions in the beginning,
+    this should not cause any troubles.
+    """
+    with connect_to_jira() as conn:
+        session_name = get_next_poker_session_name(conn)
+        for cell in get_cells(conn):
+            if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                conn.create_poker_session(
+                    board_id=cell.board_id,
+                    name=session_name,
+                    issues=[],
+                    participants=[],
+                    scrum_masters=[conn.myself()['key']],
+                    send_invitations=False,
+                )
+
+
+@celery_app.task(ignore_result=True)
+def update_estimation_session_task() -> None:
+    """
+    Update estimation session's issues and participants.
+
+    If no issues exist for the session, then it will not be updated. The reasoning behind this has been described in the
+    `create_estimation_session_task` function.
+
+    This does not override the manual additions to the session - i.e. if an issue or user has been added manually to the
+    session, then it will be retained, as it merges available issues and participants with the applied ones.
+    However, any removed items (e.g. an issue scheduled for the next sprint, or a user who is a member of the cell)
+    will be added back automatically.
+
+    FIXME: This adds all cell members as scrum masters to the session, because at the moment we do not have a way to
+           determine whether the member is a part of the core team. We can restrict this in the future, if needed.
+    """
+    with connect_to_jira() as conn:
+        session_name = get_next_poker_session_name(conn)
+        issues = get_unestimated_next_sprint_issues(conn)
+        # FIXME: This will not work for more than 1000 users. To support it, add `startAt` to handle the pagination.
+        all_users = conn.search_users("''", maxResults=1000)  # Searching for the "quotes" returns all users.
+
+        for cell in get_cells(conn):
+            try:
+                poker_session = conn.poker_sessions(cell.board_id, state="OPEN", name=session_name)[0]
+            except IndexError:
+                if not settings.DEBUG:
+                    # It can happen:
+                    # 1. When this runs before the `create_estimation_session_task`, e.g. when the sprint is created
+                    #    manually a moment before the full hour.
+                    # 2. If a new cell has been added, then its session was created manually, and it either:
+                    #    - does not have a correct name,
+                    #    - does not have the Jira bot added as its scrum master.
+                    # noinspection PyUnresolvedReferences
+                    from sentry_sdk import capture_message
+
+                    capture_message(
+                        f"Could not find a session called {session_name} in {cell.name}. If you haven't completed the "
+                        f"sprint yet, then you should consider adjusting the start time of this task, so it's started "
+                        f"only once the new sprint has been started. If this is a new cell, please make sure that an "
+                        f"estimation session with this name exists and {settings.JIRA_BOT_USERNAME} has been added as "
+                        f"a scrum master there."
+                    )
+                continue
+
+            # Get IDs of issues belonging only to a specific cell.
+            cell_issue_ids = set(issue.id for issue in issues if issue.key.startswith(cell.key))
+            current_issue_ids = set(conn.poker_session_results(poker_session.sessionId).keys())
+            all_issue_ids = list(current_issue_ids | cell_issue_ids)
+            if all_issue_ids:
+                # User's `name` and `key` are not always the same.
+                members = get_cell_member_names(conn, get_cell_members(conn.quickfilters(cell.board_id)))
+                member_keys = set(user.key for user in all_users if user.displayName in members)
+                current_member_keys = set(user.userKey for user in poker_session.participants)
+                all_member_keys = list(current_member_keys | member_keys)
+
+                if not settings.DEBUG:  # We don't want to trigger this in the dev environment.
+                    poker_session.update(
+                        {
+                            'issuesIds': all_issue_ids,
+                            'participants': all_member_keys,
+                            'scrumMasters': all_member_keys,
+                        },
+                        notify=True,
+                    )
+
+
+@celery_app.task(ignore_result=True)
+def close_estimation_session_task() -> None:
+    """
+    Close all "next-sprint" estimation sessions for every cell.
+
+    The "next-sprint" estimation session needs to match the following criteria:
+    - is open,
+    - has the name matching the result of the `get_next_poker_session_name` function.
+    """
+    with connect_to_jira() as conn:
+        session_name = get_next_poker_session_name(conn)
+
+        for cell in get_cells(conn):
+            poker_sessions = conn.poker_sessions(cell.board_id, state="OPEN", name=session_name)
+            if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                # Handle closing multiple sessions with the same name (though it should not happen).
+                for session in poker_sessions:
+                    conn.close_poker_session(session.sessionId, send_notifications=True)
+
+    move_estimates_to_tickets_task.delay()
+
+
+@celery_app.task(ignore_result=True)
+def move_estimates_to_tickets_task() -> None:
+    """
+    Applies the average vote results from the closed estimation session to the tickets for every cell.
+
+    If there were no votes for a specific issue, its assignee (or another responsible person) is notified.
+    """
+    with connect_to_jira() as conn:
+        session_name = get_next_poker_session_name(conn)
+
+        for cell in get_cells(conn):
+            vote_values = conn.poker_session_vote_values(cell.board_id)
+            poker_sessions = conn.poker_sessions(cell.board_id, state="CLOSED", name=session_name)
+
+            if not poker_sessions and not settings.DEBUG:
+                # This can happen if a new cell has been added, then its session was created manually, and it either:
+                # - does not have a correct name,
+                # - does not have the Jira bot added as its scrum master.
+                # noinspection PyUnresolvedReferences
+                from sentry_sdk import capture_message
+
+                capture_message(
+                    f"Could not find a session called {session_name} in {cell.name}. If this is a new cell, please "
+                    f"make sure that an estimation session with this name exists and {settings.JIRA_BOT_USERNAME} "
+                    f"has been added as a scrum master there."
+                )
+
+            # Handle applying the results from multiple sessions with the same name (though it should not happen).
+            for session in poker_sessions:
+                for issue, results in conn.poker_session_results(session.sessionId).items():
+                    votes = []
+                    for result in results.values():
+                        vote = result.get("selectedVote")
+                        try:
+                            votes.append(float(vote))  # type: ignore
+                        except ValueError:
+                            # Ignore non-numeric answers.
+                            pass
+
+                    try:
+                        final_vote = get_poker_session_final_vote(votes, vote_values)
+                    except AttributeError:  # No votes.
+                        ping_users_on_ticket(conn, conn.issue(issue), settings.SPRINT_ASYNC_POKER_NO_ESTIMATES_MESSAGE)
+                    else:
+                        if not settings.DEBUG:  # We really don't want to trigger this in the dev environment.
+                            conn.update_issue(
+                                issue, conn.issue_fields[settings.JIRA_FIELDS_STORY_POINTS], str(final_vote)
+                            )

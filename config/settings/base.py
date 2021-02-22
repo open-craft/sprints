@@ -537,7 +537,7 @@ SPRINT_MEETINGS_TICKET = env.str("SPRINT_MEETINGS_TICKET", "Meetings")
 # Sprint automation
 # ------------------------------------------------------------------------------
 # Enable automating parts of the asynchronous sprint process.
-SPRINT_ASYNC_AUTOMATION_ENABLED = env.str("SPRINT_AUTOMATION_ENABLED", False)
+FEATURE_SPRINT_AUTOMATION = env.str("FEATURE_SPRINT_AUTOMATION", False)
 # Day of the current sprint, after which no ticket should be added to the next one.
 SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY = env.int("SPRINT_ASYNC_TICKET_CREATION_CUTOFF", 11)
 # Day of the current sprint, after which all tickets should be ready for the next sprint.
@@ -548,6 +548,10 @@ SPRINT_ASYNC_INJECTION_LABEL = env.str("SPRINT_ASYNC_INJECTION_LABEL", "injectio
 SPRINT_ASYNC_INJECTION_SPRINT = env.str("SPRINT_ASYNC_INJECTION_SPRINT", "Stretch Goals")
 # Message included as a comment to a ticket that has been moved out of the sprint as an injection.
 SPRINT_ASYNC_INJECTION_MESSAGE = "this ticket was an injection for the next sprint, so I moved it out to "
+# Message included as a comment to a ticket that did not receive any votes during the estimation session.
+SPRINT_ASYNC_POKER_NEW_SESSION_MESSAGE = "Please estimate issues from this session before our next planning meeting."
+SPRINT_ASYNC_POKER_NO_ESTIMATES_MESSAGE = "there were no votes for this ticket in the last estimation session, " \
+                                          "so I could not find the estimate. Please perform the manual estimation."
 # Message sent via Mattermost when some tickets are not ready for the next sprint.
 SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE = "the following tickets are not ready for the sprint. " \
                                          "Please fill out the remaining fields.\n"
@@ -556,19 +560,45 @@ SPRINT_ASYNC_OVERCOMMITMENT_MESSAGE = "you are overcommitted. Please adjust your
 # Configuration used for generating Celery tasks for the asynchronous sprint process. These tasks are created
 # or updated (if they already exist) while ending a sprint, so any manual changes to them will be lost.
 SPRINT_ASYNC_TASKS = {
+    # FIXME: The sprint completion is not automated yet, and this should be done only if the sprints all cells are
+    #  completed for all cells. Add this to the sprint completion pipeline, once it's automated.
+    "sprints.dashboard.tasks.create_estimation_session_task": {
+        "name": "[ASYNC] Close estimation session",
+        "start": 1,  # The first day of the sprint.
+        "start_delay": datetime.timedelta(hours=8),
+        "one_off": True,
+    },
+    "sprints.dashboard.tasks.update_estimation_session_task": {
+        "name": "[ASYNC] Update estimation session",
+        "start": 1,  # The first day of the sprint.
+        # Delay to ensure that the `create_estimation_session_task` has been executed.
+        # TODO: Reduce the delay once the `create_estimation_session_task` is a part of the sprint completion pipeline.
+        "start_delay": datetime.timedelta(hours=8, minutes=30),
+        "end": SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY,
+        # Expire the task earlier to avoid interference with the `close_estimation_session_task`.
+        "end_delay": datetime.timedelta(minutes=5),
+        "one_off": False,
+    },
     "sprints.dashboard.tasks.move_out_injections_task": {
         "name": "[ASYNC] Move out injections",
         "start": SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY,
         "one_off": False,
     },
+    "sprints.dashboard.tasks.close_estimation_session_task": {
+        "name": "[ASYNC] Close estimation session",
+        "start": SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY,
+        "one_off": True,
+    },
     "sprints.dashboard.tasks.check_tickets_ready_for_sprint_task": {
         "name": "[ASYNC] Check if tickets are ready",
         "start": SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY,
+        "start_delay": datetime.timedelta(minutes=15),  # Delay to perform the `update_estimation_session_task` first.
         "one_off": True,
     },
     "sprints.dashboard.tasks.ping_overcommitted_users_task": {
         "name": "[ASYNC] Ping overcommitted people",
         "start": SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY,
+        "start_delay": datetime.timedelta(minutes=15),  # Delay to perform the `update_estimation_session_task` first.
         "one_off": True,
     },
     "sprints.dashboard.tasks.unflag_tickets_task": {

@@ -1,5 +1,6 @@
 import json
 from contextlib import contextmanager
+from functools import cached_property
 from typing import (
     Dict,
     Iterator,
@@ -7,14 +8,15 @@ from typing import (
 )
 
 from django.conf import settings
-from functools import cached_property
 from jira import JIRA
 from jira.client import ResultList
+from jira.exceptions import JIRAError
 from jira.resources import (
     GreenHopperResource,
     Resource,
     Worklog,
 )
+from jira.utils import json_loads
 
 
 class QuickFilter(GreenHopperResource):
@@ -60,9 +62,69 @@ class Report(Resource):
             self._parse_raw(raw)
 
 
+class Poker(Resource):
+    """Class for representing Agile Poker session resource."""
+
+    def __init__(self, options, session, raw=None):
+        Resource.__init__(self, 'pokerng/{0}', options, session)
+        if raw:
+            self._parse_raw(raw)
+
+        # Specify the API for the poker session.
+        self._session.headers['content-type'] = 'application/json'
+        options = self._options.copy()
+        options.update({'rest_path': 'pokerng', 'rest_api_version': '1.0', 'path': f'session/id/{self.sessionId}'})
+        # This attribute is used by the superclass for querying the API.
+        self.self = self._base_url.format(**options)
+
+    def update(
+        self,
+        fields: dict[str, object] = None,
+        async_: bool = None,
+        jira: 'CustomJira' = None,
+        notify: bool = True,
+        **kwargs,
+    ):
+        """
+        Update this poker session on the server.
+
+        :param fields: Fields which should be updated for the object.
+        :param async_: If true the request will be added to the queue so it can be executed later using async_run().
+        :param jira: Instance of the JIRA Client.
+        :param notify: Whether or not to notify participants about the update via email. (Default: True).
+        """
+        issues = []
+        fields = fields or {}
+        if 'issuesIds' not in fields:
+            # This way we don't need to run the `poker_session_results` method twice or include the jira connection when
+            # it is not necessary.
+            if jira:
+                issues = list(jira.poker_session_results(self.sessionId).keys())
+            else:
+                raise AttributeError(
+                    "You should either specify `issueIds` in the `fields` or provide a Jira client in "
+                    "`kwargs` to update the poker session."
+                )
+
+        # All these fields need to be present in the `PUT` request.
+        data = {
+            'name': self.name,
+            'estimationFieldId': self.estimationFieldId,
+            'mode': self.mode,
+            'participants': [u.userKey for u in self.participants],
+            'scrumMasters': [u.userKey for u in self.scrumMasters],
+            'issuesIds': issues,
+            'sendInvitations': notify,
+        }
+        data.update(fields)
+
+        super().update(data, async_, jira, notify, **kwargs)
+
+
 class CustomJira(JIRA):
     """Custom Jira class for using greenhopper and Tempo APIs."""
 
+    AGILE_POKER_URL = '{server}/rest/pokerng/1.0/{path}'
     API_V2 = '{server}/rest/api/2/{path}'
     GREENHOPPER_BASE_URL = '{server}/rest/greenhopper/1.0/{path}'
     TEMPO_CORE_URL = '{server}/rest/tempo-core/1/{path}'
@@ -147,9 +209,149 @@ class CustomJira(JIRA):
             )
             aggregated_worklogs.extend(json.loads(r_json.text))
 
-        worklogs = [Worklog(self._options, self._session, raw_worklog_json)
-                    for raw_worklog_json in aggregated_worklogs]
+        worklogs = [Worklog(self._options, self._session, raw_worklog_json) for raw_worklog_json in aggregated_worklogs]
         return worklogs
+
+    def poker_sessions(self, board_id: int, state: str = None, name: str = None) -> list[Poker]:
+        """
+        Retrieve agile poker sessions from the specific board, optionally filtered by their state and name.
+
+        :param board_id: The board to get sessions from.
+        :param state: Filter results by specified states. Valid values: "OPEN", "CLOSED".
+        :param name: Filter results by their names.
+        :return: A list of sessions.
+        """
+        r_json = self._get_json(f'session/board/{board_id}', base=self.AGILE_POKER_URL)
+        sessions = [Poker(self._options, self._session, raw_sessions_json) for raw_sessions_json in r_json]
+        if state:
+            sessions = list(filter(lambda s: s.state == state, sessions))
+        if name:
+            sessions = list(filter(lambda s: s.name == name, sessions))
+        return sessions
+
+    def poker_session(self, session_id: int) -> Poker:
+        """
+        Retrieve the agile poker session by its ID.
+
+        :param session_id: The ID of the session to get.
+        :return: A session.
+        """
+        r_json = self._get_json(f'session/id/{session_id}', base=self.AGILE_POKER_URL)
+        return Poker(self._options, self._session, r_json)
+
+    def create_poker_session(
+        self,
+        board_id: int,
+        name: str,
+        issues: list[str],
+        participants: list[str],
+        scrum_masters: list[str],
+        send_invitations: bool = True,
+    ) -> Poker:
+        """
+        Create a new agile poker session.
+
+        :param board_id: The board to get sessions from.
+        :param name: Name of the session.
+        :param scrum_masters: A list of participants with scrum masters permissions.
+        :param participants: A list of standard participants of the session.
+        :param issues: A list of issues to be estimated in a session.
+        :param send_invitations: Whether or not to notify participants about the update via email. (Default: True).
+        :return: A new session.
+        """
+        response = self._session.post(
+            url=self._get_url(f'session/async?boardId={board_id}', self.AGILE_POKER_URL),
+            headers={'content-type': 'application/json'},
+            data=json.dumps(
+                {
+                    'estimationFieldId': self.issue_fields[settings.JIRA_FIELDS_STORY_POINTS],
+                    'invitationMessage': settings.SPRINT_ASYNC_POKER_NEW_SESSION_MESSAGE,
+                    'name': name,
+                    'issueIds': issues,
+                    'participantsUserKeys': participants,
+                    'scrumMastersUserKeys': scrum_masters,
+                    'sendInvitations': send_invitations,
+                }
+            ),
+        )
+        return Poker(self._options, self._session, json_loads(response))
+
+    def close_poker_session(self, session_id: int, send_notifications: bool = True) -> Poker:
+        """
+        Close an agile poker session.
+
+        :param session_id: The ID of the session to close.
+        :param send_notifications: Whether or not to notify participants about the update via email. (Default: True).
+        :return: A closed session.
+        """
+        response = self._session.put(
+            url=self._get_url(f'session/async/{session_id}/rounds/latest', self.AGILE_POKER_URL),
+            headers={'content-type': 'application/json'},
+            data=json.dumps(
+                {
+                    'closeRound': True,
+                    'sendCloseNotifications': send_notifications,
+                }
+            ),
+        )
+        return Poker(self._options, self._session, json_loads(response))
+
+    def poker_session_vote_values(self, board_id: int) -> list[float]:
+        """
+        Retrieve a list of possible vote values, configured per board.
+
+        :param board_id: The board to get possible values from.
+        :return: A list of possible vote values.
+        """
+        response = self._get_json(f'board/{board_id}/settings', base=self.AGILE_POKER_URL)
+        print(response)
+        return [float(vote['value']) for vote in response.get('voteValues', [])]
+
+    def poker_session_results(self, session_id: int) -> dict[str, dict[str, dict[str, object]]]:
+        """
+        Retrieve agile poker session's results.
+
+        :param session_id: The ID of the session to get results from.
+        :return: A dict containing results of the session. It has the following structure:
+                 {
+                    'issue_id': {
+                        'user_key': {
+                            'userKey': 'user_key' (str),
+                            'hasVoted': True (bool),
+                            'canSeeIssue': True (bool),
+                            'selectedVote': '1' (str, can be non-numeric, e.g. '?'),
+                            'voteComment': 'comment' (str),
+                            'issueId': issue_id (int)
+                        }
+                    }
+                }
+        """
+        try:
+            response = self._get_json(f'session/async/{session_id}/rounds/latest', base=self.AGILE_POKER_URL)
+        except JIRAError:
+            response = {}
+
+        return response.get('issueVotes', {})
+
+    def update_issue(self, issue: str, field_id: str, value: str) -> None:
+        """
+        Update a specific field of the Jira issue.
+
+        :param issue: Issue key or ID.
+        :param field_id: An ID of the field that will be updated.
+        :param value: A new value of the field.
+        """
+        self._session.put(
+            url=self._get_url(f'xboard/issue/update-field.json', self.GREENHOPPER_BASE_URL),
+            headers={'content-type': 'application/json'},
+            data=json.dumps(
+                {
+                    'issueIdOrKey': issue,
+                    'fieldId': field_id,
+                    'newValue': value,
+                }
+            ),
+        )
 
     @cached_property
     def issue_fields(self) -> Dict[str, str]:
@@ -167,7 +369,14 @@ def connect_to_jira() -> Iterator[CustomJira]:
     conn = CustomJira(
         server=settings.JIRA_SERVER,
         basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD),
-        options={'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH},
+        options={
+            'agile_rest_path': GreenHopperResource.AGILE_BASE_REST_PATH,
+            'headers': {
+                # Ugly hack, but the Agile Poker REST API returns HTTP 403 without this.
+                'Referer': f'{settings.JIRA_SERVER}'
+                f'/download/resources/com.spartez.jira.plugins.jiraplanningpoker/frontend/index.html',
+            },
+        },
     )
     yield conn
     conn.close()

@@ -124,6 +124,10 @@ The main idea behind this is that sprints are not shared by cells - you need to 
     c) The "Date" column is omitted.
 
     The metadata (name, duration, story points) of these tickets is defined in `JIRA_CELL_ROLES`. Please see its docstring for the detailed explanation of its format.
+8. Trigger the ``new sprint`` webhooks.
+    Please see the `Setting up webhooks`_ section for more information about this.
+9. Release the sprint completion lock and clear the cache related to sprint start date.
+    The sprint completion task is using a Redis lock for eliminating race conditions if a task is scheduled more than once.
 
 
 Sustainability
@@ -300,16 +304,16 @@ The alerts are defined in settings to be triggered with Celerybeat. It's possibl
 It's also possible to specify addresses that will receive alerts for all existing cells and accounts. To do this, add email address to `NOTIFICATIONS_SUSTAINABILITY_EMAILS` environment variable.
 
 Setting up webhooks
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 The sprints app supports triggering webhooks on certain events. Currently the following events are supported:
 
-* 'new sprint' - Triggered at the end of the sprint completion process. It fires a webhook containing details of each member of the cell & their responsibilities in the new sprint. It reads permanent roles (Sprint Planning Manager etc.) from the ``HANDBOOK_ROLES_PAGE`` & temporary roles (Firefighter, Discovery Duty etc.) from the rotations spreadsheets. If the ``FEATURE_CELL_ROLES`` (disabled by default) environment variable is set to ``True`` it will cause an error and prevent the sprint from being completed if the permanent roles cannot be read from the handbook.
+1. 'new sprint' - Triggered at the end of the sprint completion process. It fires a webhook containing details of each member of the cell & their responsibilities in the new sprint. It reads permanent roles (Sprint Planning Manager etc.) from the ``HANDBOOK_ROLES_PAGE``, and temporary roles (Firefighter, Discovery Duty etc.) from the rotations spreadsheets. If the ``FEATURE_CELL_ROLES`` (disabled by default) environment variable is set to ``True`` it will cause an error and prevent the sprint from being completed if the permanent roles cannot be read from the handbook.
 
 In order to setup receivers you first need to setup webhook events; to do that follow these steps:
 
 1. Go to 'Webhook events' in your Django admin panel (http://your_site/admin/webhooks/webhookevent/).
 2. Click 'Add webhook event' and create events based on the above mentioned list of events.
-    
+
 For now only the 'new sprint' event type is supported. More event types will be added in the future.
 
 To create a new webhook receiver, follow these steps:
@@ -344,7 +348,128 @@ Alerts are sent by default to emails specified in `MAX_NON_BILLABLE_TO_BILLABLE_
 
 Automation
 ----------
-This will be added in BB-3174.
+Sprints implement tasks that automate some parts of the sprint planning process. To enable automation, set the ``FEATURE_SPRINT_AUTOMATION`` env variable to ``True``.
+
+Pinging people
+^^^^^^^^^^^^^^^
+The automations retrieve users responsible for a ticket. The following rules apply for this:
+1. The assignee is included if the ticket is assigned.
+2. The epic owner is included if the ticket is unassigned or if a task explicitly requests this.
+3. The reporter is included if the ticket both:
+- is unassigned,
+- does not belong to an epic or the epic is unassigned.
+4. If none of the above is present, the error is reported to Sentry.
+A task determines whether the users will be pinged on the ticket (with an asynchronous comment) or via the Mattermost (with a synchronous message), depending on the urgency of this part of the sprint planning process.
+
+Scheduling tasks
+^^^^^^^^^^^^^^^^^
+While completing the sprint, the automation tasks are scheduled for the new one. There are two types of supported tasks:
+1. One-off - ran on a specific day of the sprint.
+2. Periodic - ran hourly from a specific day of the sprint to either another day or until the end of the sprint.
+
+You can see the scheduled tickets in the Django admin panel (http://your_site/admin/django_celery_beat/periodictask/).
+
+Ticket planning
+^^^^^^^^^^^^^^^^^^
+These tasks relate to planning the tickets for the next sprint.
+
+Handle task injections
+~~~~~~~~~~~~~~~~~~~~~~
+To make the sprint planning easier, we have introduced a ticket creation cutoff day. From this day of the sprint, it is no longer possible to add tickets to the next sprint. If the ticket needs to be added to the next sprint, then it's added to "Stretch Goals", and then it's picked up only if the cell has the capacity, as described in the `Task Insertion`_ section of our handbook.
+
+If a ticket is added to the next sprint after the cutoff day, it will be automatically moved to the "Stretch Goals" sprint, then the ticket's reporter and the epic owner will be notified about this via a comment on the ticket.
+To accept a sprint injection, a specific label (``injection-accepted`` by default) needs to be added to the ticket by the `Sprint Planning Manager`_.
+
+This is a periodic task, which is running hourly from the cutoff day until the end of the sprint.
+
+.. _`Task Insertion`: https://handbook.opencraft.com/en/latest/sprint_planning_agenda/#task-insertion
+.. _`Sprint Planning Manager`: https://handbook.opencraft.com/en/latest/roles/#cell-sprint-planning-manager
+
+Check if all tasks are ready for the next sprint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This task determines whether all tickets have the following attributes set:
+
+1. Assignee.
+2. Reviewer.
+3. Story Points.
+
+Each person, who has some incomplete tickets, will be pinged on Mattermost, with a list of these tickets, with sublists of their missing fields.
+
+This is a one-off task, which runs at the beginning of the sprint's final day.
+
+Find overcommitted people
+~~~~~~~~~~~~~~~~~~~~~~~~~
+This task uses Mattermost to ping people who have negative time left for the next sprint (i.e. are overcommitted).
+
+This is a one-off task, which runs at the beginning of the sprint's final day.
+
+Unflag tickets
+~~~~~~~~~~~~~~
+This task removes all "Impediment" flags from the tickets scheduled for the next sprint.
+
+This is a one-off task, which runs at the end of the sprint.
+
+Estimation session
+^^^^^^^^^^^^^^^^^^^^
+For estimating tickets, we are using the `Agile Poker`_ Jira app.
+
+Creating sessions
+~~~~~~~~~~~~~~~~~~~~
+At the beginning of the sprint, a new session is created for each cell.
+
+Note
+****
+Creating a session without issues causes some chaos in Jira, as the ``/session/async/{sessionId}/rounds/`` endpoint returns HTTP 500 in such case. It does not break other API calls, so operations like updating, closing, and deleting the session (via the API) work correctly. It makes the session unusable via the browser by breaking two views:
+- estimation,
+- configuration.
+Therefore, the decision is to avoid adding the participants to the session until there are issues that can be added too. Assuming that the sessions are fully automated, and don't require any manual interventions in the beginning, this should not cause any troubles.
+
+This is a one-off task, which runs at the beginning of the sprint. The email notification is not sent, because there are no participants.
+
+Updating sessions
+~~~~~~~~~~~~~~~~~
+This task adds any tickets that have been added to the next sprint but are not present in the estimation session. It also adds participants, when there are tickets scheduled for the next sprint (please see the explanation above), or if a new member joins a cell.
+
+Note
+****
+This does not override the manual additions to the session - i.e. if a ticket or user has been added manually to the session, then it will be retained, as it merges available issues and participants with the applied ones. However, any removed items (e.g. ticket scheduled for the next sprint or of a user, who is a member of the cell) will be added back automatically.
+
+This is a periodic task, which is running hourly from the beginning of the sprint until the final day of the sprint. The participants are notified about each change via email, so they are aware of the unestimated tickets.
+
+Closing sessions
+~~~~~~~~~~~~~~~~
+The session is closed for each cell before the sprint's final day. This triggers the `Moving estimates to tickets`_ task.
+
+This is a one-off task, which runs at the beginning of the sprint. The participants are notified about this via email.
+
+Moving estimates to tickets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This applies the average vote results from the closed estimation session to all tickets. In the case of a draw, the higher estimate is returned.
+
+If there were no votes for a specific ticket, its assignee (or another responsible person) is notified.
+
+.. _`Agile Poker`: https://marketplace.atlassian.com/apps/700473/agile-poker-for-jira-planning-estimation
+
+
+Configuration variables
+~~~~~~~~~~~~~~~~~~~~~~~
+Please see the `configuration file`_ for a detailed description of these variables.
+
+1. ``FEATURE_SPRINT_AUTOMATION``
+2. ``SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY``
+3. ``SPRINT_ASYNC_INJECTION_LABEL``
+4. ``SPRINT_ASYNC_INJECTION_SPRINT``
+5. ``SPRINT_ASYNC_INJECTION_MESSAGE``
+6. ``SPRINT_ASYNC_TICKET_FINAL_CHECK_DAY``
+7. ``SPRINT_ASYNC_POKER_NEW_SESSION_MESSAGE``
+8. ``SPRINT_ASYNC_POKER_NO_ESTIMATES_MESSAGE``
+9. ``SPRINT_ASYNC_INCOMPLETE_TICKET_MESSAGE``
+10. ``SPRINT_ASYNC_OVERCOMMITMENT_MESSAGE``
+
+
+.. _`configuration file`: config/settings/base.py
+
+
 
 Settings
 --------

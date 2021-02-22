@@ -8,11 +8,9 @@ from multiprocessing.pool import ThreadPool
 
 from dateutil.parser import parse
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from jira import Issue
-from jira.resources import (
-    Sprint,
-    User,
-)
+from jira.resources import User
 
 from sprints.dashboard.libs.jira import CustomJira
 from sprints.dashboard.models import Dashboard
@@ -21,6 +19,7 @@ from sprints.dashboard.utils import (
     get_cells,
     get_current_sprint_start_date,
     get_issue_fields,
+    get_sprint_number,
 )
 
 
@@ -47,12 +46,13 @@ def get_specific_day_of_sprint(day: int) -> datetime:
 
 def get_next_sprint_issues(conn: CustomJira, changelog: bool = False) -> list[Issue]:
     """
-    Retrieve all tickets scheduled for the next sprint.
+    Retrieve all issues scheduled for the next sprint.
 
     Filtering by sprints excludes non-cell tickets.
 
     :param conn: Jira connection.
-    :param changelog: Include ticket's history.
+    :param changelog: Include issue's history.
+    :return: List of issues scheduled for the next sprint.
     """
     sprints = get_all_sprints(conn)
     sprints_str = ",".join((str(s.id) for s in sprints['future']))
@@ -60,6 +60,33 @@ def get_next_sprint_issues(conn: CustomJira, changelog: bool = False) -> list[Is
         jql_str=f"Sprint IN ({sprints_str})",
         fields=list(get_issue_fields(conn, settings.JIRA_REQUIRED_FIELDS + settings.JIRA_AUTOMATION_FIELDS).values()),
         expand="changelog" if changelog else "",  # Retrieve history of changes for each issue.
+        maxResults=0,
+    )
+
+
+def get_unestimated_next_sprint_issues(conn: CustomJira) -> list[Issue]:
+    """
+    Retrieve all unestimated issues scheduled for the next sprint or placed in the stretch goals.
+
+    :param conn: Jira connection.
+    :return: List of unestimated issues scheduled for the next sprint or waiting in the stretch goals.
+    """
+    sprints = get_all_sprints(conn)
+    for sprint in sprints['all']:
+        if sprint.name == settings.SPRINT_ASYNC_INJECTION_SPRINT:
+            stretch_goals = sprint
+            break
+    else:
+        raise ImproperlyConfigured(f"No sprint named {settings.SPRINT_ASYNC_INJECTION_SPRINT} has been found in Jira.")
+
+    used_sprints = sprints['future'] + [stretch_goals]
+    sprints_str = ",".join((str(s.id) for s in used_sprints))
+    return conn.search_issues(
+        jql_str=f'Sprint IN ({sprints_str}) '
+        f'AND "{settings.JIRA_FIELDS_STATUS}" != "{settings.SPRINT_STATUS_ARCHIVED}" '  # Ignore archived.
+        f'AND "{settings.JIRA_FIELDS_STORY_POINTS}" is EMPTY '  # Only unestimated.
+        f'AND issuetype NOT IN subTaskIssueTypes()',  # Ignore subtasks.
+        fields=['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
         maxResults=0,
     )
 
@@ -77,7 +104,7 @@ def get_users_to_ping(conn: CustomJira, issue: Issue, epic_owner: bool = False) 
 
     :param conn: Jira connection.
     :param issue: Jira ticket.
-    :param epic_owner: Should always include epic owner?
+    :param epic_owner: Whether or not to always include the epic owner.
     :return: Unique names of users, who should be notified about the ticket.
     """
     users = set()
@@ -105,24 +132,25 @@ def get_users_to_ping(conn: CustomJira, issue: Issue, epic_owner: bool = False) 
     return users
 
 
-def notify_about_injection(conn: CustomJira, issue: Issue, sprint: Sprint) -> None:
+def ping_users_on_ticket(conn: CustomJira, issue: Issue, message: str, epic_owner: bool = False) -> None:
     """
-    Add comments to the issue that has been injected and moved out of the next sprint.
+    Add a custom comment to an issue, mentioning responsible people.
 
     :param conn: Jira connection.
     :param issue: Injected issue.
-    :param sprint: Sprint, to which the issue have been moved.
+    :param message: A comment message.
+    :param epic_owner: Whether or not to always include the epic owner.
     """
-    users = get_users_to_ping(conn, issue, epic_owner=True)
-    message = ""
+    users = get_users_to_ping(conn, issue, epic_owner=epic_owner)
 
+    comment = ""
     for user in users:
-        message += f"[~{user.name}], "
+        comment += f"[~{user.name}], "
 
-    message += f"{settings.SPRINT_ASYNC_INJECTION_MESSAGE}{sprint.name}."
+    comment += message
 
     if not settings.DEBUG:  # We should not trigger this in the dev environment.
-        conn.add_comment(issue.key, message)
+        conn.add_comment(issue.key, comment)
 
 
 def group_incomplete_issues(conn: CustomJira, issues: list[Issue]) -> defaultdict[User, dict[str, list[str]]]:
@@ -258,3 +286,46 @@ def get_overcommitted_users(conn: CustomJira) -> dict[str, list[User]]:
             result[dashboard.cell.name] = overcommitted_users
 
     return result
+
+
+def get_next_poker_session_name(conn: CustomJira) -> str:
+    """
+    Get the name of the Agile Poker session related to the next sprint.
+
+    :param conn: Jira connection.
+    :return: Name of the next session.
+    """
+    active_sprint = get_all_sprints(conn)['active'][0]
+    next_sprint_number = get_sprint_number(active_sprint) + 1
+    return f"Sprint {next_sprint_number} & Stretch Goals"
+
+
+def get_poker_session_final_vote(votes: list[float], vote_values: list[float]) -> float:
+    """
+    Calculate the final Story Points estimate from results of the Agile Poker session.
+
+    It returns the estimate that is the closest one to the average of participant's votes.
+    In the case of a draw, the higher estimate is returned.
+
+    :param votes: Votes from the session's participants.
+    :param vote_values: Available votes.
+    :return: The final Story Points estimate for an issue.
+    :raise: `AttributeError` if no votes were provided.
+    """
+    if not votes:
+        raise AttributeError("There should be at least one vote.")
+
+    avg = sum(votes) / len(votes)
+    final_vote = 0.0
+    diff = float('nan')  # NaN returns false for comparisons.
+
+    for vote_value in vote_values:
+        current_diff = abs(avg - vote_value)
+        if current_diff > diff:
+            # The list of available values is sorted, so we have already found the closest value.
+            break
+
+        final_vote = vote_value
+        diff = current_diff
+
+    return final_vote

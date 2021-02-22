@@ -2,6 +2,7 @@ from datetime import (
     datetime,
     timedelta,
 )
+from typing import Generator
 from unittest.mock import (
     Mock,
     patch,
@@ -10,6 +11,7 @@ from unittest.mock import (
 import pytest
 from dateutil.parser import parse
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 from freezegun import freeze_time
 
@@ -20,12 +22,16 @@ from sprints.dashboard.automation import (
     get_current_sprint_day,
     get_next_sprint_issues,
     get_overcommitted_users,
+    get_poker_session_final_vote,
+    get_next_poker_session_name,
     get_specific_day_of_sprint,
+    get_unestimated_next_sprint_issues,
     get_users_to_ping,
     group_incomplete_issues,
-    notify_about_injection,
+    ping_users_on_ticket,
     unflag_issue,
 )
+from sprints.dashboard.tests.helpers import does_not_raise
 from sprints.dashboard.tests.test_utils import MockItem
 
 
@@ -86,6 +92,41 @@ def test_get_next_sprint_issues(get_all_sprints: Mock, get_issue_fields: Mock, c
     )
 
 
+@patch("sprints.dashboard.automation.get_all_sprints")
+@pytest.mark.parametrize(
+    "sprints_all, raises",
+    [
+        (
+            [MockItem(id=123, name="test_sprint"), MockItem(id=125, name=settings.SPRINT_ASYNC_INJECTION_SPRINT)],
+            does_not_raise(),
+        ),
+        ([MockItem(id=123, name="test_sprint")], pytest.raises(ImproperlyConfigured)),
+    ],
+)
+def test_get_unestimated_next_sprint_issues(get_all_sprints: Mock, sprints_all: list[MockItem], raises: Generator):
+    get_all_sprints.return_value = {
+        'future': [
+            Mock(id=123),
+            Mock(id=124),
+        ],
+        'all': sprints_all,
+    }
+    mock_jira = Mock()
+    mock_jira.search_issues = Mock()
+
+    with raises:
+        get_unestimated_next_sprint_issues(mock_jira)
+
+        mock_jira.search_issues.assert_called_once_with(
+            jql_str=f'Sprint IN (123,124,125) '
+            f'AND "{settings.JIRA_FIELDS_STATUS}" != "{settings.SPRINT_STATUS_ARCHIVED}" '
+            f'AND "{settings.JIRA_FIELDS_STORY_POINTS}" is EMPTY '
+            f'AND issuetype NOT IN subTaskIssueTypes()',
+            fields=['None'],
+            maxResults=0,
+        )
+
+
 ASSIGNEE = "Assignee"
 EPIC_OWNER = "Epic Owner"
 EPIC = "Epic"
@@ -127,23 +168,28 @@ def test_get_users_to_ping(
 
 @override_settings(SPRINT_ASYNC_INJECTION_MESSAGE="issue moved to ")
 @patch("sprints.dashboard.automation.get_users_to_ping")
-@pytest.mark.parametrize(
-    "users, expected_message",
-    [
-        (set(), f"issue moved to another_sprint."),
-        ({MockItem(name="User1")}, "[~User1], issue moved to another_sprint."),
-        ([MockItem(name="User1"), MockItem(name="User2")], "[~User1], [~User2], issue moved to another_sprint."),
-    ],
-)
-def test_notify_about_injection(mock_get_users_to_ping: Mock, users: set[Mock], expected_message: str):
+@pytest.mark.parametrize("users", [set(), {MockItem(name="User1")}, {MockItem(name="User1"), MockItem(name="User2")}])
+def test_ping_users_on_ticket(mock_get_users_to_ping: Mock, users: set[Mock]):
     mock_jira = Mock()
     mock_sprint = MockItem(id=123, name="another_sprint")
     mock_issue = Mock(key="T1-111")
     mock_get_users_to_ping.return_value = users
+    # noinspection PyUnresolvedReferences
+    message = f"{settings.SPRINT_ASYNC_INJECTION_MESSAGE}{mock_sprint.name}."
 
-    # noinspection PyTypeChecker
-    notify_about_injection(mock_jira, mock_issue, mock_sprint)
-    mock_jira.add_comment.assert_called_once_with(mock_issue.key, expected_message)
+    ping_users_on_ticket(mock_jira, mock_issue, message)
+    mock_jira.add_comment.assert_called_once()
+
+    call_args = mock_jira.add_comment.call_args[0]
+    assert call_args[0] == mock_issue.key
+
+    # Check that all users are mentioned at the beginning of the comment. Users are provided in a set, so the order of
+    # mentions is non-deterministic.
+    for user in users:
+        assert f"[~{user.name}], " in call_args[1]
+
+    # Verify that the comment contains the provided message at the end.
+    assert call_args[1].endswith(message)
 
 
 @patch("sprints.dashboard.automation.check_issue_missing_fields")
@@ -341,3 +387,31 @@ def test_get_overcommitted_users(
     mock_dashboard.side_effect = dashboards
 
     assert get_overcommitted_users(mock_jira) == expected
+
+
+@patch("sprints.dashboard.automation.get_sprint_number")
+@patch("sprints.dashboard.automation.get_all_sprints")
+def test_get_poker_session_name(mock_get_all_sprints: Mock, mock_get_sprint_number: Mock):
+    mock_jira = Mock()
+    mock_sprint = MockItem(id=123, name="test_sprint")
+    mock_get_all_sprints.return_value = {'active': [mock_sprint]}
+
+    get_next_poker_session_name(mock_jira)
+    mock_get_all_sprints.assert_called_once_with(mock_jira)
+    mock_get_sprint_number.assert_called_once_with(mock_sprint)
+
+
+@pytest.mark.parametrize(
+    "votes, vote_values, expected, raises",
+    [
+        ([], [0, 0.5, 1, 2, 3, 5, 8, 13], None, pytest.raises(AttributeError)),
+        ([2], [], 0, does_not_raise()),
+        ([2, 5, 5, 8, 13, 1, 2, 5, 5], [0, 0.5, 1, 2, 3, 5, 8, 13], 5, does_not_raise()),
+        ([0.2, 0.4], [0.2, 0.4], 0.4, does_not_raise()),  # Always return a higher estimate in case of a draw.
+        ([0, 0, 0], [0, 0.5, 1, 2, 3, 5, 8, 13], 0, does_not_raise()),
+        ([100], [0, 0.5, 1, 2, 3, 5, 8, 13], 13, does_not_raise()),
+    ],
+)
+def test_get_poker_session_final_vote(votes: list[float], vote_values: list[float], expected: float, raises: Generator):
+    with raises:
+        assert get_poker_session_final_vote(votes, vote_values) == expected

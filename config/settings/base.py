@@ -563,7 +563,7 @@ SPRINT_ASYNC_TASKS = {
     # FIXME: The sprint completion is not automated yet, and this should be done only if the sprints all cells are
     #  completed for all cells. Add this to the sprint completion pipeline, once it's automated.
     "sprints.dashboard.tasks.create_estimation_session_task": {
-        "name": "[ASYNC] Close estimation session",
+        "name": "[ASYNC] Create estimation session",
         "start": 1,  # The first day of the sprint.
         "start_delay": datetime.timedelta(hours=8),
         "one_off": True,

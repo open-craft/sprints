@@ -375,6 +375,7 @@ def connect_to_jira() -> Iterator[CustomJira]:
                 # Ugly hack, but the Agile Poker REST API returns HTTP 403 without this.
                 'Referer': f'{settings.JIRA_SERVER}'
                 f'/download/resources/com.spartez.jira.plugins.jiraplanningpoker/frontend/index.html',
+                'content-type': 'application/json',
             },
         },
     )

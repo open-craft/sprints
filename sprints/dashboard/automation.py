@@ -206,9 +206,9 @@ def check_issue_injected(conn: CustomJira, issue: Issue) -> bool:
     """
     Check if the issue has been injected into the sprint, i.e. it has been created after the cutoff date.
 
-    The injection is determined by checking the last update of the "Sprint" value in the ticket.
-    Therefore, if the ticket has been moved out of the sprint for a moment after the cutoff date, and then added back,
-    it is still considered as an injection.
+    The injection is determined by checking the ticket creation date and its last update of the "Sprint" value.
+    Therefore, if the ticket has been created directly with the next sprint set, or moved out of the sprint for a moment
+    after the cutoff date, and then added back, it is still considered as an injection.
 
     The cutoff date is configured via the `SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY` env variable.
     The injection can be "accepted" (ignored) by adding a `SPRINT_ASYNC_INJECTION_LABEL` to the ticket.
@@ -230,6 +230,10 @@ def check_issue_injected(conn: CustomJira, issue: Issue) -> bool:
     cutoff_date = get_specific_day_of_sprint(settings.SPRINT_ASYNC_TICKET_CREATION_CUTOFF_DAY).strftime(
         "%Y-%m-%dT%H:%M:%S"
     )
+
+    # If a ticket has been created with a specific "sprint" value, this will not be indicated in its changelog.
+    if getattr(issue.fields, conn.issue_fields[settings.JIRA_FIELDS_CREATED]) >= cutoff_date:
+        return True
 
     for history in reversed(issue.changelog.histories):
         # The updates are ordered from the newest to the oldest, so we can skip the ones done before the cutoff date.

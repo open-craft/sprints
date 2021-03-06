@@ -279,18 +279,20 @@ def test_unflag_issue(current_flag: list[dict[str, str]], should_invoke: bool):
 
 @patch("sprints.dashboard.automation.get_specific_day_of_sprint", return_value=parse("2020-10-20"))
 @pytest.mark.parametrize(
-    "changed_date, labels, expected",
+    "created_date, changed_date, labels, expected",
     [
-        ("2020-10-19T23:59:59", [], False),
-        ("2020-10-20T00:00:00", [], True),
-        ("2020-10-20T00:00:00", [settings.SPRINT_ASYNC_INJECTION_LABEL], False),
+        ("2020-10-19T23:59:59", "2020-10-19T23:59:59", [], False),
+        ("2020-10-19T23:59:59", "2020-10-20T00:00:00", [], True),
+        ("2020-10-20T00:00:00", "2020-10-19T23:59:59", [], True),  # This should not be possible.
+        ("2020-10-20T00:00:00", "2020-10-20T00:00:00", [settings.SPRINT_ASYNC_INJECTION_LABEL], False),
     ],
 )
-def test_check_issue_injected(_mock: Mock, changed_date: str, labels: list[str], expected: bool):
+def test_check_issue_injected(_mock: Mock, created_date: str, changed_date: str, labels: list[str], expected: bool):
     mock_jira = Mock()
-    mock_jira.issue_fields = {settings.JIRA_FIELDS_LABELS: "labels"}
+    mock_jira.issue_fields = {settings.JIRA_FIELDS_CREATED: "created", settings.JIRA_FIELDS_LABELS: "labels"}
 
     mock_issue = Mock()
+    setattr(mock_issue.fields, mock_jira.issue_fields[settings.JIRA_FIELDS_CREATED], created_date)
     setattr(mock_issue.fields, mock_jira.issue_fields[settings.JIRA_FIELDS_LABELS], labels)
     mock_issue.changelog.histories = [
         Mock(

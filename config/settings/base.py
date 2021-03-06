@@ -437,6 +437,7 @@ JIRA_TIME_FIELDS = {
 JIRA_AUTOMATION_FIELDS = (
     JIRA_FIELDS_LABELS := "Labels",
     JIRA_FIELDS_PROJECT := "Project",
+    JIRA_FIELDS_CREATED := "Created",
     JIRA_FIELDS_REPORTER
 )
 # Issue fields with numeric values.

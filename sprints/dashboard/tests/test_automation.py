@@ -299,7 +299,8 @@ def test_check_issue_injected(_mock: Mock, created_date: str, changed_date: str,
             created=(parse(changed_date) - timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%S"),
             items=[Mock(field="Sprint")],
         ),
-        Mock(created=changed_date, items=[Mock(field="Sprint")]),
+        # The `Sprint` field does not need to be the first one in the changelog's item.
+        Mock(created=changed_date, items=[Mock(field="timeestimate"), Mock(field="Sprint")]),
         Mock(
             created=(parse(changed_date) + timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%S"),
             items=[Mock(field="timeoriginalestimate"), Mock(field="timeestimate")],

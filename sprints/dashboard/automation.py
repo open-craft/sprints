@@ -240,8 +240,10 @@ def check_issue_injected(conn: CustomJira, issue: Issue) -> bool:
         if history.created < cutoff_date:
             break
 
-        if history.items[0].field == "Sprint":
-            return True
+        # Some changelogs can be grouped.
+        for history_item in history.items:
+            if history_item.field == "Sprint":
+                return True
 
     return False
 

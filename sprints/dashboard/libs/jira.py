@@ -73,7 +73,17 @@ class Poker(Resource):
         # Specify the API for the poker session.
         self._session.headers['content-type'] = 'application/json'
         options = self._options.copy()
-        options.update({'rest_path': 'pokerng', 'rest_api_version': '1.0', 'path': f'session/id/{self.sessionId}'})
+        options.update(
+            {
+                'rest_path': 'pokerng',
+                'rest_api_version': '1.0',
+                # HACK: The `?withUserKeys=true` querystring is used only with `PUT` requests, but the Jira library does
+                #  not allow adding custom data to the URL, so we're using this with all types of requests.
+                #  It could be possible to avoid using this, but this API is undocumented and it would require some
+                #  guessing how users should be passed within a request.
+                'path': f'session/id/{self.sessionId}?withUserKeys=true',
+            }
+        )
         # This attribute is used by the superclass for querying the API.
         self.self = self._base_url.format(**options)
 

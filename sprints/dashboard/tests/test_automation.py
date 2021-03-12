@@ -92,6 +92,7 @@ def test_get_next_sprint_issues(get_all_sprints: Mock, get_issue_fields: Mock, c
     )
 
 
+@override_settings(SPRINT_STATUS_BACKLOG="backlog")
 @patch("sprints.dashboard.automation.get_all_sprints")
 @pytest.mark.parametrize(
     "sprints_all, raises",
@@ -121,7 +122,8 @@ def test_get_unestimated_next_sprint_issues(get_all_sprints: Mock, sprints_all: 
             jql_str=f'Sprint IN (123,124,125) '
             f'AND "{settings.JIRA_FIELDS_STATUS}" != "{settings.SPRINT_STATUS_ARCHIVED}" '
             f'AND "{settings.JIRA_FIELDS_STORY_POINTS}" is EMPTY '
-            f'AND issuetype NOT IN subTaskIssueTypes()',
+            f'AND issuetype NOT IN subTaskIssueTypes()'
+            f'AND status = backlog',
             fields=['None'],
             maxResults=0,
         )

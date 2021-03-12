@@ -85,7 +85,8 @@ def get_unestimated_next_sprint_issues(conn: CustomJira) -> list[Issue]:
         jql_str=f'Sprint IN ({sprints_str}) '
         f'AND "{settings.JIRA_FIELDS_STATUS}" != "{settings.SPRINT_STATUS_ARCHIVED}" '  # Ignore archived.
         f'AND "{settings.JIRA_FIELDS_STORY_POINTS}" is EMPTY '  # Only unestimated.
-        f'AND issuetype NOT IN subTaskIssueTypes()',  # Ignore subtasks.
+        f'AND issuetype NOT IN subTaskIssueTypes()'  # Ignore subtasks.
+        f'AND status = {settings.SPRINT_STATUS_BACKLOG}',  # Include only unstarted issues.
         fields=['None'],  # We don't need any fields here. The `key` attribute will be sufficient.
         maxResults=0,
     )

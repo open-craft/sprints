@@ -521,15 +521,21 @@ def update_estimation_session_task() -> None:
                 # User's `name` and `key` are not always the same.
                 members = get_cell_member_names(conn, get_cell_members(conn.quickfilters(cell.board_id)))
                 member_keys = set(user.key for user in all_users if user.displayName in members)
+
                 current_member_keys = set(user.userKey for user in poker_session.participants)
+                current_scrum_master_keys = set(user.userKey for user in poker_session.scrumMasters)
+
                 all_member_keys = list(current_member_keys | member_keys)
+                all_scrum_master_keys = list(current_scrum_master_keys | member_keys)
 
                 if not settings.DEBUG:  # We don't want to trigger this in the dev environment.
+                    # TODO: Handle 403 response when the bot is not added as a participant.
+                    #  Investigate 500 response from Jira.
                     poker_session.update(
                         {
                             'issuesIds': all_issue_ids,
                             'participants': all_member_keys,
-                            'scrumMasters': all_member_keys,
+                            'scrumMasters': all_scrum_master_keys,
                         },
                         notify=True,
                     )

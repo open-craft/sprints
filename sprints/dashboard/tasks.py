@@ -530,7 +530,6 @@ def update_estimation_session_task() -> None:
 
                 if not settings.DEBUG:  # We don't want to trigger this in the dev environment.
                     # TODO: Handle 403 response when the bot is not added as a participant.
-                    #  Investigate 500 response from Jira.
                     poker_session.update(
                         {
                             'issuesIds': all_issue_ids,

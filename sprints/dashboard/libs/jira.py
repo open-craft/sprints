@@ -81,7 +81,9 @@ class Poker(Resource):
                 #  not allow adding custom data to the URL, so we're using this with all types of requests.
                 #  It could be possible to avoid using this, but this API is undocumented and it would require some
                 #  guessing how users should be passed within a request.
-                'path': f'session/id/{self.sessionId}?withUserKeys=true',
+                # HACK: The `notifyUsers=false` querystring is added manually for all session requests, as the Jira
+                #  library does not support multiple parameters.
+                'path': f'session/id/{self.sessionId}?withUserKeys=true&notifyUsers=false',
             }
         )
         # This attribute is used by the superclass for querying the API.

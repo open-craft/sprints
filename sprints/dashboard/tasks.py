@@ -536,7 +536,7 @@ def update_estimation_session_task() -> None:
                             'participants': all_member_keys,
                             'scrumMasters': all_scrum_master_keys,
                         },
-                        notify=False,  # TODO: This should notify participants only in case of any changes.
+                        notify=True,
                     )
 
 

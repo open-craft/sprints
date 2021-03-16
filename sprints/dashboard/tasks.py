@@ -535,8 +535,8 @@ def update_estimation_session_task() -> None:
                             'issuesIds': all_issue_ids,
                             'participants': all_member_keys,
                             'scrumMasters': all_scrum_master_keys,
-                        },
-                        notify=True,
+                            'sendInvitations': False,  # TODO: This should notify participants in case of any changes.
+                        }
                     )
 
 

@@ -298,7 +298,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
 # Set to whatever value is adequate in your circumstances
-CELERY_TASK_TIME_LIMIT = SECONDS_IN_MINUTE * 30
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", SECONDS_IN_MINUTE * 30)
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
 # Set to whatever value is adequate in your circumstances
 CELERY_TASK_SOFT_TIME_LIMIT = CELERY_TASK_TIME_LIMIT

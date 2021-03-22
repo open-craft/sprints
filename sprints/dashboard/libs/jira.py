@@ -314,11 +314,7 @@ class CustomJira(JIRA):
         :return: A list of possible vote values.
         """
         response = self._get_json(f'board/{board_id}/settings', base=self.AGILE_POKER_URL)
-        return [
-            float(vote['value'])
-            for vote in response.get('voteValues', [])
-            if vote['value'].replace('.', '', 1).isdigit()
-        ]
+        return [float(vote['value']) for vote in response.get('voteValues', []) if is_number(vote['value'])]
 
     def poker_session_results(self, session_id: int) -> dict[str, dict[str, dict[str, object]]]:
         """
@@ -400,3 +396,18 @@ def chunks(lst: List, n: int) -> Iterator[List]:
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
+
+
+def is_number(number: object) -> bool:
+    """
+    Checks whether the provided object is a number.
+
+    :param number: An object to check.
+    :return: Boolean determining whether the provided object is a number.
+    """
+    try:
+        # noinspection PyTypeChecker
+        float(number)  # type: ignore
+    except ValueError:
+        return False
+    return True

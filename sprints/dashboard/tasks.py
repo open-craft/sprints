@@ -595,11 +595,8 @@ def move_estimates_to_tickets_task() -> None:
                     votes = []
                     for result in results.values():
                         vote = result.get("selectedVote")
-                        try:
+                        if str(vote).replace('.', '', 1).isdigit():  # Ignore non-numeric answers.
                             votes.append(float(vote))  # type: ignore
-                        except ValueError:
-                            # Ignore non-numeric answers.
-                            pass
 
                     try:
                         final_vote = get_poker_session_final_vote(votes, vote_values)

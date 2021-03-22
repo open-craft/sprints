@@ -314,8 +314,11 @@ class CustomJira(JIRA):
         :return: A list of possible vote values.
         """
         response = self._get_json(f'board/{board_id}/settings', base=self.AGILE_POKER_URL)
-        print(response)
-        return [float(vote['value']) for vote in response.get('voteValues', [])]
+        return [
+            float(vote['value'])
+            for vote in response.get('voteValues', [])
+            if vote['value'].replace('.', '', 1).isdigit()
+        ]
 
     def poker_session_results(self, session_id: int) -> dict[str, dict[str, dict[str, object]]]:
         """

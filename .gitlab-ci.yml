@@ -1,0 +1,8 @@
+stages:
+  - quality
+
+markdownlint:
+  stage: quality
+  image: node:latest
+  script:
+    - npx markdown-lint docs

@@ -1,1 +1,160 @@
-
+# Sprints v2 - UX Discovery
+ 
+## Introduction
+ 
+During Phase 1 of this project, the [Sprints][sprints-application] was developed. The main goal of Sprints is to manage OpenCraft’s internal time budgeting and planning needs. Now that the first phase of Sprints has been completed, it’s time to move onto Phase 2. 
+ 
+The goals for Phase 2 include:
+ 
+- Improving the usability (UX) of the application
+- Developing a user interface (UI) design style for Sprints
+- Adding certain features to the current application 
+- Getting feedback from users 
+- Turning Sprints into a SaaS product
+ 
+Using the [development discovery][sprints-v2-discovery] as a basis, this document outlines the UX and UI approach that will be taken in order to achieve these goals. It also provides the number of UX/UI hours we estimate will be required each month.
+ 
+## Proposed Steps
+ 
+Below is an outline of the steps we expect to follow during Phase 2. We’ll be taking an iterative project approach, meaning that the steps, as well as the order in which they are completed, is likely to change. These adjustments may be made based on a number of factors, including user feedback, new ideas, unexpected realisations etc.
+ 
+**Please note**: although we have only inserted one round of usability testing into the list below, future rounds will be conducted throughout the project as user feedback becomes necessary.  
+ 
+---
+ 
+### 1. Community Feedback
+ 
+Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, as well as the ideas we have in mind for future phases. 
+ 
+List Sprints on open source directories like [AlternativeTo][alternative-to], and contact other open-source projects for their insights. We could potentially offer free hosting in exchange for their feedback.
+ 
+---
+ 
+### 2. Remote Usability Testing
+ 
+Conduct a round of remote usability testing on the Sprints application. The main goal of this round of usability testing is to get feedback about the current user experience. As such, it makes sense to stick to internal users who have already had experience working with the app. We will therefore recruit at least 5 users from Serenity, Bebop, or Falcon to participate in the first round of testing. 
+ 
+Remote usability tests are video-based and include a number of tasks and/or questions. Participants are encouraged to record themselves and their screen (using a service like [Loom][loom-application]), and voice their thoughts as they interact with the application. 
+ 
+Once all the usability tests have been conducted, we will evaluate the videos and provide feedback on the key points. The findings will then guide the direction of the project. 
+ 
+---
+ 
+### 3. Make Initial UX Improvements
+ 
+Improve the user experience (UX) of the current Sprints app. This will not only make internal processes smoother, but will also make the tool more attractive to external users.
+ 
+Initial improvements will be based on:
+ 
+- feedback from the Open Source community
+- findings from the usability tests
+- suggested improvements identified in the [development discovery][sprints-v2-discovery], namely:
+  - remove unnecessary toggles to make the interface less confusing
+  - improve the UX when changing dates
+  - improve error handling
+  - determine the best UX for the Sustainability and Sprints dashboards
+  - investigate how best to manage automatic sprint completion
+ 
+---
+ 
+### 4. UI Design and Style Guide
+ 
+Develop a design style for the Sprints interface and create design files showcasing the new-and-improved design. Once the UI design has been approved, create a style guide of design elements for developers to follow. The style guide will be continuously updated and extended as the project progresses.
+ 
+---
+ 
+### 5. Budget Enhancements
+ 
+Ensure that Sprints accounts for different types of client budgets in a user-friendly and accessible manner. Budget types include:
+ 
+- Multi-account budgets
+- Monthly caps
+- Cell budgets
+- Fixed budgets
+ 
+---
+ 
+### 6. Sustainability Ratio of Upcoming Sprint 
+ 
+It would be useful to users to be able to see the sustainability ratio of the upcoming sprint. This ratio is determined from the division of billable, versus non-billable tasks scheduled for the sprint. Determine how to add this feature without cluttering the interface. 
+ 
+---
+ 
+### 7. Sustainability Predictions 
+ 
+Determine an intuitive way to add predictions to the Sustainability dashboard. Predictions indicate the forecasted sustainability of a sprint by assuming that 100% of defined budgets will be used during the selected date range.
+ 
+---
+ 
+### 8. Profile Management
+ 
+User registration and login has already been implemented on Sprints, however there is currently no way for users to adjust their profile details, or invite other users to the application. Add these features, and determine whether the user experience of the current registration and login could be improved.
+ 
+---
+ 
+### 9. Organisations and Roles
+ 
+Allow users to create organisation/s and invite other members. Implement the following user roles to grant users specific permissions: 
+ 
+- Team Manager 
+ - User can configure their site, invite new members, manage members, allocate roles, complete sprints
+- Epic Owner 
+ - User can add and modify budgets within their team
+- Member 
+ - User can view the Sprint, Sustainability, and Budget Dashboards, create sprints, schedule tickets
+ 
+Provide users with an easy way to switch between accounts should they be associated with more than one organisation.
+ 
+---
+ 
+### 10. Paid Plans
+ 
+Decide what billing options to offer users, and determine how to structure the billing plans.
+ 
+---
+ 
+### 11. Marketing Site 
+ 
+Build a marketing site that describes the application, outlines its features, and explains its pricing plans. Interested users will be encouraged, either to create an account, or to view the documentation should they wish to install the application themselves.
+ 
+---
+ 
+### 12. Plugins
+ 
+One of Sprint’s long-term goals is to become a “fully pluggable” application which allows external users to install their own extensions. However, there are a number of steps to complete before we achieve this. 
+ 
+Here is a breakdown of the steps that could be followed to get us closer to the end-goal:
+ 
+- Engage with our user base to get feedback on the type of plugins and extensions they would like to be able to install (this includes issue trackers)
+- Based on user feedback, determine which issue trackers to support (Sprints currently supports an older version of Jira)
+- Investigate how these issue trackers are currently being used by other organisations
+- Add plugin capabilities, as well as support for issue trackers iteratively. An example approach:
+ - Add support for a newer version of Jira
+ - Add GitLab support
+ - Install custom plugins manually into the platform on behalf of users
+ - Add support for custom plugins, where Team Managers may add their own git link
+ - Potentially add a plugin marketplace for Sprints
+ 
+---
+ 
+## Monthly UX Time Commitment
+ 
+We estimate a total of **100 - 160 hours** per month will be required for the UX and UI portion of this project.
+ 
+**Please note:**
+ 
+- There are a number of OpenCraft projects scheduled for 2021 (Workflow Manager, Open edX Theming, Sprints v2, Billing v2...) The way in which monthly UX hours are allocated can be determined by the priority of the projects.
+- Usability testing may incur additional 3rd party costs if we are required to recruit external test users.
+ 
+## Project Roles
+ 
+- Product management: Fixate (Ali/Cassie), reviewed by Xavier
+- Reviewers on UX/UI tasks: Xavier Antoviaque and Developers
+- 2nd reviewers on development tasks: Fixate (Ali/Cassie)
+ 
+<!-- LINKS -->
+ 
+[sprints-application]: https://sprints.opencraft.com/
+[sprints-v2-discovery]: https://gitlab.com/opencraft/dev/sprints/-/blob/74e95b1c68a9cf2a510d7ef3cdea6dde7cd9468a/docs/discoveries/1.%20Sprints%20v2.md
+[alternative-to]: https://alternativeto.net/software/ifttt/?license=opensource
+[loom-application]: https://www.loom.com/

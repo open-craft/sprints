@@ -19,7 +19,7 @@ Using the [development discovery][sprints-v2-discovery] as a basis, this documen
 
 ## Proposed Steps
 
-Below is an outline of the steps we expect to follow during Phase 2. We’ll be taking an iterative project approach, meaning that the steps, as well as the order in which they are completed, is likely to change. These adjustments may be made based on a number of factors, including user feedback, new ideas, unexpected realisations etc.
+Below is an outline of the steps we expect to follow during Phase 2. We’ll be taking an iterative project approach, meaning that each step, as well as the order in which it is completed, is likely to change. These adjustments may be made based on a number of factors, including user feedback, new ideas, unexpected realisations etc.
 
 **Please note**: although we have only inserted one round of usability testing into the list below, future rounds will be conducted throughout the project as user feedback becomes necessary.
 

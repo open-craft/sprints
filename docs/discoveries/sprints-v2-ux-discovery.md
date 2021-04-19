@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The [Sprints][sprints-application] was developed to manage OpenCraft’s internal time budgeting and planning needs. Now that Sprints has been running for a while, it’s time to move onto the next phase. 
+The [Sprints][sprints-application] application was developed to manage OpenCraft’s internal time budgeting and planning needs. Now that Sprints has been running for a while, it’s time to move onto the next phase. 
 
 The goals for Phase 2 include:
 

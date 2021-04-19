@@ -7,7 +7,7 @@ jobs:
     docker:
       - image: circleci/node:14
     steps:
-      - checkoutownlint
+      - checkout
       - run:
           name: Run Markdown linter
           command: |

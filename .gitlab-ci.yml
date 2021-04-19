@@ -5,4 +5,5 @@ markdownlint:
   stage: quality
   image: node:latest
   script:
-    - npx markdown-lint docs
+    - npm install markdownlint
+    - npx markdownlint docs

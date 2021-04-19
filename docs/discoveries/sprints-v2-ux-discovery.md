@@ -49,7 +49,7 @@ List Sprints on open source directories like [AlternativeTo][alternative-to], an
 
 ---
 
-### 2. Remote Usability Testing
+### 4. Remote Usability Testing
 
 Conduct a round of remote usability testing on the Sprints application. The main goal of this round of usability testing is to get feedback about the current user experience. As such, it makes sense to stick to internal users who have already had experience working with the app. We will therefore recruit at least 5 users from Serenity, Bebop, or Falcon to participate in the first round of testing.
 

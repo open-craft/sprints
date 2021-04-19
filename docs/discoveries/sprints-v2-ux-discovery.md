@@ -32,6 +32,14 @@ Determine the Sprints business model by deciding what billing options to offer u
 The pricing model could be very simple in the beginning (e.g. a paid monthly plan with a free trial). Additionally, billing could be handled manually to start, with invoices being generated in Freshbooks. 
 
 ---
+ 
+### 2. Marketing Site 
+ 
+Build a landing page that describes Sprints, outlines its features, and explains its pricing plans. Interested users will be encouraged to enter their email addresses to be added to a waiting list.
+ 
+The marketing site will be built upon as time goes by, with new pages and information being added as the project progresses. Eventually the site will allow users to either create an account, or view the documentation should they wish to install the application themselves. See how [Chatwoot][chatwoot-pricing-plans] (another open source SaaS product) communicates their self-hosted option to their users.
+
+---
 
 ### 1. Community Feedback
 
@@ -118,12 +126,6 @@ Provide users with an easy way to switch between accounts should they be associa
 
 ---
 
-### 11. Marketing Site
-
-Build a marketing site that describes the application, outlines its features, and explains its pricing plans. Interested users will be encouraged, either to create an account, or to view the documentation should they wish to install the application themselves.
-
----
-
 ### 12. Plugins
 
 One of Sprint’s long-term goals is to become a “fully pluggable” application which allows external users to install their own extensions. However, there are a number of steps to complete before we achieve this.
@@ -161,5 +163,6 @@ We estimate a total of **100 - 160 hours** per month will be required for the UX
 
 [sprints-application]: https://sprints.opencraft.com/
 [sprints-v2-discovery]: https://gitlab.com/opencraft/dev/sprints/-/blob/74e95b1c68a9cf2a510d7ef3cdea6dde7cd9468a/docs/discoveries/1.%20Sprints%20v2.md
+[chatwoot-pricing-plans]: https://www.chatwoot.com/pricing/
 [alternative-to]: https://alternativeto.net/software/ifttt/?license=opensource
 [loom-application]: https://www.loom.com/

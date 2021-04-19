@@ -85,7 +85,7 @@ Additionally, the “quick win” UI improvements made in the previous step will
 
 ---
 
-### 5. Budget Enhancements
+### 7. Budget Enhancements
 
 Ensure that Sprints accounts for different types of client budgets in a user-friendly and accessible manner. Budget types include:
 
@@ -96,25 +96,25 @@ Ensure that Sprints accounts for different types of client budgets in a user-fri
 
 ---
 
-### 6. Sustainability Ratio of Upcoming Sprint
+### 8. Sustainability Ratio of Upcoming Sprint
 
 It would be useful to users to be able to see the sustainability ratio of the upcoming sprint. This ratio is determined from the division of billable, versus non-billable tasks scheduled for the sprint. Determine how to add this feature without cluttering the interface.
 
 ---
 
-### 7. Sustainability Predictions
+### 9. Sustainability Predictions
 
 Determine an intuitive way to add predictions to the Sustainability dashboard. Predictions indicate the forecasted sustainability of a sprint by assuming that 100% of defined budgets will be used during the selected date range.
 
 ---
 
-### 8. Profile Management
+### 10. Profile Management
 
 User registration and login has already been implemented on Sprints, however there is currently no way for users to adjust their profile details, or invite other users to the application. Add these features, and determine whether the user experience of the current registration and login could be improved.
 
 ---
 
-### 9. Organisations and Roles
+### 11. Organisations and Roles
 
 Allow users to create organisation/s and invite other members. Implement the following user roles to grant users specific permissions:
 

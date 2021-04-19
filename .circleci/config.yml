@@ -9,10 +9,11 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install dependencies
+          command: npm install markdownlint-cli
+      - run:
           name: Run Markdown linter
-          command: |
-            npm install markdownlint
-            npx markdownlint docs
+          command: npx markdownlint docs
 
   test_backend:
     docker:

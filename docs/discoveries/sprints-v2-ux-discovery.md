@@ -77,9 +77,11 @@ Initial improvements will be based on:
 
 ---
 
-### 4. UI Design and Style Guide
+### 6. Larger UX/UI Rework and Style Guide Development
 
-Develop a design style for the Sprints interface and create design files showcasing the new-and-improved design. Once the UI design has been approved, create a style guide of design elements for developers to follow. The style guide will be continuously updated and extended as the project progresses.
+Once the initial UX improvements have been made, time will be dedicated to identifying and implementing larger improvements to the user experience. These updates can be tackled iteratively. 
+ 
+Additionally, the “quick win” UI improvements made in the previous step will be expanded upon to develop a fully-fledged UI design for Sprints. To ensure a cohesive style is applied across the application, Fixate will develop a style guide of design elements for developers to follow. The style guide will be continuously updated and extended as the project progresses.
 
 ---
 

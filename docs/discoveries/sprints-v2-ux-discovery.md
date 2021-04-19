@@ -41,11 +41,11 @@ The marketing site will be built upon as time goes by, with new pages and inform
 
 ---
 
-### 1. Community Feedback
+### 3. Community Feedback
 
-Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, as well as the ideas we have in mind for future phases.
-
-List Sprints on open source directories like [AlternativeTo][alternative-to], and contact other open-source projects for their insights. We could potentially offer free hosting in exchange for their feedback.
+Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, as well as the plan for future phases. The accompanying marketing site will help to give Sprints credibility as a serious project.  
+ 
+List Sprints on open source directories like [AlternativeTo][alternative-to], and contact other open-source projects for their insights. Where possible, it would be valuable to develop partnerships with organisations who need the tool, where we offer them access to Sprints in exchange for their feedback. Although this would require setting up a separate instance for each organisation, it will likely be worth the effort. Getting feedback early on in the development cycle is really valuable.
 
 ---
 

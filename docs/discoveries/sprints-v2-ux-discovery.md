@@ -2,13 +2,13 @@
 
 ## Introduction
 
-The [Sprints][sprints-application] application was developed to manage OpenCraft’s internal time budgeting and planning needs. Now that Sprints has been running for a while, it’s time to move onto the next phase. 
+The [Sprints][sprints-application] application was developed to manage OpenCraft’s internal time budgeting and planning needs. Now that Sprints has been running for a while, it’s time to move onto the next phase.
 
 The goals for Phase 2 include:
 
 - Announcing Sprints and discussing it with the open source community
 - Developing partnerships with organisations who might find the tool useful
-- Getting feedback from Sprint’s current users 
+- Getting feedback from Sprint’s current users
 - Using internal and external feedback to refine the project direction
 - Improving the usability (UX) of the application
 - Developing a user interface (UI) design style for Sprints
@@ -27,16 +27,16 @@ Below is an outline of the steps we expect to follow during Phase 2. We’ll be 
 
 ### 1. Paid Plans
 
-Determine the Sprints business model by deciding what billing options to offer users, and how to structure the pricing plans. 
- 
-The pricing model could be very simple in the beginning (e.g. a paid monthly plan with a free trial). Additionally, billing could be handled manually to start, with invoices being generated in Freshbooks. 
+Determine the Sprints business model by deciding what billing options to offer users, and how to structure the pricing plans.
+
+The pricing model could be very simple in the beginning (e.g. a paid monthly plan with a free trial). Additionally, billing could be handled manually to start, with invoices being generated in Freshbooks.
 
 ---
- 
-### 2. Marketing Site 
- 
+
+### 2. Marketing Site
+
 Build a landing page that describes Sprints, outlines its features, and explains its pricing plans. Interested users will be encouraged to enter their email addresses to be added to a waiting list.
- 
+
 The marketing site will be built upon as time goes by, with new pages and information being added as the project progresses. Eventually the site will allow users to either create an account, or view the documentation should they wish to install the application themselves. See how [Chatwoot][chatwoot-pricing-plans] (another open source SaaS product) communicates their self-hosted option to their users.
 
 ---
@@ -44,7 +44,7 @@ The marketing site will be built upon as time goes by, with new pages and inform
 ### 3. Community Feedback
 
 Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, as well as the plan for future phases. The accompanying marketing site will help to give Sprints credibility as a serious project.  
- 
+
 List Sprints on open source directories like [AlternativeTo][alternative-to], and contact other open-source projects for their insights. Where possible, it would be valuable to develop partnerships with organisations who need the tool, where we offer them access to Sprints in exchange for their feedback. Although this would require setting up a separate instance for each organisation, it will be worth the effort because feedback early on in the development cycle is always valuable.
 
 ---
@@ -79,8 +79,8 @@ Initial improvements will be based on:
 
 ### 6. Larger UX/UI Rework and Style Guide Development
 
-Once the initial UX improvements have been made, time will be dedicated to identifying and implementing larger improvements to the user experience. These updates can be tackled iteratively. 
- 
+Once the initial UX improvements have been made, time will be dedicated to identifying and implementing larger improvements to the user experience. These updates can be tackled iteratively.
+
 Additionally, the “quick win” UI improvements made in the previous step will be expanded upon to develop a fully-fledged UI design for Sprints. To ensure a cohesive style is applied across the application, Fixate will develop a style guide of design elements for developers to follow. The style guide will be continuously updated and extended as the project progresses.
 
 ---

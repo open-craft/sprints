@@ -59,7 +59,7 @@ Once all the usability tests have been conducted, we will evaluate the videos an
 
 ---
 
-### 5. Make Initial UX Improvements
+### 5. Make Initial UX and UI Improvements
 
 Identify and implement some “quick gains” that would improve the user experience (UX) and user interface (UI) design of the current Sprints app. Although small, these initial UX and UI improvements will not only make internal processes smoother, but will also help to make the tool more attractive to external users.
 

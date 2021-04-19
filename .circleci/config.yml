@@ -3,6 +3,15 @@ orbs:
   aws-s3: circleci/aws-s3@1.0.11
 
 jobs:
+  markdownlint:
+    docker:
+      - image: circleci/node:14
+    steps:
+      - checkout
+      - run:
+          name: Run Markdown linter
+          command: npx markdown-lint docs
+
   test_backend:
     docker:
       - image: circleci/python:3.9
@@ -138,6 +147,7 @@ workflows:
   version: 2
   main:
     jobs:
+      - markdownlint
       - test_backend
       - test_frontend
 

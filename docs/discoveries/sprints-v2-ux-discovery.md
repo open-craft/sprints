@@ -25,6 +25,14 @@ Below is an outline of the steps we expect to follow during Phase 2. We’ll be 
 
 ---
 
+### 1. Paid Plans
+
+Determine the Sprints business model by deciding what billing options to offer users, and how to structure the pricing plans. 
+ 
+The pricing model could be very simple in the beginning (e.g. a paid monthly plan with a free trial). Additionally, billing could be handled manually to start, with invoices being generated in Freshbooks. 
+
+---
+
 ### 1. Community Feedback
 
 Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, as well as the ideas we have in mind for future phases.
@@ -107,12 +115,6 @@ Allow users to create organisation/s and invite other members. Implement the fol
   - User can view the Sprint, Sustainability, and Budget Dashboards, create sprints, schedule tickets
 
 Provide users with an easy way to switch between accounts should they be associated with more than one organisation.
-
----
-
-### 10. Paid Plans
-
-Decide what billing options to offer users, and determine how to structure the billing plans.
 
 ---
 

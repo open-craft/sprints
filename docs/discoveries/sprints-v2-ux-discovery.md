@@ -59,15 +59,16 @@ Once all the usability tests have been conducted, we will evaluate the videos an
 
 ---
 
-### 3. Make Initial UX Improvements
+### 5. Make Initial UX Improvements
 
-Improve the user experience (UX) of the current Sprints app. This will not only make internal processes smoother, but will also make the tool more attractive to external users.
+Identify and implement some “quick gains” that would improve the user experience (UX) and user interface (UI) design of the current Sprints app. Although small, these initial UX and UI improvements will not only make internal processes smoother, but will also help to make the tool more attractive to external users.
 
 Initial improvements will be based on:
 
 - feedback from the Open Source community
 - findings from the usability tests
-- suggested improvements identified in the [development discovery][sprints-v2-discovery], namely:
+- suggestions by Fixate
+- improvements suggested in the [development discovery][sprints-v2-discovery], namely:
   - remove unnecessary toggles to make the interface less confusing
   - improve the UX when changing dates
   - improve error handling

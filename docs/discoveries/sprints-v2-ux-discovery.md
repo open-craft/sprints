@@ -9,7 +9,7 @@ The goals for Phase 2 include:
 - Announcing Sprints and discussing it with the open source community
 - Developing partnerships with organisations who might find the tool useful
 - Getting feedback from Sprint’s current users 
-- Using both internal and external feedback to refine the project direction
+- Using internal and external feedback to refine the project direction
 - Improving the usability (UX) of the application
 - Developing a user interface (UI) design style for Sprints
 - Adding certain features to the current application

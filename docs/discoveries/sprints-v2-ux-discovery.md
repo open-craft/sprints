@@ -2,14 +2,17 @@
 
 ## Introduction
 
-During Phase 1 of this project, the [Sprints][sprints-application] was developed. The main goal of Sprints is to manage OpenCraft’s internal time budgeting and planning needs. Now that the first phase of Sprints has been completed, it’s time to move onto Phase 2.
+The [Sprints][sprints-application] was developed to manage OpenCraft’s internal time budgeting and planning needs. Now that Sprints has been running for a while, it’s time to move onto the next phase. 
 
 The goals for Phase 2 include:
 
+- Announcing Sprints and discussing it with the open source community
+- Developing partnerships with organisations who might find the tool useful
+- Getting feedback from Sprint’s current users 
+- Using both internal and external feedback to refine the project direction
 - Improving the usability (UX) of the application
 - Developing a user interface (UI) design style for Sprints
 - Adding certain features to the current application
-- Getting feedback from users
 - Turning Sprints into a SaaS product
 
 Using the [development discovery][sprints-v2-discovery] as a basis, this document outlines the UX and UI approach that will be taken in order to achieve these goals. It also provides the number of UX/UI hours we estimate will be required each month.

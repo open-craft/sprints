@@ -165,7 +165,7 @@ We estimate a total of **100 - 160 hours** per month will be required for the UX
 <!-- LINKS -->
 
 [sprints-application]: https://sprints.opencraft.com/
-[sprints-v2-discovery]: https://gitlab.com/opencraft/dev/sprints/-/blob/74e95b1c68a9cf2a510d7ef3cdea6dde7cd9468a/docs/discoveries/1.%20Sprints%20v2.md
+[sprints-v2-discovery]: 1.%20Sprints%20v2.md
 [chatwoot-pricing-plans]: https://www.chatwoot.com/pricing/
 [alternative-to]: https://alternativeto.net/software/ifttt/?license=opensource
 [loom-application]: https://www.loom.com/

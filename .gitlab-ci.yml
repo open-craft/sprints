@@ -1,0 +1,9 @@
+stages:
+  - quality
+
+markdownlint:
+  stage: quality
+  image: node:latest
+  script:
+    - npm install markdownlint-cli
+    - npx markdownlint docs

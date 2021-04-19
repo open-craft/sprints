@@ -10,7 +10,7 @@ jobs:
       - checkout
       - run:
           name: Run Markdown linter
-          command: npx markdown-lint docs
+          command: npx markdownlint docs
 
   test_backend:
     docker:

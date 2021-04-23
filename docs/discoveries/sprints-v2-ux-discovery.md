@@ -35,7 +35,7 @@ The pricing model could be very simple in the beginning (e.g. a paid monthly pla
 
 ### 2. Marketing Site
 
-Build a landing page that describes Sprints, outlines its features, and explains its pricing plans. Interested users will be encouraged to enter their email addresses to be added to a waiting list.
+Build a landing page that describes Sprints, outlines its features, and explains its pricing plans. The page will also include 1-2 design mockups of a "spruced up" version of the Sprints interface. Interested users will be encouraged to enter their email addresses to be added to a waiting list.
 
 The marketing site will be built upon as time goes by, with new pages and information being added as the project progresses. Eventually the site will allow users to either create an account, or view the documentation should they wish to install the application themselves. See how [Chatwoot][chatwoot-pricing-plans] (another open source SaaS product) communicates their self-hosted option to their users.
 
@@ -43,7 +43,7 @@ The marketing site will be built upon as time goes by, with new pages and inform
 
 ### 3. Community Feedback
 
-Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, as well as the plan for future phases. The accompanying marketing site will help to give Sprints credibility as a serious project.  
+Rely on the wisdom of the Open Source community by requesting their feedback on the current [Sprints][sprints-application] application, the plan for future phases, as well as the style of the mockups displayed on the landing page. The marketing site will not only help to give people a more concrete idea of what Sprints is about, but also give it credibility as a serious project.  
 
 List Sprints on open source directories like [AlternativeTo][alternative-to], and contact other open-source projects for their insights. Where possible, it would be valuable to develop partnerships with organisations who need the tool, where we offer them access to Sprints in exchange for their feedback. Although this would require setting up a separate instance for each organisation, it will be worth the effort because feedback early on in the development cycle is always valuable.
 

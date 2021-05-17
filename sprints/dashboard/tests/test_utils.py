@@ -1,33 +1,46 @@
+import inspect
 import re
+from collections import defaultdict
+from typing import Optional
 from unittest import TestCase
-from unittest.mock import patch, Mock
+from unittest.mock import (
+    Mock,
+    MagicMock,
+    patch,
+)
 
 import pytest
 from django.conf import settings
 from django.test import override_settings
+from jira import User as JiraUser
+from jira.resources import Sprint, Issue
 
 from sprints.dashboard.tests.helpers import does_not_raise
 from sprints.dashboard.utils import (
     NoRolesFoundException,
     _column_number_to_excel,
+    _extract_sprint_start_date_from_sprint_name,
     _get_sprint_meeting_day_division_for_member,
+    compile_participants_roles,
+    create_next_sprint,
     extract_sprint_id_from_str,
     extract_sprint_name_from_str,
-    extract_sprint_start_date_from_sprint_name,
     get_all_sprints,
     get_cell,
+    get_cell_member_roles,
     get_cell_members,
     get_cells,
     get_issue_fields,
     get_next_sprint,
     get_projects_dict,
+    get_rotations_roles_for_member,
+    get_spillover_reason,
+    get_sprint_end_date,
     get_sprint_number,
+    get_sprint_start_date,
     prepare_jql_query,
     prepare_jql_query_active_sprint_tickets,
     prepare_spillover_rows,
-    get_cell_member_roles,
-    get_rotations_roles_for_member,
-    compile_participants_roles,
 )
 
 
@@ -51,7 +64,7 @@ class MockItem:
         return result
 
     def __repr__(self):
-        return ', '.join([getattr(self, attr) for attr in self._attrs])
+        return ', '.join([str(getattr(self, attr)) for attr in self._attrs])
 
 
 class MockJiraConnection:
@@ -107,6 +120,17 @@ class MockJiraConnection:
             MockItem(name='Test2', key='T2'),
             MockItem(name='Test3', key='T3'),
         ]
+
+
+class MockUser:
+    JANE = MockItem(displayName='Jane Doe', emailAddress='janedoe@opencraft.com')
+    JACK = MockItem(displayName='Jack Doe', emailAddress='jackdoe@opencraft.com')
+    JOHN = MockItem(displayName='John Doe', emailAddress='johndoe@opencraft.com')
+    JAKE = MockItem(displayName='Jake Doe', emailAddress='jakedoe@opencraft.com')
+
+    @classmethod
+    def list(cls) -> list[JiraUser]:
+        return [user for (_, user) in inspect.getmembers(cls, lambda x: isinstance(x, MockItem))]
 
 
 def test_get_projects_dict():
@@ -200,6 +224,20 @@ def test_get_all_sprints():
     assert sprints == expected
 
 
+@patch("sprints.dashboard.utils._extract_sprint_start_date_from_sprint_name")
+def test_get_sprint_start_date(mock: MagicMock):
+    # noinspection PyTypeChecker
+    sprint = MockItem(name='T1.123 (2019-01-01)', state='active')  # type: Sprint
+    get_sprint_start_date(sprint)
+    mock.assert_called_once_with(sprint.name)
+
+
+def test_sprint_end_date():
+    # noinspection PyTypeChecker
+    sprint = MockItem(name='T1.123 (2019-01-01)', state='active')  # type: Sprint
+    assert get_sprint_end_date(sprint) == '2019-01-14'
+
+
 def test_prepare_jql_query():
     expected_fields = ['id', 'sprint']
     expected_result = {
@@ -243,7 +281,7 @@ def test_prepare_jql_query_active_sprint_tickets():
 )
 def test_extract_sprint_start_date_from_sprint_name(test_input, expected, raises):
     with raises:
-        assert extract_sprint_start_date_from_sprint_name(test_input) == expected
+        assert _extract_sprint_start_date_from_sprint_name(test_input) == expected
 
 
 def test_prepare_jql_query_active_sprint_tickets_for_project():
@@ -278,6 +316,148 @@ def test_get_issue_fields():
     }
     # noinspection PyTypeChecker
     assert get_issue_fields(MockJiraConnection(), required_fields) == expected_result
+
+
+@patch(
+    "sprints.dashboard.utils.filter_sprints_by_cell",
+    return_value=[
+        MockItem(id=1, name='T1.123 (2019-01-01)', state='active'),
+        MockItem(id=3, name='T1.124 (2019-01-15)', state='future'),
+        MockItem(id=4, name='T1.125 (2019-01-29)', state='future'),
+    ],
+)
+def test_create_next_sprint(mock_filter_sprints: MagicMock):
+    mock_jira_create_sprint = Mock()
+    conn = Mock(create_sprint=mock_jira_create_sprint)
+    # noinspection PyTypeChecker
+    sprints = ["Dummy", "sprints"]  # type: list[Sprint]
+    cell_key = "T1"
+    board_id = 123
+
+    create_next_sprint(conn, sprints, cell_key, board_id)
+
+    mock_filter_sprints.assert_called_once_with(sprints, cell_key)
+    mock_jira_create_sprint.assert_called_once_with(
+        name='T1.126 (2019-02-12)',
+        board_id=123,
+        startDate='2019-02-12',
+        endDate='2019-02-25',
+    )
+
+
+@patch("sprints.dashboard.utils.get_sprint_start_date", return_value="2019-01-01T13:00:00")
+@pytest.mark.parametrize(
+    "issue, assignee, expected",
+    [
+        # No spillover reason provided.
+        (
+            MockItem(
+                key='TEST-1',
+                fields=MockItem(
+                    comment=MockItem(
+                        comments=[
+                            MockItem(created='2019-01-01T13:00:00', body="Test comment 1.", author=MockUser.JANE),
+                            MockItem(created='2019-01-01T13:00:01', body="Test comment 2.", author=MockUser.JANE),
+                            MockItem(created='2019-01-01T13:00:02', body="Test comment 3.", author=MockUser.JANE),
+                        ]
+                    )
+                ),
+            ),
+            MockUser.JANE,
+            "",
+        ),
+        # Spillover reason provided.
+        (
+            MockItem(
+                key='TEST-1',
+                fields=MockItem(
+                    comment=MockItem(
+                        comments=[
+                            MockItem(
+                                created='2019-01-01T13:00:00',
+                                body="[~crafty]: <spillover>Test spillover.</spillover>",
+                                author=MockUser.JANE,
+                            ),
+                            MockItem(created='2019-01-01T13:00:01', body="Test comment 2.", author=MockUser.JANE),
+                            MockItem(created='2019-01-01T13:00:02', body="Test comment 3.", author=MockUser.JANE),
+                        ]
+                    )
+                ),
+            ),
+            MockUser.JANE,
+            "Test spillover.",
+        ),
+        # Spillover reason provided by another user.
+        (
+            MockItem(
+                key='TEST-1',
+                fields=MockItem(
+                    comment=MockItem(
+                        comments=[
+                            MockItem(
+                                created='2019-01-01T13:00:00',
+                                body="[~crafty]: <spillover>Test spillover.</spillover>",
+                                author=MockUser.JANE,
+                            ),
+                            MockItem(created='2019-01-01T13:00:01', body="Test comment 2.", author=MockUser.JANE),
+                            MockItem(created='2019-01-01T13:00:02', body="Test comment 3.", author=MockUser.JANE),
+                        ]
+                    )
+                ),
+            ),
+            MockUser.JACK,
+            "",
+        ),
+        # Wrong pattern for the spillover reason.
+        (
+            MockItem(
+                key='TEST-1',
+                fields=MockItem(
+                    comment=MockItem(
+                        comments=[
+                            MockItem(
+                                created='2019-01-01T13:00:00',
+                                body="[~crafty], <spillover>Test spillover.</spillover>",
+                                author=MockUser.JANE,
+                            ),
+                            MockItem(created='2019-01-01T13:00:01', body="Test comment 2.", author=MockUser.JANE),
+                            MockItem(created='2019-01-01T13:00:02', body="Test comment 3.", author=MockUser.JANE),
+                        ]
+                    )
+                ),
+            ),
+            MockUser.JANE,
+            "",
+        ),
+        # Spillover reason provided in the previous sprint.
+        # As a ticket can spill over multiple times, only the comments from the current sprint should be checked.
+        (
+            MockItem(
+                key='TEST-1',
+                fields=MockItem(
+                    comment=MockItem(
+                        comments=[
+                            MockItem(
+                                created='2019-01-01T12:59:59',
+                                body="[~crafty], <spillover>Test spillover.</spillover>",
+                                author=MockUser.JANE,
+                            ),
+                            MockItem(created='2019-01-01T13:00:01', body="Test comment 2.", author=MockUser.JANE),
+                            MockItem(created='2019-01-01T13:00:02', body="Test comment 3.", author=MockUser.JANE),
+                        ]
+                    )
+                ),
+            ),
+            MockUser.JANE,
+            "",
+        ),
+    ],
+)
+def test_get_spillover_reason(_mock_get_sprint_start_date: MagicMock, issue: Issue, assignee: JiraUser, expected: str):
+    issue_fields = {'Comment': 'comment'}
+    # noinspection PyTypeChecker
+    sprint: Sprint = None
+    assert get_spillover_reason(issue, issue_fields, sprint, assignee.displayName) == expected
 
 
 @override_settings(JIRA_SERVER='https://example.com', SPILLOVER_REQUIRED_FIELDS=('Story Points', 'Original Estimate'))
@@ -381,19 +561,13 @@ def test_get_rotations_roles_for_member():
 
 
 def test_compile_participants_roles():
-    members_data_dummy = [
-        Mock(displayName='Jane Doe', emailAddress='janedoe@opencraft.com'),
-        Mock(displayName='Jack Doe', emailAddress='jackdoe@opencraft.com'),
-        Mock(displayName='John Doe', emailAddress='johndoe@opencraft.com'),
-        Mock(displayName='Jake Doe', emailAddress='jakedoe@opencraft.com'),
-    ]
-
     rotations_data_dummy = {
         'ff': ['John Doe', 'Jack'],
         'dd': ['Jack Doe', 'Jake Doe'],
     }
 
-    roles_data_dummy = {
+    # noinspection PyTypeChecker
+    roles_data_dummy: defaultdict[str, list[Optional[str]]] = {
         'Jane Doe': [],
         'Jack Doe': ['Sprint Planning Manager', 'DevOps Specialist'],
         'John Doe': ['Sprint Manager'],
@@ -401,7 +575,7 @@ def test_compile_participants_roles():
         'Juan Doe': [''],
     }
 
-    output = compile_participants_roles(members_data_dummy, rotations_data_dummy, roles_data_dummy)
+    output = compile_participants_roles(MockUser.list(), rotations_data_dummy, roles_data_dummy)
 
     expected_output = {
         'janedoe@opencraft.com': [],

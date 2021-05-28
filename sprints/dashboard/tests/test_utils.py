@@ -370,6 +370,12 @@ def test_get_rotations_roles_for_member():
     assert len(output) == 1
     assert output[0] == 'FF-2'
 
+    # When the member is on Future Sprint Firefighter(FSFF) duty
+    output = get_rotations_roles_for_member('Jake Doe', {'FF': ['Jake Doe', 'John Doe'], 'DD': ['Jane Doe', 'James Doe'], 'FSFF': ['John Doe', 'Jake Doe']})
+    assert len(output) == 2
+    assert output[0] == 'FF-1'
+    assert output[1] == 'FSFF-2'
+
     # When member has no duty
     output = get_rotations_roles_for_member('John Doe', {'FF': ['Jake Doe', 'James Doe'], 'DD': ['Jane Doe', 'James Doe']})
     assert len(output) == 0
@@ -389,8 +395,10 @@ def test_compile_participants_roles():
     ]
 
     rotations_data_dummy = {
-        'ff': ['John Doe', 'Jack'],
-        'dd': ['Jack Doe', 'Jake Doe'],
+        'FF': ['John Doe', 'Jack'],
+        'DD': ['Jack Doe', 'Jake Doe'],
+        'FSFF': ['Jack', 'John Doe'],
+        'FSDD': ['Jake Doe', 'Jack Doe'],
     }
 
     roles_data_dummy = {
@@ -405,9 +413,9 @@ def test_compile_participants_roles():
 
     expected_output = {
         'janedoe@opencraft.com': [],
-        'jackdoe@opencraft.com': ['Sprint Planning Manager', 'DevOps Specialist', 'ff-2', 'dd-1'],
-        'johndoe@opencraft.com': ['Sprint Manager', 'ff-1'],
-        'jakedoe@opencraft.com': ['Recruitment Manager', 'dd-2']
+        'jackdoe@opencraft.com': ['Sprint Planning Manager', 'DevOps Specialist', 'FF-2', 'DD-1', 'FSFF-1', 'FSDD-2'],
+        'johndoe@opencraft.com': ['Sprint Manager', 'FF-1', 'FSFF-2'],
+        'jakedoe@opencraft.com': ['Recruitment Manager', 'DD-2', 'FSDD-1']
     }
 
     TestCase().assertDictEqual(output, expected_output)

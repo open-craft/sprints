@@ -192,7 +192,7 @@ def get_rotations_roles_for_member(member_name: str, rotations: Dict[str, List[s
     roles = []
 
     for duty, assignees in rotations.items():
-        # Enumeration is used for determining the order of roles in a sprint - e.g. `FF-1`, `DD-2`, etc.
+        # Enumeration is used for determining the order of roles in a sprint - e.g. `FF-1`, `DD-1`, `FSFF-1`, `FSDD-1`, etc.
         for idx, assignee in enumerate(assignees):
             if member_name.startswith(assignee):
                 roles.append(f"{duty}-{idx + 1}")

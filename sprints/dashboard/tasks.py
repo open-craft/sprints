@@ -179,6 +179,12 @@ def trigger_new_sprint_webhooks_task(cell_name: str, sprint_name: str, sprint_nu
     with connect_to_jira() as conn:
         # Dictionary containing rotations: {'FF': ['John Doe',...],...}
         rotations = get_rotations_users(str(sprint_number), cell_name)
+        
+        # get the rotation role for the future sprint that is current sprint number + 1
+        next_sprint_rotations = get_rotations_users(str(sprint_number + 1), cell_name)
+        future_rotations = {f"FS{role}": assignees for role, assignees in next_sprint_rotations.items()}
+        
+        rotations.update(future_rotations)
 
         # A list of jira usernames for a board: ['johndoe1', 'jane_doe_22', ...]
         members = []

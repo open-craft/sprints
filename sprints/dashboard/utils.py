@@ -309,7 +309,7 @@ def _get_next_sprint(sprints: List[Sprint], previous_sprint_number: int, many=Fa
 
 def get_sprint_start_date(sprint: Sprint) -> str:
     """Returns start date of the sprint."""
-    return extract_sprint_start_date_from_sprint_name(sprint.name)
+    return _extract_sprint_start_date_from_sprint_name(sprint.name)
 
 
 def get_sprint_end_date(sprint: Sprint) -> str:
@@ -439,7 +439,7 @@ def extract_sprint_name_from_str(sprint_str: str) -> str:
     raise AttributeError(f"Invalid `sprint_str`, {pattern} not found.")
 
 
-def extract_sprint_start_date_from_sprint_name(sprint_name: str) -> str:
+def _extract_sprint_start_date_from_sprint_name(sprint_name: str) -> str:
     """Extract sprint start date from sprint's name."""
     search = re.search(settings.SPRINT_REGEX, sprint_name)
     if search:
@@ -497,23 +497,25 @@ def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, b
     """Creates next sprint for the desired cell."""
     sprints = filter_sprints_by_cell(sprints, cell_key)
     last_sprint = sprints[-1]
-    end_date = parse(last_sprint.endDate)
 
-    future_next_sprint_number = get_sprint_number(last_sprint) + 1
-    future_name_date = (end_date + timedelta(days=1)).strftime(settings.JIRA_API_DATE_FORMAT)
-    future_end_date = end_date + timedelta(days=settings.SPRINT_DURATION_DAYS)
+    start_date = parse(get_sprint_end_date(last_sprint)) + timedelta(days=1)
+    start_date_str = start_date.strftime(settings.JIRA_API_DATE_FORMAT)
+    end_date_str = _get_sprint_end_date(start_date_str)
+
+    sprint_number = get_sprint_number(last_sprint) + 1
+
     return conn.create_sprint(
-        name=f'{cell_key}.{future_next_sprint_number} ({future_name_date})',
+        name=f'{cell_key}.{sprint_number} ({start_date_str})',
         board_id=board_id,
-        startDate=end_date.isoformat(),
-        endDate=future_end_date.isoformat(),
+        startDate=start_date_str,
+        endDate=end_date_str,
     )
 
 
 def get_spillover_reason(issue: Issue, issue_fields: Dict[str, str], sprint: Sprint, assignee: str) -> str:
     """Retrieve the spillover reason from the comment matching the `settings.SPILLOVER_REASON_DIRECTIVE` regexp."""
     # For issues spilling over more than once we need to ensure that the comment has been added in the current sprint.
-    sprint_start_date = parse(sprint.startDate)
+    sprint_start_date = parse(get_sprint_start_date(sprint))
 
     # Check each comment created after starting the current sprint.
     comments = getattr(issue.fields, issue_fields['Comment']).comments

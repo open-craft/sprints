@@ -287,13 +287,11 @@ def complete_sprint_task(board_id: int) -> None:
             conn.add_issues_to_sprint(next_sprint.id, issue_keys)
 
             # Open the next sprint.
-            start_date = datetime.now()
-            end_date = datetime.now() + timedelta(days=settings.SPRINT_DURATION_DAYS)
             conn.update_sprint(
                 next_sprint.id,
                 name=next_sprint.name,
-                startDate=start_date.isoformat(),
-                endDate=end_date.isoformat(),
+                startDate=next_sprint.startDate,
+                endDate=next_sprint.endDate,
                 state='active',
             )
 

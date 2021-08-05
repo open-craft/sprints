@@ -503,10 +503,9 @@ def create_next_sprint(conn: CustomJira, sprints: List[Sprint], cell_key: str, b
     end_date_str = _get_sprint_end_date(start_date_str)
 
     sprint_number = get_sprint_number(last_sprint) + 1
-    name_date = start_date.strftime(settings.JIRA_API_DATE_FORMAT)
 
     return conn.create_sprint(
-        name=f'{cell_key}.{sprint_number} ({name_date})',
+        name=f'{cell_key}.{sprint_number} ({start_date_str})',
         board_id=board_id,
         startDate=start_date_str,
         endDate=end_date_str,

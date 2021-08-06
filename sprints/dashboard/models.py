@@ -84,9 +84,9 @@ class DashboardIssue:
             # Possible for epics
             self.current_sprint = False
         try:
-            self.story_points = int(getattr(issue.fields, issue_fields['Story Points'], 0))
+            self.story_points = getattr(issue.fields, issue_fields['Story Points'], None)
         except (AttributeError, TypeError):
-            self.story_points = 0
+            self.story_points = None
         self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], "Unassigned")
         if not self.reviewer_1:
             self.reviewer_1 = unassigned_user
@@ -124,12 +124,36 @@ class DashboardIssue:
 
         return max(self.time_estimate - self.review_time, 0)  # We don't want negative values here.
 
+    def get_review_time_from_story_points(self):
+        issue_story_points = self.story_points
+        review_hours_by_story_points = settings.SPRINT_HOURS_RESERVED_FOR_REVIEW
+        if issue_story_points is None:
+            return review_hours_by_story_points.get("null")
+
+        # Default is the null value, in case no numeric value has been defined on the env variable
+        nearest_value = "null"
+        minimum_value_difference = None
+        # Iterate over the defined values, and look for the nearest one
+        for story_points in review_hours_by_story_points:
+            if story_points == "null":
+                continue
+            story_point_num_value = float(story_points)
+            value_difference = abs(story_point_num_value - issue_story_points)
+            if nearest_value == "null" or \
+               (value_difference == minimum_value_difference and story_point_num_value > float(nearest_value)) or \
+               value_difference <= minimum_value_difference:
+                minimum_value_difference = value_difference
+                nearest_value = story_points
+
+        return review_hours_by_story_points.get(nearest_value)
+
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()
     def review_time(self) -> int:
         """
         Calculate time needed for the review.
-        Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
+        Unless directly specified (with Jira bot directive), we're planning by using the
+        SPRINT_HOURS_RESERVED_FOR_REVIEW setting.
         """
         try:
             return self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
@@ -140,9 +164,7 @@ class DashboardIssue:
             if self.is_epic or self.status in settings.SPRINT_STATUS_NO_MORE_REVIEW:
                 return 0
 
-            if self.story_points <= 3:
-                return SECONDS_IN_HOUR
-            return int(2 * SECONDS_IN_HOUR)
+            return int(SECONDS_IN_HOUR * self.get_review_time_from_story_points())
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()

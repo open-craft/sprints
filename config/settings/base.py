@@ -609,6 +609,20 @@ SPRINT_ASYNC_TASKS = {
     },
 }
 
+# Time estimates for reviewing tasks based on the assigned story points
+#
+# SPRINT_HOURS_RESERVED_FOR_REVIEW {
+#     "null": Review time if task is not estimated,
+#     "1.9": Review time if task has less than 2 story points,
+#     "2": Review time if task has 2 story points,
+#     "3": Review time if task has 3 story points,
+#     "5": Review time if task has 5 story points,
+#     "5.1": Review time if task has more than 5 story points
+# }
+# Any time estimate that is not defined here, will use the "review time" from the closest value defined
+
+SPRINT_HOURS_RESERVED_FOR_REVIEW = json.loads(env.str("SPRINT_HOURS_RESERVED_FOR_REVIEW",
+                                                      '{"null": 2, "1.9": 0.5, "2": 1, "3": 2, "5": 3, "5.1": 5}'))
 # GOOGLE CALENDAR
 # ------------------------------------------------------------------------------
 # Google API credentials for retrieving data from Calendar API.

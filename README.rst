@@ -29,7 +29,23 @@ The basic idea for calculating estimations is the following:
 
 1. `SPRINT_HOURS_RESERVED_FOR_MEETINGS` hours are reserved for the meetings for each sprint.
 2. `SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT` hours are reserved for epic management for each sprint.
-3. 1 hour is planned for reviewing each task with <= 3 story points. For bigger tasks, 2 hours are reserved.
+3. Reserved time for reviewing is defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW` as a json dict, where you can define the review time for any
+   amount of story points, and also if no story points are defined("null") for a Jira issue. e.g.
+   .. code::
+
+        SPRINT_HOURS_RESERVED_FOR_REVIEW {
+            "null": 2,
+            "1.9": 1,
+            "2": 3,
+            "5.1": 6
+        }
+
+   Here we are defining that if no story point is set for an issue, it will reserve 2 hours, for 1.9 story points it will reserve 1 hour,
+   for 2 story points it will reserve 3 hours and for 5.1 story points it will reserve 6 hours. Also if the ticket has an amount of story points
+   not defined in this environment variable, the review time of the closest number of story points defined will be used.
+   So, in this case, for 3 story points, 3 hours will be used reserved for review, as the closes number of story points defined is 2,
+   and for any value that is greater than 5.1, 6 hours will be reserved, as this is the closest value
+
 4. Each of these defaults can be overridden for each ticket by putting the following in the ticket’s description:
     a) [~{JIRA_BOT_USERNAME}]: plan `<time>` per sprint for epic management
     b) [~{JIRA_BOT_USERNAME}]: plan `<time>` per sprint for this task

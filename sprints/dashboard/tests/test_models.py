@@ -1,5 +1,12 @@
 import pytest
+from unittest.mock import (
+    Mock,
+    patch
+)
+
+
 from django.conf import settings
+from django.test import override_settings
 
 from sprints.dashboard.models import (
     Dashboard,
@@ -176,3 +183,92 @@ def test_get_vacation_for_day(commitments, date, planned_commitments, username, 
     mock_dashboard.sprint_division = division
 
     assert mock_dashboard._get_vacation_for_day(commitments, date, planned_commitments, username) == expected
+
+
+@pytest.mark.parametrize(
+    "story_points, expected_hours",
+    [
+        # story points not defined
+        (None, 2),
+        # less than 1.9 story points
+        (0.5, 0.5),
+        (1.77, 0.5),
+        (1, 0.5),
+        # 2 and near to 2 story points
+        (1.99, 1),
+        (2, 1),
+        (2.3, 1),
+        # 3 and near to 3 story points
+        (2.5, 2),
+        (2.6, 2),
+        (3, 2),
+        (3.3, 2),
+        # 5 and near to 5 story points
+        (4.6, 3),
+        (5, 3),
+        (5.01, 3),
+        # more than 5.1 story points
+        (5.2, 5),
+        (10, 5),
+    ],
+)
+@override_settings(
+    SPRINT_HOURS_RESERVED_FOR_REVIEW={
+        "null": 2,
+        "1.9": 0.5,
+        "2": 1,
+        "3": 2,
+        "5": 3,
+        "5.1": 5
+    }
+)
+def test_review_time_from_story_points(story_points, expected_hours):
+    mock_issue = object.__new__(DashboardIssue)
+    mock_issue.story_points = story_points
+    assert mock_issue.get_review_time_from_story_points() == expected_hours
+
+
+@patch.object(DashboardIssue, "get_bot_directive")
+def test_review_time_bot_directives_given(mock_get_bot_directives):
+    time_specified_by_bot_directive = 3
+    mock_get_bot_directives.return_value = time_specified_by_bot_directive
+    mock_dashboard = object.__new__(DashboardIssue)
+
+    assert mock_dashboard.review_time == time_specified_by_bot_directive
+
+
+@patch.object(DashboardIssue, "get_bot_directive")
+def test_review_time_no_bot_directive_and_is_epic(mock_get_bot_directives):
+    review_time_if_issue_is_epic = 0
+    mock_get_bot_directives.side_effect = ValueError
+    mock_dashboard = object.__new__(DashboardIssue)
+    mock_dashboard.is_epic = True
+
+    assert mock_dashboard.review_time == review_time_if_issue_is_epic
+
+
+@pytest.mark.parametrize(
+    "status",
+    [status for status in settings.SPRINT_STATUS_NO_MORE_REVIEW]
+)
+@patch.object(DashboardIssue, "get_bot_directive")
+def test_review_time_no_bot_directive_and_does_not_need_a_review(mock_get_bot_directive, status):
+    review_time_if_issue_does_not_need_review = 0
+    mock_get_bot_directive.side_effect = ValueError
+    mock_dashboard = object.__new__(DashboardIssue)
+    mock_dashboard.status = status
+    mock_dashboard.is_epic = False
+
+    assert mock_dashboard.review_time == review_time_if_issue_does_not_need_review
+
+
+@patch.object(DashboardIssue, "get_bot_directive")
+@patch.object(DashboardIssue, "get_review_time_from_story_points")
+def test_review_time_no_bot_directive_given(mock_get_bot_directive, mock_review_time_from_story_points):
+    expected_review_time = 3
+    mock_get_bot_directive.side_effect = ValueError
+    mock_review_time_from_story_points.return_value = expected_review_time
+    mock_dashboard = object.__new__(DashboardIssue)
+    mock_dashboard.is_epic = False
+
+    assert mock_dashboard.review_time == expected_review_time

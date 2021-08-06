@@ -30,21 +30,32 @@ The basic idea for calculating estimations is the following:
 1. `SPRINT_HOURS_RESERVED_FOR_MEETINGS` hours are reserved for the meetings for each sprint.
 2. `SPRINT_HOURS_RESERVED_FOR_EPIC_MANAGEMENT` hours are reserved for epic management for each sprint.
 3. Reserved time for reviewing is defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW` as a json dict, where you can define the review time for any
-   amount of story points, and also if no story points are defined("null") for a Jira issue. e.g.
+   amount of story points. Jira tickets without story points will have a "null" value here, so the default behavior can be specified by defining
+   this as a key. Example configuration:
+
    .. code::
 
-        SPRINT_HOURS_RESERVED_FOR_REVIEW {
+        SPRINT_HOURS_RESERVED_FOR_REVIEW = {
             "null": 2,
             "1.9": 1,
             "2": 3,
             "5.1": 6
         }
 
-   Here we are defining that if no story point is set for an issue, it will reserve 2 hours, for 1.9 story points it will reserve 1 hour,
-   for 2 story points it will reserve 3 hours and for 5.1 story points it will reserve 6 hours. Also if the ticket has an amount of story points
-   not defined in this environment variable, the review time of the closest number of story points defined will be used.
-   So, in this case, for 3 story points, 3 hours will be used reserved for review, as the closes number of story points defined is 2,
-   and for any value that is greater than 5.1, 6 hours will be reserved, as this is the closest value
+   Here we are defining that:
+
+   1. If not story points are set for an issue, it will reserve 2 hours for its review.
+   2. If 1.9 story points are set for an issue, it will reserve 1 hour for its review.
+   3. If 2 story points are set for an issue, it will reserve 3 hours for its review.
+   4. If 5.1 story points are set for an issue, it will reserve 6 hours for its review.
+   5. If the ticket has an amount of story points that is not defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting,
+      then it will use the review time for the nearest number of story point defined. For example:
+       - If 3 story points are set for an issue, it will reserve, 3 hours for its review, as the closest number of story points
+         defined is 2
+       - If more than 5.1 story points (6, 10, 20, etc.) are defined for an issue, it will reserve 6 hours for its review,
+         because the closest story points value defined is 5.1
+
+   **The "null" value is REQUIRED to be defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW`.**
 
 4. Each of these defaults can be overridden for each ticket by putting the following in the ticket’s description:
     a) [~{JIRA_BOT_USERNAME}]: plan `<time>` per sprint for epic management

@@ -609,9 +609,28 @@ SPRINT_ASYNC_TASKS = {
     },
 }
 
-# Time estimates for reviewing tasks based on the assigned story points
-#
-# SPRINT_HOURS_RESERVED_FOR_REVIEW {
+
+def json_keys_to_float(json_dict):
+    if isinstance(json_dict, dict):
+        processed_json_dict = {}
+        for key, value in json_dict.items():
+            try:
+                processed_key = float(key)
+            except ValueError:
+                processed_key = None
+            processed_json_dict[processed_key] = value
+        return processed_json_dict
+    return json_dict
+
+
+def preprocess_sprints_hours_reserved_for_review(json_dict):
+    if "null" not in json_dict:
+        raise ValueError('required "null" key is missing for SPRINT_HOURS_RESERVED_FOR_REVIEW')
+    return json_keys_to_float(json_dict)
+
+# Time estimates for reviewing tasks based on the assigned story points.
+# Configuration format:
+# {
 #     "null": Review time if task is not estimated,
 #     "1.9": Review time if task has less than 2 story points,
 #     "2": Review time if task has 2 story points,
@@ -621,8 +640,11 @@ SPRINT_ASYNC_TASKS = {
 # }
 # Any time estimate that is not defined here, will use the "review time" from the closest value defined
 
-SPRINT_HOURS_RESERVED_FOR_REVIEW = json.loads(env.str("SPRINT_HOURS_RESERVED_FOR_REVIEW",
-                                                      '{"null": 2, "1.9": 0.5, "2": 1, "3": 2, "5": 3, "5.1": 5}'))
+
+SPRINT_HOURS_RESERVED_FOR_REVIEW = preprocess_sprints_hours_reserved_for_review(json.loads(
+    env.str("SPRINT_HOURS_RESERVED_FOR_REVIEW", '{"null": 2, "1.9": 0.5, "2": 1, "3": 2, "5": 3, "5.1": 5}')
+))
+
 # GOOGLE CALENDAR
 # ------------------------------------------------------------------------------
 # Google API credentials for retrieving data from Calendar API.

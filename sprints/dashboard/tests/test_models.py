@@ -198,8 +198,8 @@ def test_get_vacation_for_day(commitments, date, planned_commitments, username, 
         (1.99, 1),
         (2, 1),
         (2.3, 1),
+        (2.5, 1),
         # 3 and near to 3 story points
-        (2.5, 2),
         (2.6, 2),
         (3, 2),
         (3.3, 2),
@@ -214,18 +214,18 @@ def test_get_vacation_for_day(commitments, date, planned_commitments, username, 
 )
 @override_settings(
     SPRINT_HOURS_RESERVED_FOR_REVIEW={
-        "null": 2,
-        "1.9": 0.5,
-        "2": 1,
-        "3": 2,
-        "5": 3,
-        "5.1": 5
+        None: 2,
+        1.9: 0.5,
+        2: 1,
+        3: 2,
+        5: 3,
+        5.1: 5
     }
 )
-def test_review_time_from_story_points(story_points, expected_hours):
+def test_calculate_review_time_from_story_points(story_points, expected_hours):
     mock_issue = object.__new__(DashboardIssue)
     mock_issue.story_points = story_points
-    assert mock_issue.get_review_time_from_story_points() == expected_hours
+    assert mock_issue.calculate_review_time_from_story_points() == expected_hours
 
 
 @patch.object(DashboardIssue, "get_bot_directive")
@@ -263,7 +263,7 @@ def test_review_time_no_bot_directive_and_does_not_need_a_review(mock_get_bot_di
 
 
 @patch.object(DashboardIssue, "get_bot_directive")
-@patch.object(DashboardIssue, "get_review_time_from_story_points")
+@patch.object(DashboardIssue, "calculate_review_time_from_story_points")
 def test_review_time_no_bot_directive_given(mock_get_bot_directive, mock_review_time_from_story_points):
     expected_review_time = 3
     mock_get_bot_directive.side_effect = ValueError

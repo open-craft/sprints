@@ -37,6 +37,7 @@ The basic idea for calculating estimations is the following:
 
         SPRINT_HOURS_RESERVED_FOR_REVIEW = {
             "null": 2,
+            "0": 0.5,
             "1.9": 1,
             "2": 3,
             "5.1": 6
@@ -45,10 +46,11 @@ The basic idea for calculating estimations is the following:
    Here we are defining that:
 
    1. If not story points are set for an issue, it will reserve 2 hours for its review.
-   2. If 1.9 story points are set for an issue, it will reserve 1 hour for its review.
-   3. If 2 story points are set for an issue, it will reserve 3 hours for its review.
-   4. If 5.1 story points are set for an issue, it will reserve 6 hours for its review.
-   5. If the ticket has an amount of story points that is not defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting,
+   2. If 0 story points are set for an issue, it will reserve 0.5 hours for its review.
+   3. If 1.9 story points are set for an issue, it will reserve 1 hour for its review.
+   4. If 2 story points are set for an issue, it will reserve 3 hours for its review.
+   5. If 5.1 story points are set for an issue, it will reserve 6 hours for its review.
+   6. If the ticket has an amount of story points that is not defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting,
       then it will use the review time for the nearest number of story point defined. For example:
        - If 3 story points are set for an issue, it will reserve, 3 hours for its review, as the closest number of story points
          defined is 2

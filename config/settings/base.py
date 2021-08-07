@@ -6,6 +6,7 @@ import json
 
 import environ
 from celery.schedules import crontab
+from typing import Optional
 
 SECONDS_IN_HOUR = 3600
 SECONDS_IN_MINUTE = 60
@@ -614,6 +615,7 @@ def json_keys_to_float(json_dict):
     if isinstance(json_dict, dict):
         processed_json_dict = {}
         for key, value in json_dict.items():
+            processed_key: Optional[float]
             try:
                 processed_key = float(key)
             except ValueError:

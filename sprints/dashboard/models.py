@@ -124,7 +124,7 @@ class DashboardIssue:
 
         return max(self.time_estimate - self.review_time, 0)  # We don't want negative values here.
 
-    def calculate_review_time_from_story_points(self):
+    def calculate_review_time_from_story_points(self) -> float:
         """
         Calculate time needed for a review, by using the story points defined in the issue.
 

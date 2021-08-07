@@ -132,7 +132,7 @@ class DashboardIssue:
         issue_story_points = self.story_points
         review_hours_by_story_points = settings.SPRINT_HOURS_RESERVED_FOR_REVIEW
         # If the story points value is defined in SPRINT_HOURS_RESERVED_FOR_REVIEW setting, then return it
-        if(hours := review_hours_by_story_points.get(issue_story_points)) is not None:
+        if (hours := review_hours_by_story_points.get(issue_story_points)) is not None:
             return hours
 
         # As the story points value is not defined in SPRINT_HOURS_RESERVED_FOR_REVIEW setting, then we are going
@@ -141,7 +141,7 @@ class DashboardIssue:
         if not defined_story_points:
             # If not numerical values were defined, then we will use the "null"/undefined value
             return review_hours_by_story_points[None]
-        nearest_story_points = min(defined_story_points, key=lambda story_points: abs(story_points - self.story_points))
+        nearest_story_points = min(defined_story_points, key=lambda story_points: abs(story_points - issue_story_points))
         return review_hours_by_story_points[nearest_story_points]
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362

@@ -33,7 +33,7 @@ The basic idea for calculating estimations is the following:
    amount of story points. Jira tickets without story points will have a "null" value here, so the default behavior can be specified by defining
    this as a key. Example configuration:
 
-   .. code::
+   .. code:: javascript
 
         SPRINT_HOURS_RESERVED_FOR_REVIEW = {
             "null": 2,
@@ -50,14 +50,11 @@ The basic idea for calculating estimations is the following:
    3. If 1.9 story points are set for an issue, it will reserve 1 hour for its review.
    4. If 2 story points are set for an issue, it will reserve 3 hours for its review.
    5. If 5.1 story points are set for an issue, it will reserve 6 hours for its review.
-   6. If the ticket has an amount of story points that is not defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting,
-      then it will use the review time for the nearest number of story point defined. For example:
-       - If 3 story points are set for an issue, it will reserve, 3 hours for its review, as the closest number of story points
-         defined is 2
-       - If more than 5.1 story points (6, 10, 20, etc.) are defined for an issue, it will reserve 6 hours for its review,
-         because the closest story points value defined is 5.1
+   6. If the ticket has an amount of story points that is not defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting, then it will use the review time for the nearest number of story points defined. For example:
+       - If 3 story points are set for an issue, it will reserve, 3 hours for its review, as the closest number of story points defined is 2
+       - If more than 5.1 story points (6, 10, 20, etc.) are defined for an issue, it will reserve 6 hours for its review, because the closest story points value defined is 5.1.
 
-   **The "null" value is REQUIRED to be defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW`.**
+   **Note**: The ``null`` value is **required** in ``SPRINT_HOURS_RESERVED_FOR_REVIEW``.
 
 4. Each of these defaults can be overridden for each ticket by putting the following in the ticket’s description:
     a) [~{JIRA_BOT_USERNAME}]: plan `<time>` per sprint for epic management

@@ -6,6 +6,7 @@ import json
 
 import environ
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 from typing import Optional
 
 SECONDS_IN_HOUR = 3600
@@ -612,6 +613,9 @@ SPRINT_ASYNC_TASKS = {
 
 
 def json_keys_to_float(json_dict):
+    """
+    Replaces the string keys of a dictionary with their float value or `None`, in case string cannot be cast to float
+    """
     if isinstance(json_dict, dict):
         processed_json_dict = {}
         for key, value in json_dict.items():
@@ -625,9 +629,14 @@ def json_keys_to_float(json_dict):
     return json_dict
 
 
-def preprocess_sprints_hours_reserved_for_review(json_dict):
+def validate_sprints_hours_reserved_for_review(json_dict):
+    """
+    Validates that the `null` key is defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting and it processes its
+    keys, replacing them with their float value by using the `json_keys_to_float` function
+    :raises `ImproperlyConfigured` if "null" key is not in the passed dict
+    """
     if "null" not in json_dict:
-        raise ValueError('required "null" key is missing for SPRINT_HOURS_RESERVED_FOR_REVIEW')
+        raise ImproperlyConfigured('required "null" key is missing for SPRINT_HOURS_RESERVED_FOR_REVIEW')
     return json_keys_to_float(json_dict)
 
 # Time estimates for reviewing tasks based on the assigned story points.
@@ -643,9 +652,10 @@ def preprocess_sprints_hours_reserved_for_review(json_dict):
 # Any time estimate that is not defined here, will use the "review time" from the closest value defined
 
 
-SPRINT_HOURS_RESERVED_FOR_REVIEW = preprocess_sprints_hours_reserved_for_review(json.loads(
-    env.str("SPRINT_HOURS_RESERVED_FOR_REVIEW", '{"null": 2, "1.9": 0.5, "2": 1, "3": 2, "5": 3, "5.1": 5}')
-))
+SPRINT_HOURS_RESERVED_FOR_REVIEW = json.loads(
+    env.str("SPRINT_HOURS_RESERVED_FOR_REVIEW", '{"null": 2, "1.9": 0.5, "2": 1, "3": 2, "5": 3, "5.1": 5}'),
+    object_hook=validate_sprints_hours_reserved_for_review
+)
 
 # GOOGLE CALENDAR
 # ------------------------------------------------------------------------------

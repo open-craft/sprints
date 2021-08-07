@@ -83,10 +83,7 @@ class DashboardIssue:
         except (AttributeError, TypeError):
             # Possible for epics
             self.current_sprint = False
-        try:
-            self.story_points = getattr(issue.fields, issue_fields['Story Points'], None)
-        except AttributeError:
-            self.story_points = None
+        self.story_points = getattr(issue.fields, issue_fields['Story Points'], None)
         self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], "Unassigned")
         if not self.reviewer_1:
             self.reviewer_1 = unassigned_user
@@ -128,9 +125,9 @@ class DashboardIssue:
         """
         Calculate time needed for a review, by using the story points defined in the issue.
 
-        If the story points defined in the issue, is defined in SPRINT_HOURS_RESERVED_FOR_REVIEW, then
-        it is going to return the review time for that value,
-        otherwise will use the review time of the closest value defined in SPRINT_HOURS_RESERVED_FOR_REVIEW.
+        If the story points set in the issue are defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW`, then
+        it is going to return the review time for that value.
+        Otherwise, it will use the review time of the closest value defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW`.
         """
         issue_story_points = self.story_points
         review_hours_by_story_points = settings.SPRINT_HOURS_RESERVED_FOR_REVIEW

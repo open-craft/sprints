@@ -6,6 +6,8 @@ import json
 
 import environ
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
+from typing import Optional
 
 SECONDS_IN_HOUR = 3600
 SECONDS_IN_MINUTE = 60
@@ -608,6 +610,52 @@ SPRINT_ASYNC_TASKS = {
         "one_off": True,
     },
 }
+
+
+def json_keys_to_float(json_dict):
+    """
+    Replaces the string keys of a dictionary with their float value or `None`, in case string cannot be cast to float
+    """
+    if isinstance(json_dict, dict):
+        processed_json_dict = {}
+        for key, value in json_dict.items():
+            processed_key: Optional[float]
+            try:
+                processed_key = float(key)
+            except ValueError:
+                processed_key = None
+            processed_json_dict[processed_key] = value
+        return processed_json_dict
+    return json_dict
+
+
+def validate_sprints_hours_reserved_for_review(json_dict):
+    """
+    Validates that the `null` key is defined in the `SPRINT_HOURS_RESERVED_FOR_REVIEW` setting and it processes its
+    keys, replacing them with their float value by using the `json_keys_to_float` function
+    :raises `ImproperlyConfigured` if "null" key is not in the passed dict
+    """
+    if "null" not in json_dict:
+        raise ImproperlyConfigured('Required "null" key is missing from "SPRINT_HOURS_RESERVED_FOR_REVIEW".')
+    return json_keys_to_float(json_dict)
+
+# Time estimates for reviewing tasks based on the assigned story points.
+# Configuration format:
+# {
+#     "null": Review time if task is not estimated,
+#     "1.9": Review time if task has less than 2 story points,
+#     "2": Review time if task has 2 story points,
+#     "3": Review time if task has 3 story points,
+#     "5": Review time if task has 5 story points,
+#     "5.1": Review time if task has more than 5 story points
+# }
+# Any time estimate that is not defined here, will use the "review time" from the closest value defined
+
+
+SPRINT_HOURS_RESERVED_FOR_REVIEW = json.loads(
+    env.str("SPRINT_HOURS_RESERVED_FOR_REVIEW", '{"null": 2, "1.9": 0.5, "2": 1, "3": 2, "5": 3, "5.1": 5}'),
+    object_hook=validate_sprints_hours_reserved_for_review
+)
 
 # GOOGLE CALENDAR
 # ------------------------------------------------------------------------------

@@ -83,10 +83,7 @@ class DashboardIssue:
         except (AttributeError, TypeError):
             # Possible for epics
             self.current_sprint = False
-        try:
-            self.story_points = int(getattr(issue.fields, issue_fields['Story Points'], 0))
-        except (AttributeError, TypeError):
-            self.story_points = 0
+        self.story_points = getattr(issue.fields, issue_fields['Story Points'], None)
         self.reviewer_1: JiraUser = getattr(issue.fields, issue_fields['Reviewer 1'], "Unassigned")
         if not self.reviewer_1:
             self.reviewer_1 = unassigned_user
@@ -124,12 +121,36 @@ class DashboardIssue:
 
         return max(self.time_estimate - self.review_time, 0)  # We don't want negative values here.
 
+    def calculate_review_time_from_story_points(self) -> float:
+        """
+        Calculate time needed for a review, by using the story points defined in the issue.
+
+        If the story points set in the issue are defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW`, then
+        it is going to return the review time for that value.
+        Otherwise, it will use the review time of the closest value defined in `SPRINT_HOURS_RESERVED_FOR_REVIEW`.
+        """
+        issue_story_points = self.story_points
+        review_hours_by_story_points = settings.SPRINT_HOURS_RESERVED_FOR_REVIEW
+        # If the story points value is defined in SPRINT_HOURS_RESERVED_FOR_REVIEW setting, then return it
+        if (hours := review_hours_by_story_points.get(issue_story_points)) is not None:
+            return hours
+
+        # As the story points value is not defined in SPRINT_HOURS_RESERVED_FOR_REVIEW setting, then we are going
+        # to use the review time for the closest story points value defined
+        defined_story_points = sorted([key for key in review_hours_by_story_points.keys() if key is not None])
+        if not defined_story_points:
+            # If not numerical values were defined, then we will use the "null"/undefined value
+            return review_hours_by_story_points[None]
+        nearest_story_points = min(defined_story_points, key=lambda story_points: abs(story_points - issue_story_points))
+        return review_hours_by_story_points[nearest_story_points]
+
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()
     def review_time(self) -> int:
         """
-        Calculate time needed for the review.
-        Unless directly specified (with Jira bot directive), we're planning 2 hours for stories bigger than 3 points.
+        Get time needed for the review.
+        Unless directly specified (with Jira bot directive), we're planning by using the
+        SPRINT_HOURS_RESERVED_FOR_REVIEW setting.
         """
         try:
             return self.get_bot_directive(settings.SPRINT_REVIEW_DIRECTIVE)
@@ -140,9 +161,7 @@ class DashboardIssue:
             if self.is_epic or self.status in settings.SPRINT_STATUS_NO_MORE_REVIEW:
                 return 0
 
-            if self.story_points <= 3:
-                return SECONDS_IN_HOUR
-            return int(2 * SECONDS_IN_HOUR)
+            return int(SECONDS_IN_HOUR * self.calculate_review_time_from_story_points())
 
     @property  # type: ignore  # cf: https://github.com/python/mypy/issues/1362
     @functools.lru_cache()

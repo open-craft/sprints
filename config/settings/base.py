@@ -636,7 +636,7 @@ def validate_sprints_hours_reserved_for_review(json_dict):
     :raises `ImproperlyConfigured` if "null" key is not in the passed dict
     """
     if "null" not in json_dict:
-        raise ImproperlyConfigured('required "null" key is missing for SPRINT_HOURS_RESERVED_FOR_REVIEW')
+        raise ImproperlyConfigured('Required "null" key is missing from "SPRINT_HOURS_RESERVED_FOR_REVIEW".')
     return json_keys_to_float(json_dict)
 
 # Time estimates for reviewing tasks based on the assigned story points.
